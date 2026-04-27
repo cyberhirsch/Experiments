@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>The Fractal Flame — IFS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070809;
+    --ink:#e6ecf2;
+    --dim:#5a6470;
+    --accent:#7fc7ff;
+    --warm:#ffb474;
+    --line:rgba(230,236,242,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--ink);overflow:hidden;font-family:'JetBrains Mono',monospace}
+  body{
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(127,199,255,0.06), transparent 55%),
+      radial-gradient(ellipse at 70% 80%, rgba(255,180,116,0.04), transparent 55%),
+      var(--bg);
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:100;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.35 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity:.4;mix-blend-mode:overlay;
+  }
+  header{
+    padding:22px 32px 8px;display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid var(--line);z-index:2;
+  }
+  header h1{
+    font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;
+    font-size:26px;letter-spacing:0.02em;
+  }
+  header h1 .num{font-family:'JetBrains Mono',monospace;font-style:normal;font-size:10px;color:var(--dim);margin-right:14px;letter-spacing:0.3em}
+  header .meta{font-size:10px;color:var(--dim);letter-spacing:0.25em;text-transform:uppercase}
+  header .meta b{color:var(--accent);font-weight:400}
+  main{position:relative;overflow:hidden}
+  #stage{position:absolute;inset:0;display:block;width:100%;height:100%}
+  .corner{
+    position:absolute;font-size:9px;color:var(--dim);letter-spacing:0.3em;text-transform:uppercase;
+    pointer-events:none;z-index:3;line-height:1.7;
+  }
+  .corner.tl{top:18px;left:32px}
+  .corner.tr{top:18px;right:32px;text-align:right}
+  .corner.bl{bottom:18px;left:32px}
+  .corner.br{bottom:18px;right:32px;text-align:right}
+  .corner b{color:var(--accent);font-weight:400}
+  .ornament{
+    position:absolute;left:50%;transform:translateX(-50%);
+    font-family:'Cormorant Garamond',serif;color:var(--dim);font-size:11px;letter-spacing:0.35em;
+    z-index:3;pointer-events:none;font-style:italic;
+  }
+  .ornament.top{top:14px}
+  .ornament.bot{bottom:14px}
+  footer{
+    padding:14px 32px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:10px;color:var(--dim);letter-spacing:0.25em;text-transform:uppercase;z-index:2;
+  }
+  footer .controls{display:flex;gap:14px;align-items:center}
+  footer button{
+    background:transparent;border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:9px;letter-spacing:0.3em;text-transform:uppercase;
+    padding:7px 14px;cursor:pointer;transition:all .25s ease;
+  }
+  footer button:hover{border-color:var(--accent);color:var(--accent)}
+  footer button.active{border-color:var(--accent);color:var(--accent);background:rgba(127,199,255,0.06)}
+  footer .sep{width:1px;height:18px;background:var(--line);margin:0 4px}
+  footer .slider-group{
+    display:flex;align-items:center;gap:10px;
+    font-size:9px;letter-spacing:0.25em;color:var(--dim);
+  }
+  footer .slider-group .val{color:var(--accent);min-width:54px;text-align:right;font-variant-numeric:tabular-nums}
+  footer input[type=range]{
+    -webkit-appearance:none;appearance:none;
+    width:100px;height:1px;background:var(--line);
+    outline:none;cursor:pointer;
+  }
+  footer input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;appearance:none;
+    width:9px;height:9px;border-radius:50%;
+    background:var(--accent);
+    cursor:pointer;border:none;
+  }
+  footer input[type=range]::-moz-range-thumb{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--accent);
+    cursor:pointer;border:none;
+  }
+  #readout{
+    position:absolute;right:32px;top:50%;transform:translateY(-50%);
+    font-size:9px;letter-spacing:0.18em;color:var(--dim);
+    writing-mode:vertical-rl;z-index:3;pointer-events:none;text-align:right;line-height:2;
+  }
+  #readout span{color:var(--accent)}
+  #status{
+    position:absolute;left:32px;top:50%;transform:translateY(-50%) rotate(180deg);
+    font-size:9px;letter-spacing:0.25em;color:var(--dim);writing-mode:vertical-rl;
+    z-index:3;pointer-events:none;
+  }
+  .crosshair{position:absolute;left:50%;top:50%;width:1px;height:1px;z-index:2;pointer-events:none}
+  .crosshair::before,.crosshair::after{content:"";position:absolute;background:var(--line)}
+  .crosshair::before{width:22px;height:1px;left:-11px;top:0}
+  .crosshair::after{width:1px;height:22px;left:0;top:-11px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>
+    <span class="num">№ 03 — VOL. I</span>
+    The Fractal Flame <span style="color:var(--dim);font-size:14px;font-style:normal"> · non-linear IFS</span>
+  </h1>
+  <div class="meta">IFS · WebGL2 · <b>Log-Density Mapping</b></div>
+</header>
+
+<main>
+  <div class="ornament top">— the chaos game on an attractor manifold —</div>
+
+  <div class="corner tl">chaotic system<br><b>Non-linear IFS</b><br>strange attractor</div>
+  <div class="corner tr">histogram <b>1024²</b><br>log mapping<br>gamma 2.2</div>
+  <div class="corner bl">variations <b>9 type</b><br>supersampling 2x<br>chaos game</div>
+  <div class="corner br">structural color<br><b>HDR render</b><br>recursive mapping</div>
+
+  <div class="crosshair"></div>
+  <div id="status">ITERATING ATTRACTOR</div>
+  <div id="readout">fps <span id="fps">0</span> · n <span id="nn">1,048,576</span> · iter <span id="it">0</span></div>
+
+  <canvas id="stage"></canvas>
+
+  <div class="ornament bot">⟡ ⟡ ⟡</div>
+</main>
+
+<footer>
+  <div>A recursive transformation of space ⟶ accumulation into a high-precision histogram</div>
+  <div class="controls">
+    <div class="slider-group">
+      <label>BRIGHT</label>
+      <input id="s-bright" type="range" min="0" max="2" step="0.01" value="0.8"/>
+      <span id="v-bright" class="val">0.80</span>
+    </div>
+    <div class="sep"></div>
+    <div class="slider-group">
+      <label>GAMMA</label>
+      <input id="s-gamma" type="range" min="0.5" max="4" step="0.1" value="2.2"/>
+      <span id="v-gamma" class="val">2.2</span>
+    </div>
+    <div class="sep"></div>
+    <button id="b-random">Randomize</button>
+    <button id="b-reset">Reset</button>
+    <div class="sep"></div>
+    <button id="b-pause">Pause</button>
+  </div>
+</footer>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* =================================================================
+   THE FRACTAL FLAME ALGORITHM (GPU)
+   -----------------------------------------------------------------
+   • Iterative Function System (IFS) with non-linear variations.
+   • High-precision accumulation buffer (histogram).
+   • Log-density mapping + Structural coloring.
+   • Parallel execution on GPU for real-time interaction.
+   ================================================================= */
+
+const PT_TEX = 1024;
+const N_PARTICLES = PT_TEX * PT_TEX;
+const HIST_RES = 1024;
+
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0);
+
+const gl = renderer.getContext();
+if (!(gl instanceof WebGL2RenderingContext)) {
+  document.body.innerHTML = '<div style="padding:40px;font-family:monospace;color:#e6ecf2">WebGL2 required.</div>';
+  throw new Error('WebGL2 required');
+}
+
+// --- State ---
+let paused = false;
+let brightness = 0.8;
+let gamma = 2.2;
+let iterationCount = 0;
+let randomSeed = Math.random();
+
+// --- Render Targets ---
+function makeRT(w, h, opts={}){
+  return new THREE.WebGLRenderTarget(w, h, {
+    minFilter: opts.linear ? THREE.LinearFilter : THREE.NearestFilter,
+    magFilter: opts.linear ? THREE.LinearFilter : THREE.NearestFilter,
+    format: THREE.RGBAFormat,
+    type: THREE.FloatType,
+    depthBuffer: false,
+    stencilBuffer: false,
+  });
+}
+
+const posA = makeRT(PT_TEX, PT_TEX);
+const posB = makeRT(PT_TEX, PT_TEX);
+let posRead = posA, posWrite = posB;
+
+const histRT = makeRT(HIST_RES, HIST_RES, { linear: true });
+
+// --- Shaders ---
+
+const FS_VERT = `
+  varying vec2 vUv;
+  void main(){
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+
+const updateFrag = `
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D uPos;
+  uniform float uTime;
+  uniform float uSeed;
+  uniform vec4 uXforms[18]; // 6 transforms: each 3 vec4s
+  
+  float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+  }
+
+  vec2 variation(vec2 p, int type) {
+    float r2 = dot(p, p) + 1e-6;
+    float r = sqrt(r2);
+    float th = atan(p.y, p.x);
+
+    if (type == 0) return p; // Linear
+    if (type == 1) return sin(p); // Sinusoidal
+    if (type == 2) return p / r2; // Spherical
+    if (type == 3) return vec2(p.x * sin(r2) - p.y * cos(r2), p.x * cos(r2) + p.y * sin(r2)); // Swirl
+    if (type == 4) return vec2((p.x - p.y) * (p.x + p.y), 2.0 * p.x * p.y) / r; // Horseshoe
+    if (type == 5) return vec2(th / 3.14159, r - 1.0); // Polar
+    if (type == 6) return r * vec2(sin(th + r), cos(th - r)); // Handkerchief
+    if (type == 7) return r * vec2(sin(th * r), -cos(th * r)); // Heart
+    if (type == 8) return (th / 3.14159) * vec2(sin(3.14159 * r), cos(3.14159 * r)); // Disc
+    if (type == 9) return (1.0/r) * vec2(cos(th)+sin(r), sin(th)-cos(r)); // Spiral
+    if (type == 10) return vec2(sin(th)/r, r*cos(th)); // Hyperbolic
+    if (type == 11) return vec2(sin(th)*cos(r), cos(th)*sin(r)); // Diamond
+    if (type == 12) { // Ex
+      float p0 = sin(th+r); float p1 = cos(th-r);
+      return r * vec2(p0*p0*p0 + p1*p1*p1, p0*p0*p0 - p1*p1*p1);
+    }
+    if (type == 13) { // Julia
+      float r_sqrt = sqrt(r);
+      float th2 = th/2.0 + (hash(p.xy + uTime) > 0.5 ? 3.14159 : 0.0);
+      return r_sqrt * vec2(cos(th2), sin(th2));
+    }
+    return p;
+  }
+
+  void main(){
+    vec4 state = texture2D(uPos, vUv);
+    vec2 p = state.xy;
+    float c = state.z;
+    
+    float r = hash(vUv + uTime * 0.123 + uSeed);
+    int idx = int(r * 6.0);
+    
+    vec4 m0 = uXforms[idx*3 + 0];
+    vec4 m1 = uXforms[idx*3 + 1];
+    vec4 m2 = uXforms[idx*3 + 2];
+    
+    vec2 pNext = vec2(
+      m0.x * p.x + m0.y * p.y + m0.z,
+      m0.w * p.x + m1.x * p.y + m1.y
+    );
+    
+    pNext = variation(pNext, int(m1.z));
+    
+    float cNext = mix(c, m1.w, 0.5);
+    
+    // Convergence check
+    if (length(pNext) > 10.0 || isnan(pNext.x)) {
+      pNext = vec2(hash(vUv + uTime)-0.5, hash(vUv - uTime)-0.5) * 4.0;
+    }
+
+    gl_FragColor = vec4(pNext, cNext, 1.0);
+  }
+`;
+
+const accumVert = `
+  precision highp float;
+  uniform sampler2D uPos;
+  uniform float uPtTex;
+  varying float vCol;
+  void main(){
+    int id = gl_VertexID;
+    int x = id % int(uPtTex);
+    int y = id / int(uPtTex);
+    vec2 uv = (vec2(float(x), float(y)) + 0.5) / uPtTex;
+    vec4 state = texture2D(uPos, uv);
+    
+    vCol = state.z;
+    // Projection and scaling
+    gl_Position = vec4(state.xy * 0.4, 0.0, 1.0);
+    gl_PointSize = 1.0;
+  }
+`;
+
+const accumFrag = `
+  precision highp float;
+  varying float vCol;
+  void main(){
+    vec3 c1 = vec3(0.1, 0.4, 1.0);
+    vec3 c2 = vec3(1.0, 0.2, 0.1);
+    vec3 c3 = vec3(1.0, 0.8, 0.3);
+    
+    vec3 color = vCol < 0.5 ? mix(c1, c2, vCol * 2.0) : mix(c2, c3, (vCol - 0.5) * 2.0);
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+const postFrag = `
+  precision highp float;
+  varying vec2 vUv;
+  uniform sampler2D uHist;
+  uniform float uBrightness;
+  uniform float uGamma;
+  
+  void main(){
+    vec4 data = texture2D(uHist, vUv);
+    float density = data.a;
+    if (density <= 0.0) {
+      gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+      return;
+    }
+    
+    vec3 color = data.rgb / density;
+    float ld = log(1.0 + density * 0.01 * uBrightness) / log(1.0 + 1000.0 * 0.01 * uBrightness);
+    
+    vec3 final = color * pow(ld, 1.0 / uGamma);
+    // Vibrance boost
+    final = mix(vec3(dot(final, vec3(0.3, 0.59, 0.11))), final, 1.2);
+    
+    gl_FragColor = vec4(final, 1.0);
+  }
+`;
+
+// --- Materials ---
+const updateMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uPos: { value: null },
+    uTime: { value: 0 },
+    uSeed: { value: 0 },
+    uXforms: { value: new Float32Array(18 * 4) }
+  },
+  vertexShader: FS_VERT,
+  fragmentShader: updateFrag
+});
+
+const accumMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uPos: { value: null },
+    uPtTex: { value: PT_TEX }
+  },
+  vertexShader: accumVert,
+  fragmentShader: accumFrag,
+  blending: THREE.AdditiveBlending,
+  transparent: true,
+  depthTest: false, depthWrite: false
+});
+
+const postMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uHist: { value: null },
+    uBrightness: { value: brightness },
+    uGamma: { value: gamma }
+  },
+  vertexShader: FS_VERT,
+  fragmentShader: postFrag
+});
+
+// --- Scenery ---
+const simScene = new THREE.Scene();
+const simCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const simQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null);
+simScene.add(simQuad);
+
+const accumScene = new THREE.Scene();
+const accumGeom = new THREE.BufferGeometry();
+accumGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N_PARTICLES * 3), 3));
+const accumPoints = new THREE.Points(accumGeom, accumMat);
+accumScene.add(accumPoints);
+
+// --- Logic ---
+
+function randomXforms() {
+  const arr = updateMat.uniforms.uXforms.value;
+  // Pick a set of variations to use for this attractor
+  const variationPool = [];
+  while(variationPool.length < 3) {
+    const v = Math.floor(Math.random() * 14);
+    if (!variationPool.includes(v)) variationPool.push(v);
+  }
+
+  for (let i = 0; i < 6; i++) {
+    const scale = 0.6 + Math.random() * 0.6;
+    const ang = Math.random() * Math.PI * 2;
+    const a = Math.cos(ang) * scale;
+    const b = -Math.sin(ang) * scale;
+    const c = Math.sin(ang) * scale;
+    const d = Math.cos(ang) * scale;
+    
+    const tx = (Math.random() - 0.5) * 3.0;
+    const ty = (Math.random() - 0.5) * 3.0;
+    
+    const varType = variationPool[Math.floor(Math.random() * variationPool.length)];
+    const col = Math.random();
+    
+    const base = i * 12;
+    arr[base + 0] = a; arr[base + 1] = b; arr[base + 2] = tx; arr[base + 3] = c;
+    arr[base + 4] = d; arr[base + 5] = ty; arr[base + 6] = varType; arr[base + 7] = col;
+  }
+}
+
+function initPos() {
+  const data = new Float32Array(N_PARTICLES * 4);
+  for (let i = 0; i < N_PARTICLES; i++) {
+    data[i * 4 + 0] = (Math.random() - 0.5) * 4.0;
+    data[i * 4 + 1] = (Math.random() - 0.5) * 4.0;
+    data[i * 4 + 2] = Math.random();
+    data[i * 4 + 3] = 1;
+  }
+  const tex = new THREE.DataTexture(data, PT_TEX, PT_TEX, THREE.RGBAFormat, THREE.FloatType);
+  tex.needsUpdate = true;
+  
+  const mat = new THREE.MeshBasicMaterial({ map: tex });
+  simQuad.material = mat;
+  renderer.setRenderTarget(posRead);
+  renderer.render(simScene, simCam);
+  renderer.setRenderTarget(posWrite);
+  renderer.render(simScene, simCam);
+  
+  renderer.setRenderTarget(histRT);
+  renderer.clear();
+  iterationCount = 0;
+  tex.dispose();
+}
+
+function resetAttractor() {
+  randomXforms();
+  initPos();
+}
+
+// --- Main Loop ---
+
+const fpsEl = document.getElementById('fps');
+const itEl = document.getElementById('it');
+let lastTime = 0;
+let frames = 0;
+
+function loop(time) {
+  requestAnimationFrame(loop);
+  
+  if (!paused) {
+    updateMat.uniforms.uPos.value = posRead.texture;
+    updateMat.uniforms.uTime.value = time * 0.001;
+    updateMat.uniforms.uSeed.value = randomSeed;
+    simQuad.material = updateMat;
+    renderer.setRenderTarget(posWrite);
+    renderer.render(simScene, simCam);
+    [posRead, posWrite] = [posWrite, posRead];
+    
+    accumMat.uniforms.uPos.value = posRead.texture;
+    renderer.setRenderTarget(histRT);
+    renderer.autoClear = false;
+    renderer.render(accumScene, simCam);
+    renderer.autoClear = true;
+    
+    iterationCount++;
+  }
+  
+  postMat.uniforms.uHist.value = histRT.texture;
+  postMat.uniforms.uBrightness.value = brightness;
+  postMat.uniforms.uGamma.value = gamma;
+  simQuad.material = postMat;
+  renderer.setRenderTarget(null);
+  renderer.render(simScene, simCam);
+  
+  frames++;
+  if (time > lastTime + 1000) {
+    fpsEl.textContent = Math.round(frames * 1000 / (time - lastTime));
+    lastTime = time;
+    frames = 0;
+    itEl.textContent = (iterationCount * N_PARTICLES).toLocaleString();
+  }
+}
+
+// --- UI ---
+const sBright = document.getElementById('s-bright');
+const vBright = document.getElementById('v-bright');
+const sGamma = document.getElementById('s-gamma');
+const vGamma = document.getElementById('v-gamma');
+const bRandom = document.getElementById('b-random');
+const bReset = document.getElementById('b-reset');
+const bPause = document.getElementById('b-pause');
+
+sBright.oninput = () => {
+  brightness = parseFloat(sBright.value);
+  vBright.textContent = brightness.toFixed(2);
+};
+sGamma.oninput = () => {
+  gamma = parseFloat(sGamma.value);
+  vGamma.textContent = gamma.toFixed(1);
+};
+bRandom.onclick = () => {
+  randomSeed = Math.random();
+  resetAttractor();
+};
+bReset.onclick = () => {
+  renderer.setRenderTarget(histRT);
+  renderer.clear();
+  iterationCount = 0;
+};
+bPause.onclick = () => {
+  paused = !paused;
+  bPause.classList.toggle('active', paused);
+  bPause.textContent = paused ? 'Resume' : 'Pause';
+};
+
+function resize() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  renderer.setSize(w, h);
+}
+window.onresize = resize;
+resize();
+
+resetAttractor();
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
