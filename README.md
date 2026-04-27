@@ -6,7 +6,7 @@ A collection of creative coding experiments and R&D projects.
 
 ### Flame
 A flame fractal renderer implementation exploring 2D and 3D iterated function systems (IFS).
-- `Flame.html`, `Flame2d.html`: 2D implementations of flame fractals.
+- `Flame2d.html`: 2D implementations of flame fractals.
 - `Flame3d.html`: 3D implementation.
 - Reference: Based on the "The Fractal Flame Algorithm" by Scott Draves.
 
