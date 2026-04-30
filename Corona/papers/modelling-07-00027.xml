@@ -1,0 +1,1372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE article PUBLIC "-//NLM//DTD JATS (Z39.96) Journal Publishing DTD v1.3 20210610//EN" "JATS-journalpublishing1-3.dtd">
+<article xmlns:mml="http://www.w3.org/1998/Math/MathML" xmlns:xlink="http://www.w3.org/1999/xlink" article-type="research-article" dtd-version="1.3" xml:lang="en">
+  <front>
+    <journal-meta>
+      <journal-id journal-id-type="publisher-id">modelling</journal-id>
+      <journal-title-group>
+        <journal-title>Modelling</journal-title>
+        <abbrev-journal-title abbrev-type="publisher">Modelling</abbrev-journal-title>
+        <abbrev-journal-title abbrev-type="pubmed">Modelling</abbrev-journal-title>
+      </journal-title-group>
+      <issn pub-type="epub">2673-3951</issn>
+      <publisher>
+        <publisher-name>MDPI</publisher-name>
+      </publisher>
+    </journal-meta>
+    <article-meta>
+      <article-id pub-id-type="doi">10.3390/modelling7010027</article-id>
+      <article-id pub-id-type="publisher-id">modelling-07-00027</article-id>
+      <article-categories>
+        <subj-group>
+          <subject>Article</subject>
+        </subj-group>
+      </article-categories>
+      <title-group>
+        <article-title>GPU-Accelerated FLIP Fluid Simulation Based on Spatial Hashing Index and Thread Block-Level Cooperation</article-title>
+      </title-group>
+      <contrib-group>
+        <contrib contrib-type="author">
+          <name>
+            <surname>Zou</surname>
+            <given-names>Changjun</given-names>
+          </name>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Conceptualization" vocab-term-identifier="https://credit.niso.org/contributor-roles/conceptualization/">Conceptualization</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Writing &#x2013; review &amp; editing" vocab-term-identifier="https://credit.niso.org/contributor-roles/writing-review-editing/">Writing &#x2013; review &amp; editing</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Supervision" vocab-term-identifier="https://credit.niso.org/contributor-roles/supervision/">Supervision</role>
+          <xref rid="c1-modelling-07-00027" ref-type="corresp">*</xref>
+        </contrib>
+        <contrib contrib-type="author">
+          <name>
+            <surname>Luo</surname>
+            <given-names>Hui</given-names>
+          </name>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Conceptualization" vocab-term-identifier="https://credit.niso.org/contributor-roles/conceptualization/">Conceptualization</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Validation" vocab-term-identifier="https://credit.niso.org/contributor-roles/validation/">Validation</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Writing &#x2013; original draft" vocab-term-identifier="https://credit.niso.org/contributor-roles/writing-original-draft/">Writing &#x2013; original draft</role>
+          <role vocab="credit" vocab-identifier="https://credit.niso.org/" vocab-term="Writing &#x2013; review &amp; editing" vocab-term-identifier="https://credit.niso.org/contributor-roles/writing-review-editing/">Writing &#x2013; review &amp; editing</role>
+        </contrib>
+      </contrib-group>
+      <contrib-group>
+        <contrib contrib-type="editor">
+          <name>
+            <surname>Gao</surname>
+            <given-names>Wei</given-names>
+          </name>
+          <role>Academic Editor</role>
+        </contrib>
+      </contrib-group>
+      <aff id="af1-modelling-07-00027">School of Information and Software Engineering, East China Jiaotong University, Nanchang 330013, China; <email>2024068081200004@ecjtu.edu.cn</email></aff>
+      <author-notes>
+        <corresp id="c1-modelling-07-00027"><label>*</label>Correspondence: <email>zouchangjun@ecjtu.edu.cn</email></corresp>
+      </author-notes>
+      <pub-date pub-type="epub">
+        <day>21</day>
+        <month>01</month>
+        <year>2026</year>
+      </pub-date>
+      <pub-date pub-type="collection">
+        <month>02</month>
+        <year>2026</year>
+      </pub-date>
+      <volume>7</volume>
+      <issue>1</issue>
+      <elocation-id>27</elocation-id>
+      <history>
+        <date date-type="received">
+          <day>20</day>
+          <month>11</month>
+          <year>2025</year>
+        </date>
+        <date date-type="rev-recd">
+          <day>15</day>
+          <month>01</month>
+          <year>2026</year>
+        </date>
+        <date date-type="accepted">
+          <day>19</day>
+          <month>01</month>
+          <year>2026</year>
+        </date>
+      </history>
+      <permissions>
+        <copyright-statement>&#xA9; 2026 by the authors.</copyright-statement>
+        <copyright-year>2026</copyright-year>
+        <license license-type="open-access">
+          <license-p>Licensee MDPI, Basel, Switzerland. This article is an open access article distributed under the terms and conditions of the <ext-link ext-link-type="uri" xlink:href="https://creativecommons.org/licenses/by/4.0/">Creative Commons Attribution (CC BY) license</ext-link>.</license-p>
+        </license>
+      </permissions>
+      <abstract>
+        <p>The Fluid Implicit Particle (FLIP) method is widely adopted in fluid simulation due to its computational efficiency and low dissipation. However, its high computational complexity makes it challenging for traditional CPU architectures to meet real-time requirements. To address this limitation, this work migrates the FLIP method to the GPU using the CUDA framework, achieving a transition from conventional CPU computation to large-scale GPU parallel computing. Furthermore, during particle-to-grid (P2G) mapping, the conventional scattering strategy suffers from significant performance bottlenecks due to frequent atomic operations. To overcome this challenge, we propose a GPU parallelization strategy based on spatial hashing indexing and thread block-level cooperation. This approach effectively avoids atomic contention and significantly enhances parallel efficiency. Through diverse fluid simulation experiments, the proposed GPU-parallelized strategy achieves a nearly 50&#xD7; speedup ratio compared to the conventional CPU-FLIP method. Additionally, in the P2G stage, our method demonstrates over 30% performance improvement relative to the traditional GPU-based particle-thread scattering strategy, while the overall simulation efficiency gains exceeding 20%.</p>
+      </abstract>
+      <kwd-group>
+        <kwd>FLIP method</kwd>
+        <kwd>fluid simulation</kwd>
+        <kwd>parallel computing</kwd>
+        <kwd>CUDA</kwd>
+        <kwd>spatial hashing index</kwd>
+        <kwd>thread block-level cooperation</kwd>
+      </kwd-group>
+      <funding-group>
+        <award-group>
+          <funding-source>National Natural Science Foundation of China</funding-source>
+          <award-id>No. 62162027</award-id>
+        </award-group>
+        <award-group>
+          <funding-source>Humanities and Social Sciences Research Project of Jiangxi Universities</funding-source>
+          <award-id>JC24205</award-id>
+        </award-group>
+        <award-group>
+          <funding-source>Innovation and Entrepreneurship Education Research Project of East China Jiaotong University</funding-source>
+          <award-id>24hjct18</award-id>
+        </award-group>
+        <award-group>
+          <funding-source>College Student Innovation and Entrepreneurship Training Program</funding-source>
+          <award-id>202410404014</award-id>
+        </award-group>
+        <funding-statement>National Natural Science Foundation of China (No. 62162027); Humanities and Social Sciences Research Project of Jiangxi Universities (JC24205); Innovation and Entrepreneurship Education Research Project of East China Jiaotong University (24hjct18). College Student Innovation and Entrepreneurship Training Program (202410404014).</funding-statement>
+      </funding-group>
+    </article-meta>
+  </front>
+  <body>
+    <sec id="sec1-modelling-07-00027" sec-type="intro">
+      <title>1. Introduction</title>
+      <p>The development of fluid motion simulation has seen a continuous emergence and evolution of various methods. Stam [<xref ref-type="bibr" rid="B1-modelling-07-00027">1</xref>] proposed an unconditionally stable implicit solver for incompressible fluids, using a semi-Lagrangian approach to solve the advection term&#x2014;this approach later became the theoretical foundation for most Eulerian methods. Because Eulerian methods are based on regular grids, they excel at solving the macroscopic governing equations of fluids and handling phenomena such as diffusion and advection. The Fluid Implicit Particle (FLIP) method, proposed by Brackbill and Ruppel in 1986 [<xref ref-type="bibr" rid="B2-modelling-07-00027">2</xref>], has gradually become one of the key approaches in fluid simulation due to its unique advantages. The FLIP method skillfully combines the strengths of both the Lagrangian method and Eulerian method, thereby enabling high-resolution, detailed fluid simulations. Zhu and Bridson [<xref ref-type="bibr" rid="B3-modelling-07-00027">3</xref>] introduced the FLIP method into fluid simulation in computer graphics.</p>
+      <p>Concurrently, Graphics Processing Unit (GPU) technology has evolved rapidly. Originally designed for graphics rendering, GPUs offer substantial parallel computing capabilities and a highly parallel thread-level architecture [<xref ref-type="bibr" rid="B4-modelling-07-00027">4</xref>]. To support parallel computation, they are equipped with high-bandwidth memory systems, which enable fast data read/write operations to meet the computational needs of numerous processing cores operating concurrently [<xref ref-type="bibr" rid="B5-modelling-07-00027">5</xref>]. Compared to CPUs, GPUs include numerous computational cores capable of processing thousands or even tens of thousands of threads concurrently, offering significant advantages in handling large-scale parallel computing tasks [<xref ref-type="bibr" rid="B6-modelling-07-00027">6</xref>]. In fluid simulation acceleration, Harris [<xref ref-type="bibr" rid="B7-modelling-07-00027">7</xref>] implemented Eulerian fluid simulations on GPUs using the iterative Jacobi method. Chen et al. [<xref ref-type="bibr" rid="B8-modelling-07-00027">8</xref>] proposed a GPU-based fixed-point method to accelerate Jacobi iteration for real-time painting simulation. Xu Feng [<xref ref-type="bibr" rid="B9-modelling-07-00027">9</xref>] implemented a parallel SPH algorithm on the GPU many-core architecture while optimizing the parallel algorithm, achieving a computational efficiency improvement of over 20 times. Jin Shanqin et al. [<xref ref-type="bibr" rid="B10-modelling-07-00027">10</xref>] combined a particle-pair-based parallel computing method with an improved SPH approach, achieving a speedup ratio exceeding 10. Yang Zhiguo et al. [<xref ref-type="bibr" rid="B11-modelling-07-00027">11</xref>] applied GPU algorithms to two-dimensional dam-break simulations, also obtaining acceleration effects by orders of magnitude. RENHE et al. [<xref ref-type="bibr" rid="B12-modelling-07-00027">12</xref>] utilized tensor field reconstruction in the projection step, implementing directional modulation of fluids through a GPU parallel strategy. Guan Yanmin&#x2019;s team [<xref ref-type="bibr" rid="B13-modelling-07-00027">13</xref>] established particle reordering technology and proposed an improved GPU acceleration strategy, significantly enhancing the efficiency of the SPH method.</p>
+      <p>In recent years, GPU-based parallel acceleration of the FLIP method has achieved notable breakthroughs through algorithmic restructuring and hardware&#x2013;software co-design. Kui Wu [<xref ref-type="bibr" rid="B14-modelling-07-00027">14</xref>] proposed the GVDB sparse voxel architecture, enabling dynamic grid construction, efficient parallel rasterization of particles to voxels, and a matrix-free conjugate gradient solver for sparse grids. However, its reliance on the GVDB data structure for sparse fluid simulation limits its generalizability and portability. Xin Jianjian et al. [<xref ref-type="bibr" rid="B15-modelling-07-00027">15</xref>] developed an efficient parallel solver using the virtual grid method, making full use of shared memory and efficiently solving the Poisson equation. Nonetheless, parallelization was only achieved for the pressure Poisson equation in fluid simulation, without fully parallelizing the entire simulation process. In the field of distributed computing, Ma [<xref ref-type="bibr" rid="B16-modelling-07-00027">16</xref>] supported multi-phase flow simulation at the hundreds-of-millions grid scale through fine-grained parallelism and communication-hiding strategies. Mao [<xref ref-type="bibr" rid="B17-modelling-07-00027">17</xref>] integrated machine learning to accelerate fluid simulation, achieving an efficiency improvement of two orders of magnitude in reactive flows.</p>
+      <p>Despite these advancements in GPU-accelerated FLIP methods, a fundamental performance bottleneck persists in the critical particle-to-grid mapping (P2G) stage when using the intuitive scattering strategy for parallelization. In this strategy, each particle thread independently scatters its attributes to the surrounding grid nodes. While logically straightforward, it results in severe write conflict because multiple particles (handled by concurrent threads) frequently influence the same grid node. To ensure computational correctness within the CUDA programming model [<xref ref-type="bibr" rid="B18-modelling-07-00027">18</xref>], this necessitates the use of atomic operations, which serializes memory accesses.</p>
+      <p>To directly address this atomic operations bottleneck, we propose a novel GPU parallelization strategy that fundamentally restructures the P2G workflow. Instead of the particle-centric scattering paradigm, we introduce a grid-centric approach based on two key innovations: (1) a spatial hashing index that efficiently organizes particles for coherent neighborhood queries, and (2) a thread block-level cooperation mechanism assigning entire grid cells to thread blocks for conflict-free parallel accumulation. This strategy is designed to completely eliminate atomic operations during the P2G interpolation. By migrating the FLIP method to the GPU using this optimized framework, we aim not only to leverage massive parallelism but also to achieve higher computational efficiency.</p>
+    </sec>
+    <sec id="sec2-modelling-07-00027">
+      <title>2. FLIP Algorithm in Fluid Simulation</title>
+      <sec id="sec2dot1-modelling-07-00027">
+        <title>2.1. Related Work</title>
+        <p>The FLIP method integrates Lagrangian and Eulerian perspectives. The Lagrangian method tracks individual particles, enabling accurate modeling of material transport and fluid deformation. The Eulerian method discretizes the computational domain into a regular grid, where the macroscopic fluid motion is described by solving the governing equations on grid nodes. Boyd et al. [<xref ref-type="bibr" rid="B19-modelling-07-00027">19</xref>] proposed the Multi-FLIP algorithm, which extended the classical FLIP framework to handle multi-phase flows innovatively. While that work expanded FLIP&#x2019;s applicability to complex interactions, it focused on algorithmic correctness and physical fidelity rather than optimizing computational performance for real-time execution on parallel architectures such as GPUs. To improve the flexibility of simulations, Yang et al. [<xref ref-type="bibr" rid="B20-modelling-07-00027">20</xref>] introduced an adaptive FLIP method that dynamically adjusts simulation parameters. Although this adaptability improves efficiency in some scenarios, the method does not restructure the parallel P2G step. Addressing numerical dissipation and stability, Ferstl et al. [<xref ref-type="bibr" rid="B21-modelling-07-00027">21</xref>] achieved a breakthrough in memory efficiency and accuracy with the NarrowBand FLIP method, which confines computation near the fluid surface. However, its dynamic and irregular data structures are designed for CPU execution and are not suited for maximizing throughput on massively parallel GPUs.</p>
+        <p>In summary, prior research has significantly improved the physical realism, adaptability, and numerical stability of the FLIP method. However, most prior works extended FLIP at the algorithmic level and did not address the core performance bottleneck for large-scale GPU parallelism: severe thread serialization caused by atomic operations during the parallel P2G step. Particularly, when the simulation scale exceeds millions of particles, this bottleneck leads to a drastic degradation in parallel efficiency (see experiments in <xref ref-type="sec" rid="sec4dot2-modelling-07-00027">Section 4.2</xref>). Consequently, the focus of this work differs from prior research: rather than proposing a new physical variant of FLIP, we concentrate on reconstructing the data-parallel paradigm of the parallel P2G step on a GPU. Inspired by spatial indexing concepts from neighborhood search, we aim to design a parallel P2G strategy that completely avoids atomic operations and is tailored to the GPU memory hierarchy, thereby addressing the real-time challenge of large-scale, high-density fluid simulation. This forms the direct motivation for the proposed GPU acceleration method based on spatial hashing and thread block-level cooperation.</p>
+      </sec>
+      <sec id="sec2dot2-modelling-07-00027">
+        <title>2.2. Algorithm Steps of FLIP</title>
+        <p>(1) Particle Advection</p>
+        <p>In this step, particle positions are predicted for the next time step based on the current velocity field. For higher accuracy, the fourth-order Runge&#x2013;Kutta integration method [<xref ref-type="bibr" rid="B22-modelling-07-00027">22</xref>] (Equation (1)) is used for calculation:<disp-formula id="FD1-modelling-07-00027"><label>(1)</label><mml:math display="block" id="mm1"><mml:semantics><mml:mtable columnalign="left"><mml:mtr><mml:mtd><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo stretchy="false">)</mml:mo></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac></mml:mstyle><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="false">)</mml:mo></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>3</mml:mn></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mn>1</mml:mn><mml:mn>2</mml:mn></mml:mfrac></mml:mstyle><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="false">)</mml:mo></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>4</mml:mn></mml:mrow></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>3</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="false">)</mml:mo></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>2</mml:mn><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:mn>2</mml:mn><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>3</mml:mn></mml:mrow></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>4</mml:mn></mml:mrow></mml:msub><mml:mo stretchy="false">)</mml:mo></mml:mrow><mml:mn>6</mml:mn></mml:mfrac></mml:mstyle></mml:mtd></mml:mtr></mml:mtable></mml:semantics></mml:math></disp-formula>
+        where <inline-formula><mml:math id="mm2"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> is the velocity field function returning the velocity at position <inline-formula><mml:math id="mm3"><mml:semantics><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula>, and <inline-formula><mml:math id="mm4"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>1</mml:mn></mml:mrow></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula>, <inline-formula><mml:math id="mm5"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>2</mml:mn></mml:mrow></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula>, <inline-formula><mml:math id="mm6"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>3</mml:mn></mml:mrow></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula>,<inline-formula><mml:math id="mm7"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mrow><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>m</mml:mi><mml:mi>p</mml:mi><mml:mn>4</mml:mn></mml:mrow></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula> are intermediate slope vectors used in the fourth-order Runge&#x2013;Kutta (RK4) calculation.</p>
+        <p>(2) Particle-to-grid mapping (P2G)</p>
+        <p>In the P2G step, based on the positions <inline-formula><mml:math id="mm8"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>x</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup></mml:mrow></mml:semantics></mml:math></inline-formula> and velocities <inline-formula><mml:math id="mm9"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>p</mml:mi></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula> of particles surrounding each grid cell, the interpolation weight coefficients <inline-formula><mml:math id="mm10"><mml:semantics><mml:mrow><mml:msub><mml:mi>&#x3C9;</mml:mi><mml:mi>p</mml:mi></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula> of nearby particles are computed using a unified interpolation kernel function (such as trilinear interpolation). The particle velocities are then weighted and accumulated as grid mass values <inline-formula><mml:math id="mm11"><mml:semantics><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mo>=</mml:mo><mml:msub><mml:mi>&#x3C9;</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>&#x22C5;</mml:mo><mml:msub><mml:mi>m</mml:mi><mml:mi>p</mml:mi></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula>, while the sum of interpolation weights (the grid cumulative momentum) <inline-formula><mml:math id="mm12"><mml:semantics><mml:mrow><mml:msub><mml:mi>Q</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:mo>=</mml:mo><mml:msub><mml:mi>&#x3C9;</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>&#x22C5;</mml:mo><mml:msub><mml:mi>m</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>&#x22C5;</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>p</mml:mi></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula> is also accumulated. The grid velocity <inline-formula><mml:math id="mm13"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:msub><mml:mi>Q</mml:mi><mml:mi>g</mml:mi></mml:msub></mml:mrow><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub></mml:mrow></mml:mfrac></mml:mstyle></mml:mrow></mml:semantics></mml:math></inline-formula> is calculated as the ratio of the accumulated momentum to the accumulated mass. For empty grid cells where no particles are present nearby, the velocity is set to zero.</p>
+        <p>(3) Apply external force</p>
+        <p>Following the P2G step, external body forces (such as gravity) are applied to the grid velocity field <inline-formula><mml:math id="mm14"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mo>&#x2217;</mml:mo></mml:msubsup></mml:mrow></mml:semantics></mml:math></inline-formula>. Ignoring the pressure gradient, through explicit time integration, using forward Euler integration, the intermediate grid velocity field <inline-formula><mml:math id="mm15"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mo>&#x2217;</mml:mo></mml:msubsup></mml:mrow></mml:semantics></mml:math></inline-formula> is computed as the following Formula (2):<disp-formula id="FD2-modelling-07-00027"><label>(2)</label><mml:math display="block" id="mm16"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mo>&#x2217;</mml:mo></mml:msubsup><mml:mo>=</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mrow><mml:mi>e</mml:mi><mml:mi>x</mml:mi><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>r</mml:mi><mml:mi>n</mml:mi><mml:mi>a</mml:mi><mml:mi>l</mml:mi></mml:mrow></mml:msub><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi></mml:mrow></mml:semantics></mml:math></disp-formula>
+        where <inline-formula><mml:math id="mm17"><mml:semantics><mml:mrow><mml:msub><mml:mi>a</mml:mi><mml:mrow><mml:mi>e</mml:mi><mml:mi>x</mml:mi><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>r</mml:mi><mml:mi>n</mml:mi><mml:mi>a</mml:mi><mml:mi>l</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula> is the acceleration produced by external forces and <inline-formula><mml:math id="mm18"><mml:semantics><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> is the time step.</p>
+        <p>It is important to note that this intermediate velocity field <inline-formula><mml:math id="mm19"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mo>&#x2217;</mml:mo></mml:msubsup></mml:mrow></mml:semantics></mml:math></inline-formula> does not yet satisfy the fluid&#x2019;s incompressibility condition (i.e., zero divergence), nor does it fully comply with boundary conditions (e.g., no-slip). Therefore, this field is merely a physically incomplete transitional state. It must subsequently undergo boundary treatment, followed by a pressure projection step to correct it, in order to achieve fluid incompressibility.</p>
+        <p>(4) Apply boundary conditions</p>
+        <p>For a fluid region, boundary conditions must be specified, which define the fluid&#x2019;s behavior on the physical boundaries of the fluid region. When simulating liquids, there are two types of boundary conditions: the solid boundaries and the free-surface boundaries. At a solid boundary, the condition is <inline-formula><mml:math id="mm20"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>&#x22C5;</mml:mo><mml:mover accent="true"><mml:mi>n</mml:mi><mml:mo>&#x2192;</mml:mo></mml:mover><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula>, where <inline-formula><mml:math id="mm21"><mml:semantics><mml:mover accent="true"><mml:mi>n</mml:mi><mml:mo>&#x2192;</mml:mo></mml:mover></mml:semantics></mml:math></inline-formula> is the normal vector of the boundary surface. This condition ensures that the fluid cannot flow into a boundary.</p>
+        <p>(5) Grid solution and velocity field update</p>
+        <p>The core objective of the grid solver is to satisfy the incompressibility condition. The algorithm needs to find a pressure field <inline-formula><mml:math id="mm22"><mml:semantics><mml:mi>p</mml:mi></mml:semantics></mml:math></inline-formula> by constructing the pressure Poisson equation (PPE) based on an intermediate velocity field, as shown in Equation (3):<disp-formula id="FD3-modelling-07-00027"><label>(3)</label><mml:math display="block" id="mm23"><mml:semantics><mml:mrow><mml:msup><mml:mo>&#x2207;</mml:mo><mml:mn>2</mml:mn></mml:msup><mml:mi>p</mml:mi><mml:mo>=</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mi>&#x3C1;</mml:mi><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi></mml:mrow></mml:mfrac></mml:mstyle><mml:mo>&#x2207;</mml:mo><mml:mo>&#x22C5;</mml:mo><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mo>&#x2217;</mml:mo></mml:msubsup></mml:mrow></mml:semantics></mml:math></disp-formula></p>
+        <p>Combined with the free-surface (<inline-formula><mml:math id="mm24"><mml:semantics><mml:mrow><mml:mi>p</mml:mi><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula>) and solid boundary (zero normal velocity gradient) conditions, the pressure field <inline-formula><mml:math id="mm25"><mml:semantics><mml:mi>p</mml:mi></mml:semantics></mml:math></inline-formula> is obtained by solving a system of linear equations, the intermediate velocity is implicitly corrected by the pressure gradient <inline-formula><mml:math id="mm26"><mml:semantics><mml:mrow><mml:mo>&#x2207;</mml:mo><mml:mi>p</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>, and the grid velocity is updated as shown in Equation (4):<disp-formula id="FD4-modelling-07-00027"><label>(4)</label><mml:math display="block" id="mm27"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msubsup><mml:mo>=</mml:mo><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mo>&#x2217;</mml:mo></mml:msubsup><mml:mo>&#x2212;</mml:mo><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi></mml:mrow><mml:mi>&#x3C1;</mml:mi></mml:mfrac></mml:mstyle><mml:mo>&#x2207;</mml:mo><mml:mi>p</mml:mi></mml:mrow></mml:semantics></mml:math></disp-formula>
+        where <inline-formula><mml:math id="mm28"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msubsup></mml:mrow></mml:semantics></mml:math></inline-formula> is the corrected grid velocity field at time step <inline-formula><mml:math id="mm29"><mml:semantics><mml:mrow><mml:mi>n</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula>.</p>
+        <p>(6) Grid-to-particle mapping (G2P)</p>
+        <p>The updated grid cell velocities are interpolated back to the particles to update the particle velocities. Using a trilinear interpolation function <inline-formula><mml:math id="mm30"><mml:semantics><mml:mrow><mml:mi>U</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>, the new grid cell velocity <inline-formula><mml:math id="mm31"><mml:semantics><mml:mrow><mml:mi>U</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msubsup><mml:mo>,</mml:mo><mml:msubsup><mml:mi>x</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> and the old grid cell velocity <inline-formula><mml:math id="mm32"><mml:semantics><mml:mrow><mml:mi>U</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mi>n</mml:mi></mml:msubsup><mml:mo>,</mml:mo><mml:msubsup><mml:mi>x</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> at the particle position are obtained. The particle velocity field <inline-formula><mml:math id="mm33"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup></mml:mrow></mml:semantics></mml:math></inline-formula> is then updated using the FLIP-PIC hybrid method, as shown in Equation (5):<disp-formula id="FD5-modelling-07-00027"><label>(5)</label><mml:math display="block" id="mm34"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>p</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msubsup><mml:mo>=</mml:mo><mml:msub><mml:mi>&#x3B1;</mml:mi><mml:mrow><mml:mi>F</mml:mi><mml:mi>L</mml:mi><mml:mi>I</mml:mi><mml:mi>P</mml:mi></mml:mrow></mml:msub><mml:mfenced><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup><mml:mo>+</mml:mo><mml:mi>U</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:msup><mml:mi>u</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mo>,</mml:mo><mml:msubsup><mml:mi>x</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup><mml:mo stretchy="false">)</mml:mo><mml:mo>&#x2212;</mml:mo><mml:mi>U</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:msup><mml:mi>u</mml:mi><mml:mi>n</mml:mi></mml:msup><mml:mo>,</mml:mo><mml:msubsup><mml:mi>x</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:mfenced><mml:mo>+</mml:mo><mml:mfenced><mml:mrow><mml:mn>1</mml:mn><mml:mo>&#x2212;</mml:mo><mml:msub><mml:mi>&#x3B1;</mml:mi><mml:mrow><mml:mi>F</mml:mi><mml:mi>L</mml:mi><mml:mi>I</mml:mi><mml:mi>P</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:mfenced><mml:mi>U</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:msup><mml:mi>u</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msup><mml:mo>,</mml:mo><mml:msubsup><mml:mi>x</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></disp-formula>
+        where <inline-formula><mml:math id="mm35"><mml:semantics><mml:mrow><mml:msub><mml:mi>&#x3B1;</mml:mi><mml:mrow><mml:mi>F</mml:mi><mml:mi>L</mml:mi><mml:mi>I</mml:mi><mml:mi>P</mml:mi></mml:mrow></mml:msub></mml:mrow></mml:semantics></mml:math></inline-formula> is the FLIP coefficient, <inline-formula><mml:math id="mm36"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>p</mml:mi><mml:mrow><mml:mi>n</mml:mi><mml:mo>+</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:msubsup></mml:mrow></mml:semantics></mml:math></inline-formula> is the updated particle velocity field at the n + 1-th time step, <inline-formula><mml:math id="mm37"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup></mml:mrow></mml:semantics></mml:math></inline-formula> is the updated particle velocity field at the n-th time step, and <inline-formula><mml:math id="mm38"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>x</mml:mi><mml:mi>p</mml:mi><mml:mi>n</mml:mi></mml:msubsup></mml:mrow></mml:semantics></mml:math></inline-formula> is the particle position at the n-th time step.</p>
+        <p>Following the above FLIP method steps, we built a GPU-based FLIP fluid simulation algorithm. The detailed procedure is outlined in Algorithm 1.
+        <array><tbody><tr><td align="left" valign="middle" style="border-top:solid thin;border-bottom:solid thin"><bold>Algorithm 1:</bold> FLIP Simulation Procedure on the GPU</td></tr><tr><td align="left" valign="middle" style="border-bottom:solid thin"><bold>For</bold> each timestep <inline-formula><mml:math id="mm39"><mml:semantics><mml:mi>t</mml:mi></mml:semantics></mml:math></inline-formula>&#xA0;<bold>do</bold><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>For each</bold> particle <italic>p</italic>&#xA0;<bold>do</bold><break/> &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<inline-formula><mml:math id="mm40"><mml:semantics><mml:mrow><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>&#x2190;</mml:mo><mml:mi>p</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi><mml:mi>i</mml:mi><mml:mi>c</mml:mi><mml:mi>l</mml:mi><mml:mi>e</mml:mi><mml:mi>s</mml:mi><mml:mo>_</mml:mo><mml:mi>a</mml:mi><mml:mi>d</mml:mi><mml:mi>v</mml:mi><mml:mi>e</mml:mi><mml:mi>c</mml:mi><mml:mi>t</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo stretchy="false">)</mml:mo><mml:mo>;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>End</bold><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;Perform spatial indexing;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<xref ref-type="sec" rid="sec3dot2dot1-modelling-07-00027">Section 3.2.1</xref><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>For each</bold> grid cell <bold>in parallel do</bold><break/> &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<inline-formula><mml:math id="mm41"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>&#x2190;</mml:mo><mml:mi>p</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi><mml:mi>i</mml:mi><mml:mi>c</mml:mi><mml:mi>l</mml:mi><mml:mi>e</mml:mi><mml:mi>s</mml:mi><mml:mo>_</mml:mo><mml:mi>t</mml:mi><mml:mi>o</mml:mi><mml:mo>_</mml:mo><mml:mi>g</mml:mi><mml:mi>r</mml:mi><mml:mi>i</mml:mi><mml:mi>d</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>P</mml:mi></mml:msub><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<xref ref-type="sec" rid="sec3dot2dot2-modelling-07-00027">Section 3.2.2</xref><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>End</bold><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>For each</bold> grid cell <italic>g</italic> at location (<italic>x, y, z</italic>) <bold>in parallel do</bold><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;Apply external force: <inline-formula><mml:math id="mm42"><mml:semantics><mml:mrow><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mo>&#x2217;</mml:mo></mml:msubsup><mml:mo>=</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>+</mml:mo><mml:msub><mml:mi>a</mml:mi><mml:mrow><mml:mi>e</mml:mi><mml:mi>x</mml:mi><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>r</mml:mi><mml:mi>n</mml:mi><mml:mi>a</mml:mi><mml:mi>l</mml:mi></mml:mrow></mml:msub><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>;<break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>End</bold><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;Apply Boundary conditions;<break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;// Grid solution and velocity field update<break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;Solve Poisson pressure equation to obtain pressure <inline-formula><mml:math id="mm43"><mml:semantics><mml:mi>p</mml:mi></mml:semantics></mml:math></inline-formula>;<break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>For each</bold> grid cell <italic>g</italic>&#xA0;<bold>in parallel do</bold><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;Compute the new velocity field at the cell: <inline-formula><mml:math id="mm44"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:msubsup><mml:mi>u</mml:mi><mml:mi>g</mml:mi><mml:mo>&#x2217;</mml:mo></mml:msubsup><mml:mo>&#x2212;</mml:mo><mml:mo>&#x394;</mml:mo><mml:mi>t</mml:mi><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mo>&#x2207;</mml:mo><mml:mi>p</mml:mi></mml:mrow><mml:mi>&#x3C1;</mml:mi></mml:mfrac></mml:mstyle></mml:mrow></mml:semantics></mml:math></inline-formula>;<break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>End</bold><break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>For each</bold> particle <italic>p</italic>&#xA0;<bold>do</bold><break/> &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<inline-formula><mml:math id="mm45"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>&#x2190;</mml:mo><mml:mi>g</mml:mi><mml:mi>r</mml:mi><mml:mi>i</mml:mi><mml:mi>d</mml:mi><mml:mo>_</mml:mo><mml:mi>t</mml:mi><mml:mi>o</mml:mi><mml:mo>_</mml:mo><mml:mi>p</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi><mml:mi>i</mml:mi><mml:mi>c</mml:mi><mml:mi>l</mml:mi><mml:mi>e</mml:mi><mml:mi>s</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:mi>u</mml:mi><mml:mo>,</mml:mo><mml:msub><mml:mi>x</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>;<break/>
+			  &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>End</bold><break/>
+			  <bold>End</bold></td></tr></tbody></array></p>
+      </sec>
+    </sec>
+    <sec id="sec3-modelling-07-00027">
+      <title>3. GPU-Based Parallel Computing</title>
+      <p>In GPU-accelerated FLIP, constructing an efficient parallel algorithm framework is central to overcoming computational bottlenecks. During the parallelization of FLIP procedures in fluid simulation, steps including particle advection, applying external force, applying boundary conditions, and grid-to-particle (G2P) mapping are executed within the main simulation loop. A key advantage is the data independence between iterations, where data processed in one iteration does not depend on another. Therefore, parallelizing these operations by replacing sequential loops is straightforward and safe. In contrast, the step of P2G requires more sophisticated handling to achieve high parallel efficiency.</p>
+      <sec id="sec3dot1-modelling-07-00027">
+        <title>3.1. FLIP Parallel Algorithm Framework on GPU Architecture</title>
+        <p>As shown in <xref ref-type="fig" rid="modelling-07-00027-f001">Figure 1</xref>, our GPU-FLIP framework comprises preprocessing (flow field initialization), data transfer, the FLIP parallel algorithm kernel (including particle advection, mapping of particles to grids, applying external force, grid solution, and velocity field update), and free memory.</p>
+      </sec>
+      <sec id="sec3dot2-modelling-07-00027">
+        <title>3.2. Parallel Optimization Strategy for Particle-to-Grid Mapping (P2G)</title>
+        <p>The particle-to-grid mapping is a critical step that transfers particle attributes to the Eulerian grids. Within GPU parallel frameworks, two principal parallelization strategies are employed: gathering and scattering.</p>
+        <p>Gathering: This approach launches one thread per grid node to collect attributes from all neighboring particles within the node&#x2019;s support radius. The method typically requires pre-building and maintaining a spatial data structure, enabling each grid node to efficiently track and access all nearby particles.</p>
+        <p>Scattering: This method launches one thread per particle. Each thread scatters the particle&#x2019;s attributes to all influenced grid nodes.</p>
+        <p>For the parallel P2G step, in the scattering strategy, multiple particle threads may update the same grid node concurrently, making write conflict a critical problem, requiring atomic operation to prevent data races and ensure correctness. However, with millions of particles, write contention for grid nodes becomes severe. Unlike readily parallelizable steps like particle advection, this results in numerous atomic operations, causing thread queuing and waiting. As shown in <xref ref-type="sec" rid="sec4dot2dot1-modelling-07-00027">Section 4.2.1</xref>, atomic overhead accounts for over 40% of P2G time in large-scale scenarios, and this ratio increases with particle count, severely limiting parallel efficiency. Consequently, atomic operations become the critical bottleneck to achieving higher computational performance. Therefore, optimizing P2G parallelization to eliminate or minimize atomic operation overhead is essential.</p>
+        <sec id="sec3dot2dot1-modelling-07-00027">
+          <title>3.2.1. Spatial Hashing Index</title>
+          <p>In the FLIP method, the particle-to-grid mapping step requires searching for particles within the support radius (<inline-formula><mml:math id="mm46"><mml:semantics><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>x</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>) of each grid cell and associating them with corresponding grid cells to complete attribute interpolation. This process shares similarities with the neighbor particle search in purely particle-based methods like SPH (smoothed particle hydrodynamics) for fluid simulation, where establishing neighbor relationships involves identifying adjacent particles within a specified support radius (<inline-formula><mml:math id="mm47"><mml:semantics><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>x</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>) of a reference particle. Neighbor search constitutes an essential step in SPH algorithms. For parallel computation of SPH neighbor search algorithms [<xref ref-type="bibr" rid="B23-modelling-07-00027">23</xref>], two primary methods for building neighbor lists are generally employed: the Cell Linked List (CLL) method and the Verlet List (VL) method [<xref ref-type="bibr" rid="B24-modelling-07-00027">24</xref>]. The CLL method requires partitioning the computational domain into virtual background cells. Based on the core idea shared by the uniform grid method used by Yang [<xref ref-type="bibr" rid="B25-modelling-07-00027">25</xref>] in accelerating Ewald summation&#x2014;that is, to transform global search problems into local queries through spatial partitioning&#x2014;we propose that GPUs build spatial hashing index reorganization calculations in parallel to avoid atomic operations.</p>
+          <p>In three-dimensional space, when each cubic grid cell has a side length of <inline-formula><mml:math id="mm48"><mml:semantics><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>x</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>, locating all particles within radius <inline-formula><mml:math id="mm49"><mml:semantics><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>x</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> around each cell can be simplified by first identifying particles within individual cells. For any specific cell, it suffices to examine only its 26 immediately adjacent cells (totaling 27 cells including itself), since all particles within radius <inline-formula><mml:math id="mm50"><mml:semantics><mml:mrow><mml:mo>&#x394;</mml:mo><mml:mi>x</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> are necessarily contained within these 27 cells.</p>
+          <p>The construction steps are as follows:</p>
+          <list list-type="order">
+            <list-item>
+              <p><bold>Cell Hashing:</bold> For each particle <inline-formula><mml:math id="mm51"><mml:semantics><mml:mi>p</mml:mi></mml:semantics></mml:math></inline-formula> at position <inline-formula><mml:math id="mm52"><mml:semantics><mml:mrow><mml:mo stretchy="false">(</mml:mo><mml:mi>p</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>p</mml:mi><mml:mo>.</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>p</mml:mi><mml:mo>.</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>, we compute the index of the grid cell it resides in: <inline-formula><mml:math id="mm53"><mml:semantics><mml:mrow><mml:mi>cell</mml:mi><mml:mrow><mml:mo>.</mml:mo><mml:mi mathvariant="normal">x</mml:mi></mml:mrow><mml:mo>=</mml:mo><mml:mi>floor</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:mi>p</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo>/</mml:mo><mml:mo>&#x394;</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>, <inline-formula><mml:math id="mm54"><mml:semantics><mml:mrow><mml:mi>cell</mml:mi><mml:mrow><mml:mo>.</mml:mo><mml:mi mathvariant="normal">y</mml:mi></mml:mrow><mml:mo>=</mml:mo><mml:mi>floor</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:mi>p</mml:mi><mml:mo>.</mml:mo><mml:mi>y</mml:mi><mml:mo>/</mml:mo><mml:mo>&#x394;</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>, <inline-formula><mml:math id="mm55"><mml:semantics><mml:mrow><mml:mi>cell</mml:mi><mml:mrow><mml:mo>.</mml:mo><mml:mi mathvariant="normal">z</mml:mi></mml:mrow><mml:mo>=</mml:mo><mml:mi>floor</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:mi>p</mml:mi><mml:mo>.</mml:mo><mml:mi>z</mml:mi><mml:mo>/</mml:mo><mml:mo>&#x394;</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>. We then compute a unique hash key for this cell using a linearizing function: <inline-formula><mml:math id="mm56"><mml:semantics><mml:mrow><mml:mrow><mml:mi>hash</mml:mi><mml:mo>_</mml:mo><mml:mi>key</mml:mi><mml:mo>(</mml:mo><mml:mi>cell</mml:mi></mml:mrow><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>.</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>.</mml:mo><mml:mrow><mml:mi mathvariant="normal">z</mml:mi><mml:mo>)</mml:mo></mml:mrow><mml:mo>=</mml:mo><mml:mi>cell</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mi>size</mml:mi><mml:mi>Y</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Z</mml:mi><mml:mo>+</mml:mo><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>.</mml:mo><mml:mi>y</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Z</mml:mi><mml:mo>&#xD7;</mml:mo><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>.</mml:mo><mml:mi>z</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> for a grid of size <inline-formula><mml:math id="mm57"><mml:semantics><mml:mrow><mml:mo stretchy="false">(</mml:mo><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>X</mml:mi><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Y</mml:mi><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Z</mml:mi><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>. This function ensures no hash collisions, as it provides a one-to-one mapping between 3D cell coordinates and a 1D key. We store this hash key, <inline-formula><mml:math id="mm58"><mml:semantics><mml:mrow><mml:mrow><mml:mi>hash</mml:mi><mml:mo>_</mml:mo><mml:mi>key</mml:mi><mml:mo>(</mml:mo><mml:mi>cell</mml:mi></mml:mrow><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>.</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>.</mml:mo><mml:mrow><mml:mi mathvariant="normal">z</mml:mi><mml:mo>)</mml:mo></mml:mrow></mml:mrow></mml:semantics></mml:math></inline-formula>, in an array, <inline-formula><mml:math id="mm59"><mml:semantics><mml:mrow><mml:mi>C</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>H</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>h</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>, where each element corresponds to a particle and records the hash key of the grid cell that contains the particle.</p>
+            </list-item>
+            <list-item>
+              <p><bold>Sorting:</bold> We sort the array of particle indices based on their <inline-formula><mml:math id="mm60"><mml:semantics><mml:mrow><mml:mi>C</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>H</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>h</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> using the function <inline-formula><mml:math id="mm61"><mml:semantics><mml:mrow><mml:mi>t</mml:mi><mml:mi>h</mml:mi><mml:mi>r</mml:mi><mml:mi>u</mml:mi><mml:mi>s</mml:mi><mml:mi>t</mml:mi><mml:mo>:</mml:mo><mml:mo>:</mml:mo><mml:mi>s</mml:mi><mml:mi>o</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi><mml:mo>_</mml:mo><mml:mi>b</mml:mi><mml:mi>y</mml:mi><mml:mo>_</mml:mo><mml:mi>k</mml:mi><mml:mi>e</mml:mi><mml:mi>y</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> from the CUDA Thrust library. This physically reorders the particle data array so that all particles belonging to the same grid cell become contiguous in memory.</p>
+            </list-item>
+            <list-item>
+              <p><bold>Building Cell Start/End Indices:</bold> Create two index arrays, <inline-formula><mml:math id="mm62"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>S</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> and <inline-formula><mml:math id="mm63"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>E</mml:mi><mml:mi>n</mml:mi><mml:mi>d</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>, which represent the starting particle index and ending particle index of adjacent particles in each cell, respectively. After sorting, we launch a kernel with one thread per particle to identify the boundaries where the <inline-formula><mml:math id="mm64"><mml:semantics><mml:mrow><mml:mi>h</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>h</mml:mi><mml:mo>_</mml:mo><mml:mi>k</mml:mi><mml:mi>e</mml:mi><mml:mi>y</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> changes. We fill two index arrays, <inline-formula><mml:math id="mm65"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>S</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> and <inline-formula><mml:math id="mm66"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>E</mml:mi><mml:mi>n</mml:mi><mml:mi>d</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>. For a given cell with <inline-formula><mml:math id="mm67"><mml:semantics><mml:mrow><mml:mi>h</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>h</mml:mi><mml:mo>_</mml:mo><mml:mi>k</mml:mi><mml:mi>e</mml:mi><mml:mi>y</mml:mi><mml:mo>=</mml:mo><mml:mi>h</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>, <inline-formula><mml:math id="mm68"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>S</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi><mml:mo stretchy="false">[</mml:mo><mml:mi>h</mml:mi><mml:mo stretchy="false">]</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> points to the first index in the sorted particle array that belongs to cell H, and <inline-formula><mml:math id="mm69"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>E</mml:mi><mml:mi>n</mml:mi><mml:mi>d</mml:mi><mml:mo stretchy="false">[</mml:mo><mml:mi>h</mml:mi><mml:mo stretchy="false">]</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> points to the last index. This allows constant-time lookup of all particles within any specific grid cell.</p>
+            </list-item>
+          </list>
+          <p>The 2-dimensional spatial hashing index construction process is shown in <xref ref-type="fig" rid="modelling-07-00027-f002">Figure 2</xref>.</p>
+          <p>The total overhead of this indexing process is minimal compared to the P2G computation, as shown in <xref ref-type="sec" rid="sec4dot2dot1-modelling-07-00027">Section 4.2.1</xref>, and enables highly efficient, coherent memory access in the subsequent step.</p>
+        </sec>
+        <sec id="sec3dot2dot2-modelling-07-00027">
+          <title>3.2.2. Thread Block-Level Cooperation Optimization Strategy</title>
+          <p>For the GPU-P2G step, we propose an optimization strategy based on thread block-level cooperation. Leveraging the efficient memory access pattern established through spatial hashing index construction, the interpolation computation tasks for each grid cell are assigned to an independent thread block. By adopting a one-to-one mapping strategy between grid cells and thread blocks, combined with intra-block thread neighborhood parallel accumulation and hierarchical reduction techniques to complete the interpolation, the method effectively addresses the load imbalance issues inherent in traditional global thread allocation strategies, thereby significantly enhancing the parallel efficiency of GPU-P2G.</p>
+          <p>The thread block-level cooperative P2G kernel is launched with a one-to-one mapping between thread blocks and grid cells. Thus, the total number of thread blocks equals the number of grid cells in the simulation domain, and each thread block contains a fixed number of threads (denoted as BLOCK_SIZE, i.e., threads per thread block). The mapping from thread block index to 3D grid coordinates is implemented as follows.</p>
+          <p><bold>Thread Block Mapping Strategy:</bold> The address mapping employs a two-level mapping relationship, collectively forming a unique &#x201C;thread block &#x2192; grid cell&#x201D; mapping, as follows:</p>
+          <p>Level 1: Thread block index &#x2192; grid cell linear index, as shown in Equation (6).<disp-formula id="FD6-modelling-07-00027"><label>(6)</label><mml:math display="block" id="mm70"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mi>b</mml:mi><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:mi>c</mml:mi><mml:mi>k</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi></mml:mrow></mml:semantics></mml:math></disp-formula>
+          where <inline-formula><mml:math id="mm71"><mml:semantics><mml:mrow><mml:mi>b</mml:mi><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:mi>c</mml:mi><mml:mi>k</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> represents the thread block index.</p>
+          <p>Level 2: Grid cell linear index &#x2192; 3D grid coordinates, as shown in Equation (7):<disp-formula id="FD7-modelling-07-00027"><label>(7)</label><mml:math display="block" id="mm72"><mml:semantics><mml:mrow><mml:mfenced close="" open="{"><mml:mtable columnalign="left"><mml:mtr><mml:mtd><mml:mi>z</mml:mi><mml:mo>=</mml:mo><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mi>mod</mml:mi><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Z</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:mi>y</mml:mi><mml:mo>=</mml:mo><mml:mfenced close="&#x230B;" open="&#x230A;"><mml:mrow><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi></mml:mrow><mml:mrow><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Z</mml:mi></mml:mrow></mml:mfrac></mml:mstyle></mml:mrow></mml:mfenced><mml:mi>mod</mml:mi><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Y</mml:mi></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:mi>x</mml:mi><mml:mo>=</mml:mo><mml:mfenced close="&#x230B;" open="&#x230A;"><mml:mrow><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi></mml:mrow><mml:mrow><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Z</mml:mi><mml:mo>&#x2217;</mml:mo><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Y</mml:mi></mml:mrow></mml:mfrac></mml:mstyle></mml:mrow></mml:mfenced></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:mi>x</mml:mi><mml:mo>&#x2208;</mml:mo><mml:mfenced close="]" open="["><mml:mrow><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>X</mml:mi><mml:mo>&#x2212;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:mfenced><mml:mo>,</mml:mo><mml:mi>y</mml:mi><mml:mo>&#x2208;</mml:mo><mml:mfenced close="]" open="["><mml:mrow><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Y</mml:mi><mml:mo>&#x2212;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:mfenced><mml:mo>,</mml:mo><mml:mi>z</mml:mi><mml:mo>&#x2208;</mml:mo><mml:mfenced close="]" open="["><mml:mrow><mml:mn>0</mml:mn><mml:mo>,</mml:mo><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Z</mml:mi><mml:mo>&#x2212;</mml:mo><mml:mn>1</mml:mn></mml:mrow></mml:mfenced></mml:mtd></mml:mtr></mml:mtable></mml:mfenced></mml:mrow></mml:semantics></mml:math></disp-formula>
+          where <inline-formula><mml:math id="mm73"><mml:semantics><mml:mrow><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>X</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>, <inline-formula><mml:math id="mm74"><mml:semantics><mml:mrow><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Y</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>, and <inline-formula><mml:math id="mm75"><mml:semantics><mml:mrow><mml:mi>s</mml:mi><mml:mi>i</mml:mi><mml:mi>z</mml:mi><mml:mi>e</mml:mi><mml:mi>Z</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> represent the resolution of the three-dimensional grid along the (<italic>x, y, z</italic>) axes, respectively.</p>
+          <p>Each thread block is assigned to process a specific grid cell, enabling efficient spatial positioning while ensuring complete grid traversal and conflict-free access. Once a thread block is assigned to a specific grid cell (referred to as the target cell), it proceeds through the following four-phase workflow:</p>
+          <p><bold>(1) Neighbor Cell Identification via Spatial Hashing Index:</bold> The thread block first identifies the 26 adjacent cells surrounding the target cell (27 cells, including itself). For each neighbor cell, the block computes its <inline-formula><mml:math id="mm76"><mml:semantics><mml:mrow><mml:mi>h</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>h</mml:mi><mml:mo>_</mml:mo><mml:mi>k</mml:mi><mml:mi>e</mml:mi><mml:mi>y</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> and queries the pre-built <inline-formula><mml:math id="mm77"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>S</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> and <inline-formula><mml:math id="mm78"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>E</mml:mi><mml:mi>n</mml:mi><mml:mi>d</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> arrays to obtain the start and end indices of the particle list within that cell.</p>
+          <p><bold>(2) Intra-Block Thread Neighborhood Parallel Accumulation:</bold> Within each thread block, all threads collaboratively traverse the combined particle list from the 27 neighboring cells. Each thread processes a distinct, equally spaced subset of particles. For each particle, it calculates the interpolation weights to the target cell and accumulates the resulting momentum and mass contributions into dedicated, per-thread locations within shared memory arrays (e.g., <inline-formula><mml:math id="mm79"><mml:semantics><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">[</mml:mo><mml:mi>t</mml:mi><mml:mi>h</mml:mi><mml:mi>r</mml:mi><mml:mi>e</mml:mi><mml:mi>a</mml:mi><mml:mi>d</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false">]</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>). This collaborative strategy ensures perfect load balance and transforms scattered global memory writes into efficient, on-chip data aggregation, as detailed in Algorithm 2.</p>
+          <p><bold>(3) Hierarchical Reduction Architecture:</bold> The framework incorporates a two-level parallel reduction strategy&#x2014;Warp-Level Reduction and Block-Level Reduction.</p>
+          <p>Warp-Level Reduction: Within each warp (32 threads), we use CUDA&#x2019;s warp shuffle instructions (<inline-formula><mml:math id="mm80"><mml:semantics><mml:mrow><mml:mo>_</mml:mo><mml:mo>_</mml:mo><mml:mi>s</mml:mi><mml:mi>h</mml:mi><mml:mi>f</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:mi>d</mml:mi><mml:mi>o</mml:mi><mml:mi>w</mml:mi><mml:mi>n</mml:mi><mml:mo>_</mml:mo><mml:mi>s</mml:mi><mml:mi>y</mml:mi><mml:mi>n</mml:mi><mml:mi>c</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>) to efficiently sum the contributions of the 32 threads for the target cell.</p>
+          <p>Block-Level Reduction: The partially reduced results from each warp are then further aggregated across the entire thread block using a classic tree reduction algorithm in shared memory. This step yields the final total momentum and mass contributions for the target cell.</p>
+          <p><bold>(4) Atomic-Free Write-Back to Global Grid Arrays:</bold> The final step is to write the computed grid velocities to global memory. Since each grid node is uniquely owned by one thread block (the block responsible for the cell to which the node belongs), this write operation is inherently conflict-free and requires no atomic operations.</p>
+          <p>As illustrated in <xref ref-type="fig" rid="modelling-07-00027-f003">Figure 3</xref>, the proposed method fundamentally reconstructs computational tasks from a &#x201C;particle-centric&#x201D; to a &#x201C;grid-centric&#x201D; paradigm through spatial hashing index construction, completely transforming the parallel architecture of P2G. This approach entirely eliminates the massive atomic operations that occurred when multiple particle threads attempted scattered writes to the same grid nodes. By implementing thread block-level load balancing, efficient spatial hashing table queries, intra-block thread neighborhood parallel accumulation, and hierarchical reduction, the originally random, high-contention memory access pattern is transformed into a regular, low-contention intra-block computational pattern. This transformation substantially enhances both the parallel computational efficiency and overall performance of the P2G step, as shown in Algorithm 2.
+          <array><tbody><tr><td align="left" valign="middle" style="border-top:solid thin;border-bottom:solid thin"><bold>Algorithm 2:</bold> Thread-Block Cooperative P2G Kernel</td></tr><tr><td align="left" valign="middle" style="border-bottom:solid thin"><bold>Input:</bold> Sorted particle data, <inline-formula><mml:math id="mm81"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>S</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>, <inline-formula><mml:math id="mm82"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>E</mml:mi><mml:mi>n</mml:mi><mml:mi>d</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula><break/>
+				<bold>Output:</bold> Updated grid velocity <inline-formula><mml:math id="mm83"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">(</mml:mo><mml:mi>c</mml:mi><mml:mo>_</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mo>_</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mo>_</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula>.<break/>// Thread Block Mapping<break/> <inline-formula><mml:math id="mm84"><mml:semantics><mml:mrow><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:mi>p</mml:mi><mml:mi>o</mml:mi><mml:mi>s</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:mi>c</mml:mi><mml:mo>_</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mo>_</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mo>_</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="false">)</mml:mo><mml:mo>&#x2190;</mml:mo><mml:mi>Map</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:mi>b</mml:mi><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:mi>c</mml:mi><mml:mi>k</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false">)</mml:mo><mml:mo>;</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> // &#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;Equations (6) and (7)<break/>
+				Allocate and Initialize <inline-formula><mml:math id="mm85"><mml:semantics><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">[</mml:mo><mml:mi>B</mml:mi><mml:mi>L</mml:mi><mml:mi>O</mml:mi><mml:mi>C</mml:mi><mml:mi>K</mml:mi><mml:mo>_</mml:mo><mml:mi>S</mml:mi><mml:mi>I</mml:mi><mml:mi>Z</mml:mi><mml:mi>E</mml:mi><mml:mo stretchy="false">]</mml:mo><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula>, <inline-formula><mml:math id="mm86"><mml:semantics><mml:mrow><mml:msub><mml:mi>Q</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">[</mml:mo><mml:mi>B</mml:mi><mml:mi>L</mml:mi><mml:mi>O</mml:mi><mml:mi>C</mml:mi><mml:mi>K</mml:mi><mml:mo>_</mml:mo><mml:mi>S</mml:mi><mml:mi>I</mml:mi><mml:mi>Z</mml:mi><mml:mi>E</mml:mi><mml:mo stretchy="false">]</mml:mo><mml:mo>=</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula> in shared memory&#xA0;&#xA0;// <inline-formula><mml:math id="mm87"><mml:semantics><mml:mrow><mml:mi>B</mml:mi><mml:mi>L</mml:mi><mml:mi>O</mml:mi><mml:mi>C</mml:mi><mml:mi>K</mml:mi><mml:mo>_</mml:mo><mml:mi>S</mml:mi><mml:mi>I</mml:mi><mml:mi>Z</mml:mi><mml:mi>E</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula> is neighboring cell&#x2019;s counts<break/>
+				// Intra-Block Thread Neighborhood Parallel Accumulation<break/>
+				<bold>For each</bold> grid cell of 27 neighboring cells <bold>in parallel do</bold><break/>
+				&#xA0;&#xA0;&#xA0;&#xA0;// compute neighboring grid cell hash index:<break/> 
+				&#xA0;&#xA0;&#xA0;&#xA0;<inline-formula><mml:math id="mm88"><mml:semantics><mml:mtable columnalign="left"><mml:mtr><mml:mtd><mml:mi>n</mml:mi><mml:mi>e</mml:mi><mml:mi>i</mml:mi><mml:mi>g</mml:mi><mml:mi>h</mml:mi><mml:mi>b</mml:mi><mml:mi>o</mml:mi><mml:mi>r</mml:mi><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:mi>h</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>h</mml:mi><mml:mo>=</mml:mo><mml:mi>C</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>H</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>h</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:mi>n</mml:mi><mml:mi>e</mml:mi><mml:mi>i</mml:mi><mml:mi>g</mml:mi><mml:mi>h</mml:mi><mml:mi>b</mml:mi><mml:mi>o</mml:mi><mml:mi>r</mml:mi><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:mi>i</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo stretchy="false">)</mml:mo></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:mi>s</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi><mml:mo>&#x2190;</mml:mo><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>S</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi><mml:mo stretchy="false">[</mml:mo><mml:mi>n</mml:mi><mml:mi>e</mml:mi><mml:mi>i</mml:mi><mml:mi>g</mml:mi><mml:mi>h</mml:mi><mml:mi>b</mml:mi><mml:mi>o</mml:mi><mml:mi>r</mml:mi><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:mi>h</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>h</mml:mi><mml:mo stretchy="false">]</mml:mo><mml:mo>,</mml:mo><mml:mi>e</mml:mi><mml:mi>n</mml:mi><mml:mi>d</mml:mi><mml:mo>&#x2190;</mml:mo><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mi>E</mml:mi><mml:mi>n</mml:mi><mml:mi>d</mml:mi><mml:mo stretchy="false">[</mml:mo><mml:mi>n</mml:mi><mml:mi>e</mml:mi><mml:mi>i</mml:mi><mml:mi>g</mml:mi><mml:mi>h</mml:mi><mml:mi>b</mml:mi><mml:mi>o</mml:mi><mml:mi>r</mml:mi><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>l</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:mi>h</mml:mi><mml:mi>a</mml:mi><mml:mi>s</mml:mi><mml:mi>h</mml:mi><mml:mo stretchy="false">]</mml:mo></mml:mtd></mml:mtr></mml:mtable></mml:semantics></mml:math></inline-formula><break/>
+				&#xA0;&#xA0;&#xA0;&#xA0;<bold>If</bold>&#xA0;<inline-formula><mml:math id="mm89"><mml:semantics><mml:mrow><mml:mi>s</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi><mml:mo>&gt;</mml:mo><mml:mn>0</mml:mn></mml:mrow></mml:semantics></mml:math></inline-formula>: <break/>
+				&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>For</bold> particle index <inline-formula><mml:math id="mm90"><mml:semantics><mml:mrow><mml:mo>&#xA0;</mml:mo><mml:mi>i</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>&#xA0;</mml:mo><mml:mo>=</mml:mo><mml:mo>&#xA0;</mml:mo><mml:mi>s</mml:mi><mml:mi>t</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>t</mml:mi><mml:mrow><mml:mo>&#xA0;</mml:mo><mml:mo>+</mml:mo></mml:mrow><mml:mi>t</mml:mi><mml:mi>h</mml:mi><mml:mi>r</mml:mi><mml:mi>e</mml:mi><mml:mi>d</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>; <inline-formula><mml:math id="mm91"><mml:semantics><mml:mrow><mml:mi>i</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>&lt;</mml:mo><mml:mi>e</mml:mi><mml:mi>n</mml:mi><mml:mi>d</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>; <inline-formula><mml:math id="mm92"><mml:semantics><mml:mrow><mml:mi>i</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>+</mml:mo><mml:mo>=</mml:mo><mml:mi>B</mml:mi><mml:mi>L</mml:mi><mml:mi>O</mml:mi><mml:mi>C</mml:mi><mml:mi>K</mml:mi><mml:mo>_</mml:mo><mml:mi>S</mml:mi><mml:mi>I</mml:mi><mml:mi>Z</mml:mi><mml:mi>E</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>&#xA0;<bold>do</bold><break/>
+				&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;Load particle <inline-formula><mml:math id="mm93"><mml:semantics><mml:mi>p</mml:mi></mml:semantics></mml:math></inline-formula> at index <inline-formula><mml:math id="mm94"><mml:semantics><mml:mrow><mml:mi>i</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula><break/> 
+				&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<inline-formula><mml:math id="mm95"><mml:semantics><mml:mrow><mml:msub><mml:mi>&#x3C9;</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>I</mml:mi><mml:mi>n</mml:mi><mml:mi>t</mml:mi><mml:mi>e</mml:mi><mml:mi>r</mml:mi><mml:mi>p</mml:mi><mml:mi>W</mml:mi><mml:mi>e</mml:mi><mml:mi>i</mml:mi><mml:mi>g</mml:mi><mml:mi>h</mml:mi><mml:mi>t</mml:mi><mml:mo stretchy="false">(</mml:mo><mml:mi>p</mml:mi><mml:mo>,</mml:mo><mml:mi>p</mml:mi><mml:mi>o</mml:mi><mml:mi>s</mml:mi><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula><break/> 
+				&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<inline-formula><mml:math id="mm96"><mml:semantics><mml:mtable columnalign="left"><mml:mtr><mml:mtd><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">[</mml:mo><mml:mi>t</mml:mi><mml:mi>h</mml:mi><mml:mi>r</mml:mi><mml:mi>e</mml:mi><mml:mi>d</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false">]</mml:mo><mml:mo>+</mml:mo><mml:mo>=</mml:mo><mml:msub><mml:mi>&#x3C9;</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>&#x22C5;</mml:mo><mml:msub><mml:mi>m</mml:mi><mml:mi>p</mml:mi></mml:msub></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:msub><mml:mi>Q</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">[</mml:mo><mml:mi>t</mml:mi><mml:mi>h</mml:mi><mml:mi>r</mml:mi><mml:mi>e</mml:mi><mml:mi>d</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false">]</mml:mo><mml:mo>+</mml:mo><mml:mo>=</mml:mo><mml:msub><mml:mi>&#x3C9;</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>&#x22C5;</mml:mo><mml:msub><mml:mi>m</mml:mi><mml:mi>p</mml:mi></mml:msub><mml:mo>&#x22C5;</mml:mo><mml:msub><mml:mi>u</mml:mi><mml:mi>p</mml:mi></mml:msub></mml:mtd></mml:mtr></mml:mtable></mml:semantics></mml:math></inline-formula><break/>
+				&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;&#xA0;<bold>End</bold><break/>
+				&#xA0;&#xA0;&#xA0;&#xA0;<bold>End</bold><break/>
+				<bold>End</bold><break/>__syncthreads()&#xA0;&#xA0;// Ensure all particle processing is complete<break/>
+				// Warp-level intra-block reduction (using warp shuffle)<break/> <inline-formula><mml:math id="mm97"><mml:semantics><mml:mtable columnalign="left"><mml:mtr><mml:mtd><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">[</mml:mo><mml:mi>w</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>p</mml:mi><mml:mo>_</mml:mo><mml:mi>l</mml:mi><mml:mi>e</mml:mi><mml:mi>a</mml:mi><mml:mi>d</mml:mi><mml:mi>e</mml:mi><mml:mi>r</mml:mi><mml:mo stretchy="false">]</mml:mo><mml:mo>=</mml:mo><mml:mi>w</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>p</mml:mi><mml:mi>R</mml:mi><mml:mi>e</mml:mi><mml:mi>d</mml:mi><mml:mi>u</mml:mi><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>S</mml:mi><mml:mi>u</mml:mi><mml:mi>m</mml:mi><mml:mfenced><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mfenced close="]" open="["><mml:mo>:</mml:mo></mml:mfenced></mml:mrow></mml:mfenced></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:msub><mml:mi>Q</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">[</mml:mo><mml:mi>w</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>p</mml:mi><mml:mo>_</mml:mo><mml:mi>l</mml:mi><mml:mi>e</mml:mi><mml:mi>a</mml:mi><mml:mi>d</mml:mi><mml:mi>e</mml:mi><mml:mi>r</mml:mi><mml:mo stretchy="false">]</mml:mo><mml:mo>=</mml:mo><mml:mi>w</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>p</mml:mi><mml:mi>R</mml:mi><mml:mi>e</mml:mi><mml:mi>d</mml:mi><mml:mi>u</mml:mi><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>S</mml:mi><mml:mi>u</mml:mi><mml:mi>m</mml:mi><mml:mfenced><mml:mrow><mml:msub><mml:mi>Q</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mfenced close="]" open="["><mml:mo>:</mml:mo></mml:mfenced></mml:mrow></mml:mfenced></mml:mtd></mml:mtr></mml:mtable></mml:semantics></mml:math></inline-formula><break/>
+				// Block-Level Reduction<break/>
+				<bold>If</bold> <inline-formula><mml:math id="mm98"><mml:semantics><mml:mrow><mml:mi>t</mml:mi><mml:mi>h</mml:mi><mml:mi>r</mml:mi><mml:mi>e</mml:mi><mml:mi>d</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo>&lt;</mml:mo><mml:mi>n</mml:mi><mml:mi>u</mml:mi><mml:mi>m</mml:mi><mml:mo>_</mml:mo><mml:mi>w</mml:mi><mml:mi>a</mml:mi><mml:mi>r</mml:mi><mml:mi>p</mml:mi><mml:mi>s</mml:mi></mml:mrow></mml:semantics></mml:math></inline-formula>&#xA0;<bold>then</bold><break/> 
+				&#xA0;&#xA0;&#xA0;&#xA0;<inline-formula><mml:math id="mm99"><mml:semantics><mml:mtable columnalign="left"><mml:mtr><mml:mtd><mml:mi>f</mml:mi><mml:mi>i</mml:mi><mml:mi>n</mml:mi><mml:mi>a</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>b</mml:mi><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:mi>c</mml:mi><mml:mi>k</mml:mi><mml:mi>R</mml:mi><mml:mi>e</mml:mi><mml:mi>d</mml:mi><mml:mi>u</mml:mi><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>S</mml:mi><mml:mi>u</mml:mi><mml:mi>m</mml:mi><mml:mfenced><mml:mrow><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">[</mml:mo><mml:mi>t</mml:mi><mml:mi>h</mml:mi><mml:mi>r</mml:mi><mml:mi>e</mml:mi><mml:mi>a</mml:mi><mml:mi>d</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false">]</mml:mo></mml:mrow></mml:mfenced></mml:mtd></mml:mtr><mml:mtr><mml:mtd><mml:mi>f</mml:mi><mml:mi>i</mml:mi><mml:mi>n</mml:mi><mml:mi>a</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:msub><mml:mi>Q</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo>=</mml:mo><mml:mi>b</mml:mi><mml:mi>l</mml:mi><mml:mi>o</mml:mi><mml:mi>c</mml:mi><mml:mi>k</mml:mi><mml:mi>R</mml:mi><mml:mi>e</mml:mi><mml:mi>d</mml:mi><mml:mi>u</mml:mi><mml:mi>c</mml:mi><mml:mi>e</mml:mi><mml:mi>S</mml:mi><mml:mi>u</mml:mi><mml:mi>m</mml:mi><mml:mfenced><mml:mrow><mml:msub><mml:mi>Q</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">[</mml:mo><mml:mi>t</mml:mi><mml:mi>h</mml:mi><mml:mi>r</mml:mi><mml:mi>e</mml:mi><mml:mi>a</mml:mi><mml:mi>d</mml:mi><mml:mi>I</mml:mi><mml:mi>d</mml:mi><mml:mi>x</mml:mi><mml:mo>.</mml:mo><mml:mi>x</mml:mi><mml:mo stretchy="false">]</mml:mo></mml:mrow></mml:mfenced></mml:mtd></mml:mtr></mml:mtable></mml:semantics></mml:math></inline-formula><break/>
+				<bold>End</bold><break/>
+				__syncthreads()<break/>
+				// Write back results (no atomic operations)<break/>
+				Write <inline-formula><mml:math id="mm100"><mml:semantics><mml:mrow><mml:mstyle scriptlevel="0" displaystyle="true"><mml:mfrac><mml:mrow><mml:mi>f</mml:mi><mml:mi>i</mml:mi><mml:mi>n</mml:mi><mml:mi>a</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:msub><mml:mi>Q</mml:mi><mml:mi>g</mml:mi></mml:msub></mml:mrow><mml:mrow><mml:mi>f</mml:mi><mml:mi>i</mml:mi><mml:mi>n</mml:mi><mml:mi>a</mml:mi><mml:mi>l</mml:mi><mml:mo>_</mml:mo><mml:msub><mml:mi>M</mml:mi><mml:mi>g</mml:mi></mml:msub></mml:mrow></mml:mfrac></mml:mstyle></mml:mrow></mml:semantics></mml:math></inline-formula> to update grid velocity <inline-formula><mml:math id="mm101"><mml:semantics><mml:mrow><mml:msub><mml:mi>u</mml:mi><mml:mi>g</mml:mi></mml:msub><mml:mo stretchy="false">(</mml:mo><mml:mi>c</mml:mi><mml:mo>_</mml:mo><mml:mi>x</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mo>_</mml:mo><mml:mi>y</mml:mi><mml:mo>,</mml:mo><mml:mi>c</mml:mi><mml:mo>_</mml:mo><mml:mi>z</mml:mi><mml:mo stretchy="false">)</mml:mo></mml:mrow></mml:semantics></mml:math></inline-formula> </td></tr></tbody></array></p>
+        </sec>
+      </sec>
+    </sec>
+    <sec id="sec4-modelling-07-00027">
+      <title>4. Experimental Results and Analysis of GPU Parallel Acceleration</title>
+      <sec id="sec4dot1-modelling-07-00027">
+        <title>4.1. Operating Environment</title>
+        <p>To minimize potential interference from cold-start effects and background processes while ensuring data stability, we recorded the average execution time over 200 simulation frames in multiple runs. Three configurations were compared: the CPU-FLIP algorithm (labeled CPU), the GPU-FLIP algorithm using particle-thread scattering for P2G (labeled GPU_1), and the GPU-FLIP algorithm employing spatial hashing and thread-block cooperation for P2G (labeled GPU_2). The experiments were compiled in Microsoft Visual Studio 2022 with CUDA 12.6. Hardware specifications of the testing platform are summarized in <xref ref-type="table" rid="modelling-07-00027-t001">Table 1</xref>.</p>
+      </sec>
+      <sec id="sec4dot2-modelling-07-00027">
+        <title>4.2. Performance Analysis</title>
+        <p>Experiments were conducted using dam-break simulations and droplet falling simulations with grid resolutions of 128<sup>3</sup>, 160<sup>3</sup>, 190<sup>3</sup>, and 224<sup>3</sup>. The CPU experiments utilized the classical fluid simulation framework MantaFlow, while the GPU-accelerated FLIP methods were implemented using the CUDA framework. To ensure experimental fairness, all GPU parallel simulations were based on the same code foundation, differing only in the strategies employed for the P2G step.</p>
+        <sec id="sec4dot2dot1-modelling-07-00027">
+          <title>4.2.1. Spatial Hashing Index Construction Overhead Analysis</title>
+          <p>To quantitatively assess the efficiency gained by eliminating atomic operations through spatial hashing index construction, this experiment recorded and analyzed the average computation time required for building the spatial hashing index during dam-break simulations.</p>
+          <p>As shown in <xref ref-type="table" rid="modelling-07-00027-t002">Table 2</xref>, although the construction of the spatial hashing index introduces additional computational overhead within the P2G step, it does not significantly impact the overall simulation performance or reduce computational efficiency. The minor additional cost is substantially outweighed by the considerable improvement in the overall computational efficiency of the P2G step.</p>
+        </sec>
+        <sec id="sec4dot2dot2-modelling-07-00027">
+          <title>4.2.2. GPU-P2G Runtime Comparison</title>
+          <p>We measured and analyzed the average execution time of the P2G step in GPU-FLIP during dam-break simulations across varying grid resolutions and particle counts. This analysis compares the particle-thread scattering strategy with two spatial hashing index-based approaches&#x2014;the global thread allocation strategy and the thread block-level cooperation optimization strategy&#x2014;in the context of parallel fluid simulation, thus effectively evaluating their respective performance in mitigating the key bottleneck of atomic operations (where &#x2018;Improv.&#x2019; is the abbreviation for &#x2018;Improvement&#x2019;).</p>
+          <p>As shown in <xref ref-type="table" rid="modelling-07-00027-t003">Table 3</xref>, in the dam-break simulation with a 192<sup>3</sup> grid and 12 million particles, the particle-thread scattering strategy required 93.93 ms, while the spatial hashing index-based global thread strategy and the thread block-level cooperation optimization strategy took 68.33 ms and 49.46 ms, respectively. These execution times correspond to significant performance improvements of approximately 27% and 47%, demonstrating substantial enhancement in the computational efficiency of the P2G step within the GPU-FLIP fluid simulation.</p>
+          <p>To further demonstrate the performance improvement of the thread block-level cooperation optimization strategy, <xref ref-type="table" rid="modelling-07-00027-t004">Table 4</xref> presents results from a dam-break simulation with a 224<sup>3</sup> grid and 20 million particles. The traditional global thread strategy required 111.74 ms for the P2G step, while the thread block-level cooperation optimization strategy completed it in 78.28 ms, achieving a performance improvement of approximately 30%. Furthermore, as both grid resolution and particle count increase, the advantage of the thread block-level cooperation optimization strategy becomes increasingly pronounced.</p>
+        </sec>
+        <sec id="sec4dot2dot3-modelling-07-00027">
+          <title>4.2.3. Thread Block-Level Mapping Optimization Strategy: Runtime Comparison</title>
+          <p>To better analyze the computational efficiency improvement of the proposed optimization strategy on the entire fluid simulation, this experiment recorded a detailed time for each major step&#x2014;P2G, G2P, (Particle) advection, and pressure solve&#x2014;during a dam-break simulation with a 192<sup>3</sup> grid and 12 million particles.</p>
+          <p>As shown in <xref ref-type="table" rid="modelling-07-00027-t005">Table 5</xref>, the time breakdown reveals that in the particle-thread scattering strategy (GPU_1), the P2G step is the most time-consuming component due to massive atomic operations causing warp serialization. Notably, both (particle) advection and G2P steps in GPU_1 require more time than in GPU_2. A plausible explanation is that the extremely high atomic operation density and random memory access patterns during P2G degrade the state of the GPU&#x2019;s memory subsystem, and this degraded state persists into the subsequent G2P and particle advection steps of the next cycle. The pressure solve step remains relatively unaffected, as it primarily operates on grid velocity and pressure fields with data isolation and regular computational patterns.</p>
+          <p>By adopting the spatial hashing index construction and thread block-level cooperation optimization strategy, the method effectively eliminates the adverse effects of atomic operations, reduces the time proportion of P2G in GPU-FLIP fluid simulation, and consequently, enhances the overall computational efficiency.</p>
+        </sec>
+        <sec id="sec4dot2dot4-modelling-07-00027">
+          <title>4.2.4. Overall Computational Efficiency Comparison</title>
+          <p>To eliminate potential interference from cold-start effects and background processes while ensuring data stability, this experiment recorded the average execution time over 200 simulation frames across multiple runs. The average per-frame execution time was subsequently calculated for each configuration, enabling the derivation of speedup ratios for both GPU-accelerated implementations relative to the CPU simulation. These ratios provide the foundation for a robust comparison of overall computational efficiency.</p>
+          <p><xref ref-type="table" rid="modelling-07-00027-t006">Table 6</xref> presents a computational efficiency comparison of three methods in dam-break experiments across four grid resolutions. The results demonstrate that both GPU-accelerated FLIP methods achieve significant speedup compared to the CPU-FLIP approach. At a grid resolution of 160<sup>3</sup>, the particle-thread strategy-based GPU method (GPU_1) achieves a speedup ratio of 33.3&#xD7;, while the proposed spatial hashing index and thread block-level cooperation strategy-based GPU method (GPU_2) reaches 41.5, representing an improvement of approximately 25%.</p>
+          <p>Given that dam-break experiments involve complex, large-deformation simulations with dense fluids, when the grid resolution increases to 224<sup>3</sup>, the atomic operations generated during interpolation in the GPU_1 method rise dramatically, causing its speedup ratio to decline to 33.2&#xD7;. In contrast, the GPU_2 method, utilizing spatial hashing index construction, demonstrates continued performance improvement as the grid scale expands, with its speedup ratio rising to 47.4&#xD7;&#x2014;an enhancement of approximately 42% compared to GPU_1 at this resolution.</p>
+          <p><xref ref-type="table" rid="modelling-07-00027-t007">Table 7</xref> presents the computational efficiency comparison of three methods in droplet falling experiments across four grid resolutions. Unlike dam-break simulations that represent macroscopic large-deformation scenarios, droplet falling experiments focus more on microscopic, small-scale, sparse fluid dynamics. The results demonstrate that both GPU-parallelized FLIP methods substantially enhance the overall computational efficiency. At a 160<sup>3</sup> grid resolution, the GPU_1 method achieves a speedup ratio of 37&#xD7;, while the GPU_2 method reaches 44.8&#xD7;, representing an improvement of approximately 21%. When the grid resolution increases to 224<sup>3</sup>, the speedup ratio of GPU_1 rises to 43.2&#xD7;, and GPU_2 further improves to 53.1&#xD7;, maintaining a computational efficiency enhancement of approximately 23%.</p>
+          <p>In summary, although the particle-thread scattering strategy (GPU_1) achieves notable acceleration in small-scale, sparse fluid simulations, its performance markedly deteriorates in complex, high-density fluid scenarios. In contrast, the proposed spatial hashing index and thread block-level cooperation strategy-based GPU-FLIP algorithm (GPU_2) maintains excellent acceleration performance even in complex, dense fluid simulations, demonstrating superior robustness and scalability.</p>
+          <p>Analysis of the GPU methods in <xref ref-type="table" rid="modelling-07-00027-t006">Table 6</xref> and <xref ref-type="table" rid="modelling-07-00027-t007">Table 7</xref> reveals particularly large speedup ratios at the 128<sup>3</sup> grid resolution. A potential explanation is the existence of a performance inflection point between 128<sup>3</sup> and 160<sup>3</sup> resolutions, where GPU hardware resources (memory bandwidth/cache) approach but do not fully saturate, creating a suboptimal blocked state. Further increasing the grid resolution pushes the hardware into full saturation, enabling computing units to maintain continuous peak utilization.</p>
+        </sec>
+      </sec>
+      <sec id="sec4dot3-modelling-07-00027">
+        <title>4.3. Simulation Results</title>
+        <p>To validate the visual quality of the GPU-accelerated FLIP method, this experiment demonstrated the fluid simulation effects of three different approaches at a grid resolution of 160<sup>3</sup>. All fluid simulations in this experiment were rendered using Blender to generate the final visual results.</p>
+        <p>As shown in <xref ref-type="fig" rid="modelling-07-00027-f004">Figure 4</xref>, comparative analysis of the dam-break simulation results demonstrates that the proposed parallel GPU-FLIP algorithm maintains the capability to simulate complex fluid phenomena with large deformations and high kinetic energy while preserving high computational efficiency. The overall visual quality and physical authenticity effectively meet the application requirements for sophisticated fluid simulation, achieving an optimal balance between computational performance and simulation fidelity.</p>
+        <p>As shown in <xref ref-type="fig" rid="modelling-07-00027-f005">Figure 5</xref>, comparative analysis of the droplet falling simulation results demonstrates that the proposed GPU-FLIP method, when applied to microscopic-scale simulations of small-scale sparse fluids, achieves significant computational efficiency improvements while still preserving high-quality simulation outcomes&#x2014;including detailed free-surface features and physically plausible collision interactions.</p>
+        <p>It is important to note in advance that the differences in flow field morphology observed between the CPU and GPU implementations in <xref ref-type="fig" rid="modelling-07-00027-f004">Figure 4</xref> and <xref ref-type="fig" rid="modelling-07-00027-f005">Figure 5</xref> are reasonable outcomes arising from distinct engineering implementations under the same FLIP algorithmic paradigm.</p>
+        <p>As a hybrid particle-in-cell method, FLIP defines the core coupling process: projecting particle velocities onto a grid, solving the incompressible Navier&#x2013;Stokes equations on that grid, and transferring the updated velocities back to the particles. Crucially, the algorithm inherently permits flexibility in the engineering specifics of each step (e.g., interpolation kernels, linear solver types, boundary condition implementation, and parallelization strategies). Therefore, different valid implementation paths can lead to numerically divergent&#x2014;yet physically consistent&#x2014;flow realizations.</p>
+        <p>We emphasize that the core innovation of this study is the optimization of atomic operations in the GPU-FLIP P2G step. All performance comparisons and analyses between our optimized method and the traditional GPU scattering method are performed within the same codebase and numerical framework. Consequently, the flow field results presented for these comparative evaluations maintain a high degree of consistency, which robustly ensures the validity of our optimization scheme. The CPU implementation is employed solely as a performance benchmark, and its numerical differences from our GPU implementation do not affect the conclusions regarding the efficiency gains achieved by our proposed optimization.</p>
+        <p>To further validate the method&#x2019;s generalizability and simulation quality, we conducted comprehensive experiments across diverse scenarios using the proposed approach (as shown in <xref ref-type="fig" rid="modelling-07-00027-f006">Figure 6</xref>): The experimental results demonstrate that our method consistently exhibits excellent simulation performance across all tested scenarios, thoroughly verifying its capability to reliably generate high-quality fluid simulations in complex interaction and multi-source flow environments&#x2014;including accurate representation of free-surface details, maintenance of deformation continuity, and physically authentic collision interactions.</p>
+      </sec>
+    </sec>
+    <sec id="sec5-modelling-07-00027" sec-type="conclusions">
+      <title>5. Conclusions and Future Work</title>
+      <p>Our multi-scale fluid experiments demonstrate that GPU-parallel acceleration significantly improves the FLIP method&#x2019;s computational efficiency while preserving its validity, yielding high-quality simulation results. Our results also show that as grid and particle scales increase, extensive atomic operations in the traditional scattering strategy cause a nonlinear decay in computational efficiency. In large-scale scenarios, atomic overhead becomes dominant, forming a critical bottleneck for further performance gains. To address this challenge, we propose a GPU optimization strategy based on spatial hashing index and thread block-level cooperation. By reconstructing the computational workflow and thread scheduling logic of the P2G step, the method completely circumvents redundant atomic operations during the P2G step, further unlocking the GPU&#x2019;s parallel computing potential and effectively accelerating the fluid solving process. As demonstrated by data in <xref ref-type="table" rid="modelling-07-00027-t003">Table 3</xref> and <xref ref-type="table" rid="modelling-07-00027-t006">Table 6</xref>, this optimization strategy achieves a 50% performance improvement in the P2G step for dam-break simulation with 20 million particles and a 224<sup>3</sup> grid, while the overall computational efficiency reaches a 47.3&#xD7; speedup ratio compared to CPU-FLIP, representing over 20% performance gain compared to the traditional scattering strategy. This provides an efficient and feasible technical pathway for large-scale, high-resolution fluid simulation.</p>
+      <p>The proposed strategy significantly enhances parallel interpolation performance in grid cells with high particle density by precisely locating neighboring particle information and incorporating a thread block-level cooperation mechanism. However, when adjacent grid cells exhibit significant disparities in particle density distribution, it leads to workload imbalance within the thread block&#x2014;some threads become fully occupied, while others remain idle, thereby constraining further improvement in overall parallel efficiency. Future work will focus on this challenge through an in-depth investigation of optimized thread scheduling strategies to further exploit GPU parallel computing potential.</p>
+    </sec>
+  </body>
+  <back>
+    <notes>
+      <title>Author Contributions</title>
+      <p>Conceptualization, C.Z. and H.L.; validation, H.L.; writing&#x2014;original draft preparation, H.L.; writing&#x2014;review and editing, C.Z. and H.L.; supervision, C.Z.; All authors have read and agreed to the published version of the manuscript.</p>
+    </notes>
+    <notes>
+      <title>Data Availability Statement</title>
+      <p>The experimental portion of this paper contains simulation data analyzed during this study. The (CPU) experiments are run using the mantaflow engine. [<uri>https://github.com/lhluohuilh/hash_GPU-FLIP.git</uri>] (accessedon 14 November 2025) provides part of the simulation results and code files during the current study. The data generated during the current study are not publicly available due to key parts of this code affecting subsequent research, but are available from the corresponding author on reasonable request.</p>
+    </notes>
+    <notes notes-type="COI-statement">
+      <title>Conflicts of Interest</title>
+      <p>The authors declare no conflicts of interest.</p>
+    </notes>
+    <ref-list>
+      <title>References</title>
+      <ref id="B1-modelling-07-00027">
+        <label>1.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Stam</surname>
+              <given-names>J.</given-names>
+            </name>
+          </person-group>
+          <article-title>Stable fluids</article-title>
+          <source>ACM Trans. Graph.</source>
+          <year>2001</year>
+          <volume>1999</volume>
+          <fpage>121</fpage>
+          <lpage>128</lpage>
+        </element-citation>
+      </ref>
+      <ref id="B2-modelling-07-00027">
+        <label>2.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Brackbill</surname>
+              <given-names>J.U.</given-names>
+            </name>
+            <name>
+              <surname>Kothe</surname>
+              <given-names>D.B.</given-names>
+            </name>
+            <name>
+              <surname>Ruppel</surname>
+              <given-names>H.M.</given-names>
+            </name>
+          </person-group>
+          <article-title>Flip: A low-dissipation, particle-in-cell method for fluid flow</article-title>
+          <source>Comput. Phys. Commun.</source>
+          <year>1988</year>
+          <volume>48</volume>
+          <fpage>25</fpage>
+          <lpage>38</lpage>
+          <pub-id pub-id-type="doi">10.1016/0010-4655(88)90020-3</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B3-modelling-07-00027">
+        <label>3.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Zhu</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Bridson</surname>
+              <given-names>R.</given-names>
+            </name>
+          </person-group>
+          <article-title>Animating sand as a fluid</article-title>
+          <source>ACM Trans. Graph.</source>
+          <year>2005</year>
+          <volume>24</volume>
+          <fpage>965972</fpage>
+          <pub-id pub-id-type="doi">10.1145/1073204.1073298</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B4-modelling-07-00027">
+        <label>4.</label>
+        <element-citation publication-type="book">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Kirk</surname>
+              <given-names>D.B.</given-names>
+            </name>
+            <name>
+              <surname>Hwu</surname>
+              <given-names>W.-M.W.</given-names>
+            </name>
+          </person-group>
+          <source>Programming Massively Parallel Processors: A Hands&#x2014;On Approach</source>
+          <publisher-name>Morgan Kaufmann</publisher-name>
+          <publisher-loc>Burlington, MA, USA</publisher-loc>
+          <year>2016</year>
+        </element-citation>
+      </ref>
+      <ref id="B5-modelling-07-00027">
+        <label>5.</label>
+        <element-citation publication-type="confproc">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Samadi</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Qureshi</surname>
+              <given-names>M.K.</given-names>
+            </name>
+            <name>
+              <surname>Balasubramonian</surname>
+              <given-names>R.</given-names>
+            </name>
+          </person-group>
+          <article-title>Memory bandwidth characterization of graphics processing units</article-title>
+          <source>Proceedings of the 2010 37th Annual International Symposium on Computer Architecture (ISCA)</source>
+          <conf-loc>Saint-Malo, France</conf-loc>
+          <conf-date>19&#x2013;23 June 2010</conf-date>
+          <publisher-name>IEEE</publisher-name>
+          <publisher-loc>Piscataway, NJ, USA</publisher-loc>
+          <year>2010</year>
+          <fpage>160</fpage>
+          <lpage>171</lpage>
+        </element-citation>
+      </ref>
+      <ref id="B6-modelling-07-00027">
+        <label>6.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Nickolls</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Buck</surname>
+              <given-names>I.</given-names>
+            </name>
+            <name>
+              <surname>Garland</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Skadron</surname>
+              <given-names>K.</given-names>
+            </name>
+          </person-group>
+          <article-title>Scalable parallel programming with CUDA</article-title>
+          <source>Queue</source>
+          <year>2008</year>
+          <volume>6</volume>
+          <fpage>40</fpage>
+          <lpage>53</lpage>
+          <pub-id pub-id-type="doi">10.1145/1365490.1365500</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B7-modelling-07-00027">
+        <label>7.</label>
+        <element-citation publication-type="confproc">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Harris</surname>
+              <given-names>M.J.</given-names>
+            </name>
+          </person-group>
+          <article-title>Fast fluid dynamics simulation on the GPU</article-title>
+          <source>Proceedings of the ACM SIGGRAPH 2005 Courses</source>
+          <conf-loc>Los Angeles, CA, USA</conf-loc>
+          <conf-date>31 July&#x2013;4 August 2005</conf-date>
+          <publisher-name>ACM</publisher-name>
+          <publisher-loc>New York, NY, USA</publisher-loc>
+        </element-citation>
+      </ref>
+      <ref id="B8-modelling-07-00027">
+        <label>8.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Chen</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Kim</surname>
+              <given-names>B.</given-names>
+            </name>
+            <name>
+              <surname>Ito</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>H.</given-names>
+            </name>
+          </person-group>
+          <article-title>Wetbrush: GPU-based 3d painting simulation at the bristle level</article-title>
+          <source>ACM Trans. Graph.</source>
+          <year>2015</year>
+          <volume>34</volume>
+          <fpage>200</fpage>
+          <pub-id pub-id-type="doi">10.1145/2816795.2818066</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B9-modelling-07-00027">
+        <label>9.</label>
+        <element-citation publication-type="thesis">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Xu</surname>
+              <given-names>F.</given-names>
+            </name>
+          </person-group>
+          <article-title>Research and Implementation of a Parallel SPH Algorithm Based on Many-Core Architecture</article-title>
+          <source>Master&#x2019;s Thesis</source>
+          <publisher-name>Shanghai Jiao Tong University</publisher-name>
+          <publisher-loc>Shanghai, China</publisher-loc>
+          <year>2013</year>
+          <comment>(In Chinese)</comment>
+        </element-citation>
+      </ref>
+      <ref id="B10-modelling-07-00027">
+        <label>10.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Jin</surname>
+              <given-names>S.Q.</given-names>
+            </name>
+            <name>
+              <surname>Zheng</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Duan</surname>
+              <given-names>W.Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>Simulation of viscous flow field using an improved SPH method with GPU acceleration</article-title>
+          <source>J. Harbin Eng. Univ.</source>
+          <year>2015</year>
+          <volume>36</volume>
+          <fpage>1011</fpage>
+          <lpage>1018</lpage>
+          <comment>(In Chinese)</comment>
+        </element-citation>
+      </ref>
+      <ref id="B11-modelling-07-00027">
+        <label>11.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Yang</surname>
+              <given-names>Z.G.</given-names>
+            </name>
+            <name>
+              <surname>Huang</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Zheng</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Duan</surname>
+              <given-names>W.Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>Research on the application of GPU in the SPH method to simulate the dam failure problem</article-title>
+          <source>J. Harbin Eng. Univ.</source>
+          <year>2014</year>
+          <volume>35</volume>
+          <fpage>661</fpage>
+          <lpage>666</lpage>
+          <comment>(In Chinese)</comment>
+        </element-citation>
+      </ref>
+      <ref id="B12-modelling-07-00027">
+        <label>12.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Parreiras</surname>
+              <given-names>E.A.</given-names>
+            </name>
+            <name>
+              <surname>Vieira</surname>
+              <given-names>M.B.</given-names>
+            </name>
+            <name>
+              <surname>Machado</surname>
+              <given-names>A.G.</given-names>
+            </name>
+            <name>
+              <surname>Renhe</surname>
+              <given-names>M.C.</given-names>
+            </name>
+            <name>
+              <surname>Giraldi</surname>
+              <given-names>G.A.</given-names>
+            </name>
+          </person-group>
+          <article-title>A particle-in-cell method for anisotropic fluid simulation</article-title>
+          <source>Comput. Graph.</source>
+          <year>2022</year>
+          <volume>102</volume>
+          <fpage>220</fpage>
+          <lpage>232</lpage>
+          <pub-id pub-id-type="doi">10.1016/j.cag.2021.08.010</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B13-modelling-07-00027">
+        <label>13.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Guan</surname>
+              <given-names>Y.M.</given-names>
+            </name>
+            <name>
+              <surname>Yang</surname>
+              <given-names>C.H.</given-names>
+            </name>
+            <name>
+              <surname>Kang</surname>
+              <given-names>Z.</given-names>
+            </name>
+            <name>
+              <surname>Zhou</surname>
+              <given-names>L.</given-names>
+            </name>
+          </person-group>
+          <article-title>Application of an improved GPU acceleration strategy in smoothed particle hydrodynamics</article-title>
+          <source>J. Shanghai Jiao Tong Univ.</source>
+          <year>2023</year>
+          <volume>57</volume>
+          <fpage>981</fpage>
+          <lpage>987</lpage>
+          <comment>(In Chinese)</comment>
+        </element-citation>
+      </ref>
+      <ref id="B14-modelling-07-00027">
+        <label>14.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Wu</surname>
+              <given-names>K.</given-names>
+            </name>
+            <name>
+              <surname>O&#x2019;brien</surname>
+              <given-names>J.F.</given-names>
+            </name>
+            <name>
+              <surname>Fedkiw</surname>
+              <given-names>R.</given-names>
+            </name>
+          </person-group>
+          <article-title>Fast fluid simulations with sparse volumes on the GPU</article-title>
+          <source>Comput. Graph. Forum</source>
+          <year>2018</year>
+          <volume>37</volume>
+          <fpage>157</fpage>
+          <lpage>167</lpage>
+          <pub-id pub-id-type="doi">10.1111/cgf.13350</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B15-modelling-07-00027">
+        <label>15.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Xin</surname>
+              <given-names>J.J.</given-names>
+            </name>
+            <name>
+              <surname>Shi</surname>
+              <given-names>F.L.</given-names>
+            </name>
+          </person-group>
+          <article-title>A GPU-CUDA parallel virtual grid finite difference solver</article-title>
+          <source>J. Hydrodyn.</source>
+          <year>2023</year>
+          <volume>38</volume>
+          <fpage>523</fpage>
+          <lpage>527</lpage>
+          <comment>(In Chinese)</comment>
+        </element-citation>
+      </ref>
+      <ref id="B16-modelling-07-00027">
+        <label>16.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Ma</surname>
+              <given-names>K.</given-names>
+            </name>
+            <name>
+              <surname>Jiang</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Liu</surname>
+              <given-names>Z.</given-names>
+            </name>
+          </person-group>
+          <article-title>Accelerating fully resolved simulation of particle-laden flows on heterogeneous computer architectures</article-title>
+          <source>Particuology</source>
+          <year>2023</year>
+          <volume>81</volume>
+          <fpage>25</fpage>
+          <lpage>37</lpage>
+        </element-citation>
+      </ref>
+      <ref id="B17-modelling-07-00027">
+        <label>17.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Mao</surname>
+              <given-names>R.</given-names>
+            </name>
+            <name>
+              <surname>Zhang</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>H.</given-names>
+            </name>
+            <name>
+              <surname>Xu</surname>
+              <given-names>J.</given-names>
+            </name>
+            <name>
+              <surname>Dong</surname>
+              <given-names>X.</given-names>
+            </name>
+            <name>
+              <surname>Zhang</surname>
+              <given-names>Y.</given-names>
+            </name>
+            <name>
+              <surname>Chen</surname>
+              <given-names>Z.X.</given-names>
+            </name>
+          </person-group>
+          <article-title>An integrated framework for accelerating reactive flow simulation using GPU and machine learning models</article-title>
+          <source>Proc. Combust. Inst.</source>
+          <year>2024</year>
+          <volume>40</volume>
+          <fpage>105512</fpage>
+          <pub-id pub-id-type="doi">10.1016/j.proci.2024.105512</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B18-modelling-07-00027">
+        <label>18.</label>
+        <element-citation publication-type="web">
+          <person-group person-group-type="author">
+            <collab>NVIDIA</collab>
+          </person-group>
+          <article-title>CUDA C Programming Guide [EB/OL]. (2013-06) [2024-07-01]</article-title>
+          <comment>Available online: <ext-link xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="https://docs.nvidia.com/cuda/cuda-c-programming-guide/" ext-link-type="uri">https://docs.nvidia.com/cuda/cuda-c-programming-guide/</ext-link></comment>
+          <date-in-citation content-type="access-date" iso-8601-date="2025-10-06">(accessed on 6 October 2025)</date-in-citation>
+        </element-citation>
+      </ref>
+      <ref id="B19-modelling-07-00027">
+        <label>19.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Boyd</surname>
+              <given-names>L.</given-names>
+            </name>
+            <name>
+              <surname>Bridson</surname>
+              <given-names>R.</given-names>
+            </name>
+          </person-group>
+          <article-title>Multi FLIP for energetic two-phase fluid simulation</article-title>
+          <source>ACM Trans. Graph.</source>
+          <year>2012</year>
+          <volume>31</volume>
+          <fpage>16</fpage>
+          <pub-id pub-id-type="doi">10.1145/2159516.2159522</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B20-modelling-07-00027">
+        <label>20.</label>
+        <element-citation publication-type="confproc">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Yang</surname>
+              <given-names>L.P.</given-names>
+            </name>
+            <name>
+              <surname>Li</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Xia</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Hong</surname>
+              <given-names>Q.</given-names>
+            </name>
+            <name>
+              <surname>Aimin</surname>
+              <given-names>H.</given-names>
+            </name>
+          </person-group>
+          <article-title>A novel integrated analysis-and-simulation approach for detail enhancement in FLIP fluid interaction</article-title>
+          <source>Proceedings of the 21stACM Symposium on Virtual Reality Software and Technology</source>
+          <conf-loc>Beijing, China</conf-loc>
+          <conf-date>13 November 2015</conf-date>
+          <fpage>103</fpage>
+          <lpage>112</lpage>
+        </element-citation>
+      </ref>
+      <ref id="B21-modelling-07-00027">
+        <label>21.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Ferstl</surname>
+              <given-names>F.</given-names>
+            </name>
+            <name>
+              <surname>Ando</surname>
+              <given-names>R.</given-names>
+            </name>
+            <name>
+              <surname>Wojtan</surname>
+              <given-names>C.</given-names>
+            </name>
+            <name>
+              <surname>Westermann</surname>
+              <given-names>R.</given-names>
+            </name>
+            <name>
+              <surname>Thuerey</surname>
+              <given-names>N.</given-names>
+            </name>
+          </person-group>
+          <article-title>Narrow band FLIP for liquid simulations</article-title>
+          <source>Comput. Graph. Forum</source>
+          <year>2016</year>
+          <volume>35</volume>
+          <fpage>225</fpage>
+          <lpage>232</lpage>
+          <pub-id pub-id-type="doi">10.1111/cgf.12825</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B22-modelling-07-00027">
+        <label>22.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Gottlieb</surname>
+              <given-names>S.</given-names>
+            </name>
+            <name>
+              <surname>Shu</surname>
+              <given-names>C.W.</given-names>
+            </name>
+          </person-group>
+          <article-title>Total variation diminishing Runge-Kutta schemes</article-title>
+          <source>Math. Comput.</source>
+          <year>1998</year>
+          <volume>67</volume>
+          <fpage>73</fpage>
+          <lpage>85</lpage>
+          <pub-id pub-id-type="doi">10.1090/S0025-5718-98-00913-2</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B23-modelling-07-00027">
+        <label>23.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Zhou</surname>
+              <given-names>P.</given-names>
+            </name>
+            <name>
+              <surname>Jin</surname>
+              <given-names>A.F.</given-names>
+            </name>
+          </person-group>
+          <article-title>Application of GPU-based neighbour search method in SPH algorithm for sand-laden wind flow</article-title>
+          <source>Comput. Appl. Softw.</source>
+          <year>2025</year>
+          <volume>42</volume>
+          <fpage>221</fpage>
+          <lpage>226</lpage>
+          <comment>(In Chinese)</comment>
+        </element-citation>
+      </ref>
+      <ref id="B24-modelling-07-00027">
+        <label>24.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Winkler</surname>
+              <given-names>D.</given-names>
+            </name>
+            <name>
+              <surname>Rezavand</surname>
+              <given-names>M.</given-names>
+            </name>
+            <name>
+              <surname>Rauch</surname>
+              <given-names>W.</given-names>
+            </name>
+          </person-group>
+          <article-title>Neighbour lists for smoothed particle hydrodynamics on GPUs</article-title>
+          <source>Comput. Phys. Commun.</source>
+          <year>2018</year>
+          <volume>225</volume>
+          <fpage>140</fpage>
+          <lpage>148</lpage>
+          <pub-id pub-id-type="doi">10.1016/j.cpc.2017.12.014</pub-id>
+        </element-citation>
+      </ref>
+      <ref id="B25-modelling-07-00027">
+        <label>25.</label>
+        <element-citation publication-type="journal">
+          <person-group person-group-type="author">
+            <name>
+              <surname>Yang</surname>
+              <given-names>S.C.</given-names>
+            </name>
+            <name>
+              <surname>Wang</surname>
+              <given-names>Y.L.</given-names>
+            </name>
+            <name>
+              <surname>Jiao</surname>
+              <given-names>G.S.</given-names>
+            </name>
+            <name>
+              <surname>Qian</surname>
+              <given-names>H.J.</given-names>
+            </name>
+            <name>
+              <surname>Lu</surname>
+              <given-names>Z.Y.</given-names>
+            </name>
+          </person-group>
+          <article-title>Accelerating electrostatic interaction calculations with graphical processing units based on new developments of Ewald method using non-uniform fast Fourier transform</article-title>
+          <source>J. Comput. Chem.</source>
+          <year>2016</year>
+          <volume>37</volume>
+          <fpage>378</fpage>
+          <lpage>387</lpage>
+          <pub-id pub-id-type="doi">10.1002/jcc.24250</pub-id>
+          <pub-id pub-id-type="pmid">26584145</pub-id>
+        </element-citation>
+      </ref>
+    </ref-list>
+    <sec sec-type="display-objects">
+      <title>Figures and Tables</title>
+      <fig id="modelling-07-00027-f001" position="float">
+        <label>Figure 1</label>
+        <caption>
+          <p>FLIP method GPU parallel algorithm framework.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="modelling-07-00027-g001.tif"/>
+      </fig>
+      <fig id="modelling-07-00027-f002" position="float">
+        <label>Figure 2</label>
+        <caption>
+          <p>Basic principles of 2-dimensional spatial hashing index. Blue circles represent particles and numbers inside circles represent the unique particle indices. (labeled 0&#x2013;9). Arrows illustrate the index mapping between data structures. Numbers indicate the hash indices of grid cells (0&#x2013;8).</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="modelling-07-00027-g002.tif"/>
+      </fig>
+      <fig id="modelling-07-00027-f003" position="float">
+        <label>Figure 3</label>
+        <caption>
+          <p>P2G-GPU parallel optimization strategy flowchart.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="modelling-07-00027-g003.tif"/>
+      </fig>
+      <fig id="modelling-07-00027-f004" position="float">
+        <label>Figure 4</label>
+        <caption>
+          <p>Dam-break simulation results.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="modelling-07-00027-g004.tif"/>
+      </fig>
+      <fig id="modelling-07-00027-f005" position="float">
+        <label>Figure 5</label>
+        <caption>
+          <p>Droplet falling simulation results.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="modelling-07-00027-g005.tif"/>
+      </fig>
+      <fig id="modelling-07-00027-f006" position="float">
+        <label>Figure 6</label>
+        <caption>
+          <p>Multiple simulation scenarios: (<bold>a</bold>) free-falling fluid with multiple geometric shapes; (<bold>b</bold>) fluid interaction with the Stanford Bunny model; and (<bold>c</bold>) complex multi-directional dam-break collisions.</p>
+        </caption>
+        <graphic xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="modelling-07-00027-g006.tif"/>
+      </fig>
+      <table-wrap id="modelling-07-00027-t001" position="float">
+        <object-id pub-id-type="pii">modelling-07-00027-t001_Table 1</object-id>
+        <label>Table 1</label>
+        <caption>
+          <p>CPU and GPU performance parameters.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Device</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Model</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Number of Cores</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Memory/Graphics Memory (GB)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">CPU</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">AMD Ryzen 77,840 H with Radeon 780 M Graphics</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">8</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">16</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">GPU</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">NVIDIA GeForce RTX 4060 Laptop GPU</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">3072</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">8</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="modelling-07-00027-t002" position="float">
+        <object-id pub-id-type="pii">modelling-07-00027-t002_Table 2</object-id>
+        <label>Table 2</label>
+        <caption>
+          <p>Average time taken to build a spatial hashing index during a dam-break simulation (ms).</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Particle</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Grid</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Build Hash Array</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Sort Particles</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Create Index</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">3.5 M</td>
+              <td align="center" valign="middle">128<sup>3</sup></td>
+              <td align="center" valign="middle">0.73</td>
+              <td align="center" valign="middle">5.12</td>
+              <td align="center" valign="middle">0.20</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">7 M</td>
+              <td align="center" valign="middle">160<sup>3</sup></td>
+              <td align="center" valign="middle">1.34</td>
+              <td align="center" valign="middle">10.37</td>
+              <td align="center" valign="middle">0.36</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">12 M</td>
+              <td align="center" valign="middle">192<sup>3</sup></td>
+              <td align="center" valign="middle">2.23</td>
+              <td align="center" valign="middle">16.15</td>
+              <td align="center" valign="middle">0.59</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">20 M</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">224<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">3.45</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">24.82</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">0.89</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="modelling-07-00027-t003" position="float">
+        <object-id pub-id-type="pii">modelling-07-00027-t003_Table 3</object-id>
+        <label>Table 3</label>
+        <caption>
+          <p>Comparison of average time consumption of P2G steps in dam-break simulation.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Particle</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Grid</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Particle Thread Scattering Strategy/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Global Thread Strategy/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Improv.</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Thread Block-Level Cooperation Optimization Strategy/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Improv.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">3.5 M</td>
+              <td align="center" valign="middle">128<sup>3</sup></td>
+              <td align="center" valign="middle">23.55</td>
+              <td align="center" valign="middle">18.30</td>
+              <td align="center" valign="middle">22%</td>
+              <td align="center" valign="middle">15.23</td>
+              <td align="center" valign="middle">35%</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">7 M</td>
+              <td align="center" valign="middle">160<sup>3</sup></td>
+              <td align="center" valign="middle">46.25</td>
+              <td align="center" valign="middle">37.39</td>
+              <td align="center" valign="middle">19%</td>
+              <td align="center" valign="middle">29.05</td>
+              <td align="center" valign="middle">37%</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">12 M</td>
+              <td align="center" valign="middle">192<sup>3</sup></td>
+              <td align="center" valign="middle">93.93</td>
+              <td align="center" valign="middle">68.33</td>
+              <td align="center" valign="middle">27%</td>
+              <td align="center" valign="middle">49.46</td>
+              <td align="center" valign="middle">47%</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">20 M</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">224<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">171.28</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">111.74</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">35%</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">78.28</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">54%</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="modelling-07-00027-t004" position="float">
+        <object-id pub-id-type="pii">modelling-07-00027-t004_Table 4</object-id>
+        <label>Table 4</label>
+        <caption>
+          <p>Comparison of average time consumption of P2G step (based on spatial hashing index) thread strategies in dam-break simulation.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Particle</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Grid</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Global Thread Strategy/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Thread Block-Level Cooperation Optimization Strategy/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Improv.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle">3.5 M</td>
+              <td align="center" valign="middle">128<sup>3</sup></td>
+              <td align="center" valign="middle">18.30</td>
+              <td align="center" valign="middle">15.23</td>
+              <td align="center" valign="middle">17%</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">7 M</td>
+              <td align="center" valign="middle">160<sup>3</sup></td>
+              <td align="center" valign="middle">37.39</td>
+              <td align="center" valign="middle">29.05</td>
+              <td align="center" valign="middle">22%</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">12 M</td>
+              <td align="center" valign="middle">192<sup>3</sup></td>
+              <td align="center" valign="middle">68.33</td>
+              <td align="center" valign="middle">49.46</td>
+              <td align="center" valign="middle">28%</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">20 M</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">224<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">111.74</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">78.28</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">30%</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="modelling-07-00027-t005" position="float">
+        <object-id pub-id-type="pii">modelling-07-00027-t005_Table 5</object-id>
+        <label>Table 5</label>
+        <caption>
+          <p>Time-consuming subdivision comparison of various steps in dam-break simulation.</p>
+        </caption>
+        <table>
+          <tbody>
+            <tr>
+              <td rowspan="6" align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Grid: 192<sup>3</sup><break/>Particle: 12 M</td>
+              <td align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin"> </td>
+              <td align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">
+                <bold>GPU_1/ms</bold>
+              </td>
+              <td align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">
+                <bold>GPU_2/ms</bold>
+              </td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Advection</td>
+              <td align="center" valign="middle">11.09</td>
+              <td align="center" valign="middle">7.13</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">P2G</td>
+              <td align="center" valign="middle">93.93</td>
+              <td align="center" valign="middle">49.88</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">Pressure Solve</td>
+              <td align="center" valign="middle">101.61</td>
+              <td align="center" valign="middle">101.44</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle">G2P</td>
+              <td align="center" valign="middle">8.52</td>
+              <td align="center" valign="middle">6.4</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">Other</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">3.19</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">1.17</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin"> </td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">Total Time</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">218.32</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">166.02</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="modelling-07-00027-t006" position="float">
+        <object-id pub-id-type="pii">modelling-07-00027-t006_Table 6</object-id>
+        <label>Table 6</label>
+        <caption>
+          <p>Comparison of computational efficiency for dam-break simulations at different grid resolutions.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Grid</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">CPU/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">GPU_1/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Speedup Ratio_1</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">GPU_2/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Speedup Ratio_2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">128<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">1887.10</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">45.77</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">41.2</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">35.60</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">53.0</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">160<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">3842.53</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">115.31</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">33.3</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">92.60</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">41.5</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">192<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">7147.20</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">218.32</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">32.7</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">166.02</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">43.1</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">224<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">12,364.20</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">372.02</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">33.2</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">261.03</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">47.4</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+      <table-wrap id="modelling-07-00027-t007" position="float">
+        <object-id pub-id-type="pii">modelling-07-00027-t007_Table 7</object-id>
+        <label>Table 7</label>
+        <caption>
+          <p>Comparison of computational efficiency for water droplet falling simulations at different grid resolutions.</p>
+        </caption>
+        <table>
+          <thead>
+            <tr>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Cell</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">CPU/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">GPU_1/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Speedup Ratio_1</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">GPU_2/ms</th>
+              <th align="center" valign="middle" style="border-top:solid thin;border-bottom:solid thin">Speedup Ratio_2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">128<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">1733.55</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">40.17</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">43.2</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">31.82</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">54.5</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">160<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">3846.51</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">103.93</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">37.0</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">85.91</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">44.8</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">192<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">7308.04</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">185.74</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">39.4</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">153.60</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">47.6</td>
+            </tr>
+            <tr>
+              <td align="center" valign="middle" style="border-bottom:solid thin">224<sup>3</sup></td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">12,820.96</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">297.08</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">43.2</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">241.65</td>
+              <td align="center" valign="middle" style="border-bottom:solid thin">53.1</td>
+            </tr>
+          </tbody>
+        </table>
+      </table-wrap>
+    </sec>
+    <fn-group>
+      <fn>
+        <p><bold>Disclaimer/Publisher&#x2019;s Note:</bold> The statements, opinions and data contained in all publications are solely those of the individual author(s) and contributor(s) and not of MDPI and/or the editor(s). MDPI and/or the editor(s) disclaim responsibility for any injury to people or property resulting from any ideas, methods, instructions or products referred to in the content.</p>
+      </fn>
+    </fn-group>
+  </back>
+</article>

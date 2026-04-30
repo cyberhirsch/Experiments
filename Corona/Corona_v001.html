@@ -1,0 +1,4164 @@
+﻿<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Solar Corona Simulation - FLIP MHD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #070809;
+      --ink: #e6ecf2;
+      --dim: #5a6470;
+      --accent: #ffb474;
+      --warm: #ff5533;
+      --line: rgba(230, 236, 242, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      overflow: hidden;
+      font-family: 'JetBrains Mono', monospace
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(255, 180, 116, 0.06), transparent 55%),
+        radial-gradient(ellipse at 70% 80%, rgba(255, 85, 51, 0.04), transparent 55%),
+        var(--bg);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.35 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+      opacity: .4;
+      mix-blend-mode: overlay;
+    }
+
+    header {
+      padding: 22px 32px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--line);
+      z-index: 2;
+    }
+
+    header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 26px;
+      letter-spacing: 0.02em;
+    }
+
+    header h1 .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-style: normal;
+      font-size: 10px;
+      color: var(--dim);
+      margin-right: 14px;
+      letter-spacing: 0.3em
+    }
+
+    header .meta {
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase
+    }
+
+    header .meta b {
+      color: var(--accent);
+      font-weight: 400
+    }
+
+    main {
+      position: relative;
+      overflow: hidden
+    }
+
+    #stage {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%
+    }
+
+    .corner {
+      position: absolute;
+      font-size: 9px;
+      color: var(--dim);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 3;
+      line-height: 1.7;
+    }
+
+    .corner.tl {
+      top: 18px;
+      left: 32px
+    }
+
+    .corner.tr {
+      top: 18px;
+      right: 32px;
+      text-align: right
+    }
+
+    .corner.bl {
+      bottom: 18px;
+      left: 32px
+    }
+
+    .corner.br {
+      bottom: 18px;
+      right: 32px;
+      text-align: right
+    }
+
+    .corner b {
+      color: var(--accent);
+      font-weight: 400
+    }
+
+    .ornament {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Cormorant Garamond', serif;
+      color: var(--dim);
+      font-size: 11px;
+      letter-spacing: 0.35em;
+      z-index: 3;
+      pointer-events: none;
+      font-style: italic;
+    }
+
+    .ornament.top {
+      top: 14px
+    }
+
+    .ornament.bot {
+      bottom: 14px
+    }
+
+    footer {
+      padding: 14px 32px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    footer .controls {
+      display: flex;
+      gap: 10px;
+      row-gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap
+    }
+
+    footer button {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: all .25s ease;
+    }
+
+    footer button:hover {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    footer button.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(127, 199, 255, 0.06)
+    }
+
+    footer button.loaded {
+      border-color: var(--warm);
+      color: var(--warm)
+    }
+
+    button.tiny,
+    footer button.tiny {
+      min-width: 42px;
+      padding: 7px 9px;
+      letter-spacing: 0.18em;
+    }
+
+    footer .sep {
+      width: 1px;
+      height: 18px;
+      background: var(--line);
+      margin: 0 4px
+    }
+
+    footer .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: var(--dim);
+    }
+
+    footer .slider-group label {
+      min-width: auto
+    }
+
+    footer .slider-group .val {
+      color: var(--accent);
+      min-width: 54px;
+      text-align: right;
+      font-variant-numeric: tabular-nums
+    }
+
+    footer input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 120px;
+      height: 1px;
+      background: var(--line);
+      outline: none;
+      cursor: pointer;
+    }
+
+    footer input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    footer input[type=range]::-moz-range-thumb {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    footer input[type=file] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      left: -9999px;
+    }
+
+    .param-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 80;
+      display: none;
+      grid-template-rows: auto 1fr;
+      background: rgba(7, 8, 9, 0.96);
+      backdrop-filter: blur(10px);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    .param-modal.open {
+      display: grid;
+    }
+
+    .param-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 32px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .param-top h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 28px;
+      letter-spacing: 0.04em;
+    }
+
+    .param-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .param-top button {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .param-top button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .param-content {
+      overflow: auto;
+      padding: 24px 32px 36px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      align-content: start;
+      gap: 28px 34px;
+    }
+
+    .param-section h3 {
+      font-size: 10px;
+      color: var(--accent);
+      letter-spacing: 0.24em;
+      text-transform: uppercase;
+      font-weight: 400;
+      margin-bottom: 16px;
+    }
+
+    .param-row {
+      display: grid;
+      grid-template-columns: minmax(132px, 1fr) minmax(150px, 220px) 74px;
+      align-items: center;
+      gap: 12px;
+      min-height: 30px;
+      border-bottom: 1px solid rgba(230, 236, 242, 0.06);
+    }
+
+    .param-row label {
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      line-height: 1.35;
+    }
+
+    .param-row output {
+      color: var(--accent);
+      font-size: 10px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .param-row input[type=range] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .param-row input[type=number] {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 10px;
+      padding: 6px 8px;
+      outline: none;
+    }
+
+    .param-row.has-warning {
+      padding-bottom: 8px;
+    }
+
+    .param-warning {
+      grid-column: 1 / -1;
+      color: #f5c56f;
+      font-size: 9px;
+      line-height: 1.45;
+      letter-spacing: 0.04em;
+      padding-bottom: 2px;
+    }
+
+    .param-commit-control {
+      display: grid;
+      grid-template-columns: minmax(68px, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .param-commit-control button {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+
+    .param-commit-control button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .param-row input[type=color] {
+      width: 100%;
+      height: 22px;
+      border: 1px solid var(--line);
+      background: transparent;
+    }
+
+    .param-readonly {
+      color: var(--dim);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 980px) {
+      header,
+      footer {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      footer .controls {
+        justify-content: flex-start;
+        width: 100%;
+      }
+
+      .param-content {
+        grid-template-columns: 1fr;
+        padding: 18px;
+      }
+
+      .param-row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        padding: 10px 0;
+      }
+
+      .param-row output {
+        text-align: left;
+      }
+    }
+
+    #toast {
+      position: absolute;
+      left: 50%;
+      bottom: 64px;
+      transform: translateX(-50%);
+      background: rgba(7, 8, 9, 0.85);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    #toast.show {
+      opacity: 1
+    }
+
+    #readout {
+      position: absolute;
+      right: 32px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--dim);
+      writing-mode: vertical-rl;
+      z-index: 3;
+      pointer-events: none;
+      text-align: right;
+      line-height: 2;
+    }
+
+    #readout span {
+      color: var(--accent)
+    }
+
+    #status {
+      position: absolute;
+      left: 32px;
+      top: 50%;
+      transform: translateY(-50%) rotate(180deg);
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: var(--dim);
+      writing-mode: vertical-rl;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .crosshair {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1px;
+      height: 1px;
+      z-index: 2;
+      pointer-events: none
+    }
+
+    .crosshair::before,
+    .crosshair::after {
+      content: "";
+      position: absolute;
+      background: var(--line)
+    }
+
+    .crosshair::before {
+      width: 22px;
+      height: 1px;
+      left: -11px;
+      top: 0
+    }
+
+    .crosshair::after {
+      width: 1px;
+      height: 22px;
+      left: 0;
+      top: -11px
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>
+      <span class="num">No. 03 - VOL. I</span>
+      Solar Corona Simulation <span style="color:var(--dim);font-size:14px;font-style:normal"> - magnetic field lines</span>
+    </h1>
+    <div class="meta">PIC/FLIP - WebGL2 + WebGPU - <b>Magnetic Forces</b></div>
+  </header>
+
+  <main>
+    <div class="ornament top">surface poles - traced coronal field lines</div>
+
+    <div class="corner tl">volume<br><b>3D MAC grid</b><br>particle markers</div>
+    <div class="corner tr">webgpu <b id="gpu-grid-label">128^3</b><br>packed buffers<br>3D vel storage</div>
+    <div class="corner bl">surface flux<br>balanced <b>+ / -</b> poles</div>
+    <div class="corner br">jacobi <b>40</b> iter<br>gpu grid <b id="gpu-grid-corner">128^3</b></div>
+
+    <div class="crosshair"></div>
+    <div id="status">SIMULATION ACTIVE</div>
+    <div id="readout">fps <span id="fps">0</span> - t <span id="tt">0.0</span>s - p <span id="pp">0</span></div>
+
+    <canvas id="stage"></canvas>
+
+    <div class="ornament bot">magnetic corona</div>
+  </main>
+
+  <footer>
+    <div>3D WebGPU FLIP 128^3 plasma guided by gravity and the magnetic vector field</div>
+    <div class="controls">
+      <div class="slider-group">
+        <label>N</label>
+        <input id="s-fluid-count" type="range" min="0" max="5" step="1" value="3" />
+        <span id="v-fluid-count" class="val">32,000</span>
+      </div>
+      <div class="sep"></div>
+      <button id="b-sim-panel" class="tiny">Sim</button>
+      <button id="b-look-panel" class="tiny">Look</button>
+      <div class="sep"></div>
+      <button id="b-rot" class="active">Rotate</button>
+      <button id="b-field" class="active">Field</button>
+      <button id="b-fluid" class="active">Fluid</button>
+      <button id="b-eject">Eject</button>
+      <button id="b-reset">Reset</button>
+    </div>
+  </footer>
+  <div id="toast"></div>
+  <div id="param-modal" class="param-modal" aria-hidden="true">
+    <div class="param-top">
+      <h2 id="param-title">Parameters</h2>
+      <div class="param-actions">
+        <button id="param-save" class="tiny">Save</button>
+        <button id="param-load" class="tiny">Load</button>
+        <button id="param-reset" class="tiny">Reset</button>
+        <button id="param-close" class="tiny">Close</button>
+      </div>
+    </div>
+    <div id="param-content" class="param-content"></div>
+  </div>
+
+  <script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js",
+    "three/addons/controls/OrbitControls.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js"
+  }
+}
+</script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // =================== Renderer ===================
+    const FLIP_3D_ENABLED = true;
+    const canvas = document.getElementById('stage');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    let pixelRatioCap = 2.0;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap));
+    renderer.setClearColor(0x000000, 0);
+
+    const gl = renderer.getContext();
+    if (!(gl instanceof WebGL2RenderingContext)) {
+      document.body.innerHTML = '<div style="padding:40px;font-family:monospace;color:#e6ecf2">WebGL2 required.</div>';
+      throw new Error('WebGL2 required');
+    }
+    // =================== Display: render particles in 3D ===================
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+    camera.position.set(0, 0, 4.5);
+
+    // Drag-to-rotate. Auto-rotation pauses on drag-start and resumes on release.
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.rotateSpeed = 0.6;
+    controls.enablePan = false;
+    controls.minDistance = 1.6;
+    controls.maxDistance = 8.0;
+    controls.zoomSpeed = 0.6;
+
+    let userDragging = false;
+    controls.addEventListener('start', () => { userDragging = true; });
+    controls.addEventListener('end', () => { userDragging = false; });
+
+    // faint glow + dark sphere body
+    const sphereCore = new THREE.Mesh(
+      new THREE.SphereGeometry(0.985, 64, 32),
+      new THREE.MeshBasicMaterial({ color: 0x1a0500 })
+    );
+    scene.add(sphereCore);
+
+    const glowMat = new THREE.ShaderMaterial({
+      transparent: true, side: THREE.BackSide, depthWrite: false,
+      uniforms: {
+        uColor: { value: new THREE.Color(0xffaa33) },
+        uIntensity: { value: 0.45 },
+        uRim: { value: 2.5 },
+      },
+      vertexShader: `
+    varying vec3 vN; varying vec3 vP;
+    void main(){
+      vN = normalize(normalMatrix * normal);
+      vec4 mv = modelViewMatrix * vec4(position,1.0); vP = mv.xyz;
+      gl_Position = projectionMatrix * mv;
+    }`,
+      fragmentShader: `
+    varying vec3 vN; varying vec3 vP; uniform vec3 uColor; uniform float uIntensity; uniform float uRim;
+    void main(){
+      vec3 V = normalize(-vP);
+      float r = pow(1.0 - max(dot(V, vN), 0.0), uRim);
+      gl_FragColor = vec4(uColor * r, r * uIntensity);
+    }`,
+    });
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(1.32, 64, 32), glowMat);
+    scene.add(glow);
+
+    // Magnetic scaffold: balanced surface flux patches, then streamlines through
+    // the vector field induced by those patches. This is a PFSS-like visual toy,
+    // not a claim that magnetic monopoles exist.
+    const magneticFieldGroup = new THREE.Group();
+    scene.add(magneticFieldGroup);
+
+    let poleData = [];
+    let cmeEmitters = [];
+    let fieldLines = null;
+    let polePoints = null;
+    let fieldSeed = 17;
+
+    const simParams = {
+      pressureIterations: 40,
+      flipBlend: 0.82,
+      maxDt: 1 / 45,
+      dtScale: 1.0,
+      velocityDamping: 0.996,
+      maxSpeed: 3.2,
+      gravity: -0.30,
+      gravitySoftness: 0.18,
+      magneticScale: 0.020,
+      magneticCap: 1.15,
+      magneticRadialLift: 0.16,
+      magneticSoftening: 0.010,
+      compressionTarget: 10.0,
+      compressionCap: 28.0,
+      compressionStrength: 0.085,
+      cohesionLow: 8.0,
+      cohesionHigh: 32.0,
+      cohesionMaxPull: 4.2,
+      cohesionGradientScale: 0.16,
+      sparseThreshold: 8.0,
+      sparseStrength: 0.075,
+      cohesionVelocityScale: 1.0,
+      cohesionAdvectionOffset: 0.35,
+      surfaceKillRadius: 0.980,
+      outerKillRadius: 2.75,
+    };
+
+    const emitterParams = {
+      burstRadius: 0.085,
+      startRadius: 1.026,
+      puff: 0.024,
+      liftBase: 0.95,
+      liftRandom: 0.35,
+      shearRandom: 0.18,
+      spinRandom: 0.36,
+      magneticInfluence: 0.22,
+      magneticSampleRadius: 1.05,
+      lifeBase: 5.5,
+      lifeRandom: 2.5,
+    };
+
+    const fieldParams = {
+      pairCount: 11,
+      globalStrength: 1.45,
+      separationMin: 0.10,
+      separationRange: 0.18,
+      strengthMin: 0.65,
+      strengthRange: 0.85,
+      linesPerPole: 10,
+      lineStep: 0.018,
+      lineMaxSteps: 260,
+      lineOuter: 2.45,
+      lineInner: 1.012,
+      seedRingMin: 0.025,
+      seedRingRange: 0.060,
+    };
+
+    const renderParams = {
+      particleSizeYoung: 24.0,
+      particleSizeOld: 10.0,
+      particleSizeAgeStart: 0.15,
+      particleSizeAgeEnd: 1.0,
+      particleSizeMin: 3.4,
+      particleSizeMax: 38.0,
+      spriteFalloff: 6.5,
+      particleAlpha: 0.34,
+      ageFadeYoung: 0.08,
+      ageFadeOld: 1.0,
+      hotColor: '#ff8520',
+      paleColor: '#ffd66b',
+      highColor: '#80d1ff',
+      heightBlend: 0.45,
+      heightRange: 1.4,
+      fieldOpacity: 0.62,
+      fieldPulse: 0.08,
+      fieldNearColor: '#ffb35c',
+      fieldFarColor: '#75d7ff',
+      fieldHeightRange: 1.2,
+      poleSize: 0.055,
+      poleOpacity: 0.9,
+      positivePoleColor: '#ff6f3c',
+      negativePoleColor: '#78d9ff',
+      sunCoreRadius: 0.985,
+      sunCoreColor: '#1a0500',
+      glowRadius: 1.32,
+      glowColor: '#ffaa33',
+      glowIntensity: 0.45,
+      glowRim: 2.5,
+      boundsColor: '#9fcfff',
+      boundsOpacity: 0.28,
+      starSize: 0.018,
+      starOpacity: 0.7,
+    };
+
+    const viewParams = {
+      autoRotateSpeed: 0.12,
+      cameraFov: 35,
+      cameraDistance: 4.5,
+      orbitDamping: 0.08,
+      orbitRotateSpeed: 0.6,
+      orbitMinDistance: 1.6,
+      orbitMaxDistance: 8.0,
+      orbitZoomSpeed: 0.6,
+      pixelRatioCap: 2.0,
+    };
+
+    const fieldLineMat = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.62,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    const poleMat = new THREE.PointsMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      size: 0.055,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    function mulberry32(seed) {
+      return function rand() {
+        seed |= 0;
+        seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function randomUnit(rng) {
+      const z = 1 - 2 * rng();
+      const a = Math.PI * 2 * rng();
+      const r = Math.sqrt(Math.max(0, 1 - z * z));
+      return new THREE.Vector3(r * Math.cos(a), z, r * Math.sin(a));
+    }
+
+    function tangentBasis(n, rng) {
+      const helper = Math.abs(n.y) < 0.85 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+      const t1 = new THREE.Vector3().crossVectors(helper, n).normalize();
+      const t2 = new THREE.Vector3().crossVectors(n, t1).normalize();
+      const roll = rng ? rng() * Math.PI * 2 : 0;
+      const a = t1.clone().multiplyScalar(Math.cos(roll)).addScaledVector(t2, Math.sin(roll)).normalize();
+      const b = new THREE.Vector3().crossVectors(n, a).normalize();
+      return [a, b];
+    }
+
+    function surfaceOffset(center, tangent, angle) {
+      return center.clone()
+        .multiplyScalar(Math.cos(angle))
+        .addScaledVector(tangent, Math.sin(angle))
+        .normalize();
+    }
+
+    function sampleMagneticField(point) {
+      const b = new THREE.Vector3();
+      const delta = new THREE.Vector3();
+      for (const pole of poleData) {
+        delta.copy(point).sub(pole.pos);
+        const r2 = delta.lengthSq() + simParams.magneticSoftening;
+        b.addScaledVector(delta, pole.charge / (r2 * Math.sqrt(r2)));
+      }
+      return b;
+    }
+
+    function lineColorAt(point) {
+      const h = THREE.MathUtils.clamp((point.length() - 1.0) / renderParams.fieldHeightRange, 0, 1);
+      return new THREE.Color(renderParams.fieldNearColor).lerp(new THREE.Color(renderParams.fieldFarColor), h);
+    }
+
+    function traceFieldLine(seed) {
+      const pts = [];
+      let p = seed.clone();
+      const step = fieldParams.lineStep;
+      const maxSteps = Math.max(12, Math.round(fieldParams.lineMaxSteps));
+
+      for (let i = 0; i < maxSteps; i++) {
+        pts.push(p.clone());
+
+        const b1 = sampleMagneticField(p);
+        if (b1.lengthSq() < 1e-8) break;
+
+        const mid = p.clone().addScaledVector(b1.normalize(), step * 0.5);
+        const b2 = sampleMagneticField(mid);
+        if (b2.lengthSq() < 1e-8) break;
+
+        p.addScaledVector(b2.normalize(), step);
+
+        const radius = p.length();
+        if (radius > fieldParams.lineOuter) break;
+        if (radius < fieldParams.lineInner && i > 10) {
+          p.normalize().multiplyScalar(fieldParams.lineInner);
+          pts.push(p.clone());
+          break;
+        }
+      }
+
+      return pts;
+    }
+
+    function addFieldSegments(linePts, positions, colors) {
+      if (linePts.length < 8) return;
+      for (let i = 0; i < linePts.length - 1; i++) {
+        const a = linePts[i];
+        const b = linePts[i + 1];
+        const ca = lineColorAt(a);
+        const cb = lineColorAt(b);
+        positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        colors.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b);
+      }
+    }
+
+    function buildPoleMarkers() {
+      const pos = [];
+      const col = [];
+      const positive = new THREE.Color(renderParams.positivePoleColor);
+      const negative = new THREE.Color(renderParams.negativePoleColor);
+
+      for (const pole of poleData) {
+        const p = pole.pos.clone().multiplyScalar(1.025);
+        const c = pole.charge > 0 ? positive : negative;
+        pos.push(p.x, p.y, p.z);
+        col.push(c.r, c.g, c.b);
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geom.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      return new THREE.Points(geom, poleMat);
+    }
+
+    function generateMagneticField(seed = fieldSeed) {
+      const rng = mulberry32(seed);
+
+      if (fieldLines) {
+        magneticFieldGroup.remove(fieldLines);
+        fieldLines.geometry.dispose();
+      }
+      if (polePoints) {
+        magneticFieldGroup.remove(polePoints);
+        polePoints.geometry.dispose();
+      }
+
+      poleData = [];
+      cmeEmitters = [];
+
+      // Global dipole keeps the corona coherent, local bipolar patches add loops.
+      poleData.push({ pos: new THREE.Vector3(0.0, 0.88, 0.18).normalize(), charge: fieldParams.globalStrength });
+      poleData.push({ pos: new THREE.Vector3(0.0, -0.88, -0.18).normalize(), charge: -fieldParams.globalStrength });
+
+      const pairCount = Math.max(0, Math.round(fieldParams.pairCount));
+      for (let i = 0; i < pairCount; i++) {
+        const center = randomUnit(rng);
+        const [t1] = tangentBasis(center, rng);
+        const separation = fieldParams.separationMin + rng() * fieldParams.separationRange;
+        const strength = fieldParams.strengthMin + rng() * fieldParams.strengthRange;
+        const sign = rng() > 0.5 ? 1 : -1;
+
+        const posPole = surfaceOffset(center, t1, separation);
+        const negPole = surfaceOffset(center, t1, -separation);
+        poleData.push({ pos: posPole, charge: sign * strength });
+        poleData.push({ pos: negPole, charge: -sign * strength });
+        cmeEmitters.push({
+          center: posPole.clone().add(negPole).normalize(),
+          positive: sign > 0 ? posPole : negPole,
+          negative: sign > 0 ? negPole : posPole,
+          strength,
+          phase: rng() * Math.PI * 2,
+        });
+      }
+
+      const positions = [];
+      const colors = [];
+
+      for (const pole of poleData) {
+        if (pole.charge <= 0) continue;
+
+        const [t1, t2] = tangentBasis(pole.pos, rng);
+        const seedsPerPole = Math.max(1, Math.round(fieldParams.linesPerPole));
+        for (let i = 0; i < seedsPerPole; i++) {
+          const a = Math.PI * 2 * (i / seedsPerPole + rng() * 0.08);
+          const ring = fieldParams.seedRingMin + rng() * fieldParams.seedRingRange;
+          const seedDir = pole.pos.clone()
+            .multiplyScalar(Math.cos(ring))
+            .addScaledVector(t1, Math.sin(ring) * Math.cos(a))
+            .addScaledVector(t2, Math.sin(ring) * Math.sin(a))
+            .normalize();
+          const seedPos = seedDir.multiplyScalar(1.022);
+          addFieldSegments(traceFieldLine(seedPos), positions, colors);
+        }
+      }
+
+      const lineGeom = new THREE.BufferGeometry();
+      lineGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      lineGeom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      fieldLines = new THREE.LineSegments(lineGeom, fieldLineMat);
+      fieldLines.frustumCulled = false;
+      magneticFieldGroup.add(fieldLines);
+
+      polePoints = buildPoleMarkers();
+      polePoints.frustumCulled = false;
+      magneticFieldGroup.add(polePoints);
+    }
+
+    generateMagneticField(fieldSeed);
+
+    // =================== 3D FLIP corona volume ===================
+    const FLUID_COUNT_STEPS = [4200, 9000, 16000, 32000, 48000, 65536];
+    const FLUID_MAX = FLUID_COUNT_STEPS[FLUID_COUNT_STEPS.length - 1];
+    const FLUID_GRID = 26;
+    const SIM_BOX_SIZE_MIN = 1;
+    const SIM_BOX_SIZE_MAX = 5;
+    let simBoxSize = 4.7;
+    let pendingGpuGrid = 128;
+    let pendingSimBoxSize = simBoxSize;
+    let FLUID_MIN = -simBoxSize * 0.5;
+    let FLUID_MAX_WORLD = simBoxSize * 0.5;
+    let FLUID_CELL = simBoxSize / FLUID_GRID;
+    const FLUID_CELLS = FLUID_GRID * FLUID_GRID * FLUID_GRID;
+    const GPU_FLIP_GRID_MIN = 1;
+    let GPU_FLIP_GRID = 128;
+    let GPU_FLIP_CELL = 0;
+    let GPU_FLIP_CELLS = 0;
+    let gpuUFaceSize = 0;
+    let gpuVFaceSize = 0;
+    let gpuWFaceSize = 0;
+    let GPU_FLIP_FACE_TOTAL = 0;
+    let GPU_FLIP_MAX_FACE_SIZE = 0;
+    const FLUID_PRESSURE_ITER = 40;
+    const FLUID_FLIP_BLEND = 0.82;
+
+    let simBounds = null;
+    let simBoundsMat = null;
+
+    function updateWorldBoundsDerived() {
+      FLUID_MIN = -simBoxSize * 0.5;
+      FLUID_MAX_WORLD = simBoxSize * 0.5;
+      FLUID_CELL = simBoxSize / FLUID_GRID;
+      if (simBounds) simBounds.scale.setScalar(simBoxSize);
+    }
+
+    function updateGpuGridDerived() {
+      GPU_FLIP_CELL = simBoxSize / GPU_FLIP_GRID;
+      GPU_FLIP_CELLS = GPU_FLIP_GRID * GPU_FLIP_GRID * GPU_FLIP_GRID;
+      gpuUFaceSize = (GPU_FLIP_GRID + 1) * GPU_FLIP_GRID * GPU_FLIP_GRID;
+      gpuVFaceSize = GPU_FLIP_GRID * (GPU_FLIP_GRID + 1) * GPU_FLIP_GRID;
+      gpuWFaceSize = GPU_FLIP_GRID * GPU_FLIP_GRID * (GPU_FLIP_GRID + 1);
+      GPU_FLIP_FACE_TOTAL = gpuUFaceSize + gpuVFaceSize + gpuWFaceSize;
+      GPU_FLIP_MAX_FACE_SIZE = Math.max(gpuUFaceSize, gpuVFaceSize, gpuWFaceSize);
+      document.getElementById('gpu-grid-label').textContent = `${GPU_FLIP_GRID}^3`;
+      document.getElementById('gpu-grid-corner').textContent = `${GPU_FLIP_GRID}^3`;
+    }
+
+    function setGpuGridResolution(value) {
+      const next = Math.round(Number(value));
+      GPU_FLIP_GRID = Math.max(GPU_FLIP_GRID_MIN, Number.isFinite(next) ? next : 128);
+      updateGpuGridDerived();
+    }
+
+    function previewGpuGridResolution(value) {
+      const next = Math.round(Number(value));
+      return `${Math.max(GPU_FLIP_GRID_MIN, Number.isFinite(next) ? next : GPU_FLIP_GRID)}^3`;
+    }
+
+    function setPendingGpuGrid(value) {
+      const next = Math.round(Number(value));
+      pendingGpuGrid = Math.max(GPU_FLIP_GRID_MIN, Number.isFinite(next) ? next : GPU_FLIP_GRID);
+    }
+
+    function setPendingSimBoxSize(value) {
+      const next = Number(value);
+      pendingSimBoxSize = THREE.MathUtils.clamp(Number.isFinite(next) ? next : simBoxSize, SIM_BOX_SIZE_MIN, SIM_BOX_SIZE_MAX);
+    }
+
+    function setSimBoxSize(value) {
+      const next = Number(value);
+      simBoxSize = THREE.MathUtils.clamp(Number.isFinite(next) ? next : 4.7, SIM_BOX_SIZE_MIN, SIM_BOX_SIZE_MAX);
+      updateWorldBoundsDerived();
+      updateGpuGridDerived();
+    }
+
+    function syncPendingDomainControls() {
+      pendingGpuGrid = GPU_FLIP_GRID;
+      pendingSimBoxSize = simBoxSize;
+    }
+
+    function previewBoxSize(value) {
+      const next = Number(value);
+      return THREE.MathUtils.clamp(Number.isFinite(next) ? next : simBoxSize, SIM_BOX_SIZE_MIN, SIM_BOX_SIZE_MAX).toFixed(2);
+    }
+
+    updateWorldBoundsDerived();
+    updateGpuGridDerived();
+
+    const fluidPos = new Float32Array(FLUID_MAX * 3);
+    const fluidVel = new Float32Array(FLUID_MAX * 3);
+    const fluidAge = new Float32Array(FLUID_MAX);
+    const fluidLife = new Float32Array(FLUID_MAX);
+    const fluidAge01 = new Float32Array(FLUID_MAX);
+
+    const gMass = new Float32Array(FLUID_CELLS);
+    const gDiv = new Float32Array(FLUID_CELLS);
+    let gPressureA = new Float32Array(FLUID_CELLS);
+    let gPressureB = new Float32Array(FLUID_CELLS);
+    const gActive = new Uint8Array(FLUID_CELLS);
+    const CELL_AIR = 0, CELL_FLUID = 1, CELL_SOLID = 2;
+    const uFaceSize = (FLUID_GRID + 1) * FLUID_GRID * FLUID_GRID;
+    const vFaceSize = FLUID_GRID * (FLUID_GRID + 1) * FLUID_GRID;
+    const wFaceSize = FLUID_GRID * FLUID_GRID * (FLUID_GRID + 1);
+    const uFace = new Float32Array(uFaceSize);
+    const vFace = new Float32Array(vFaceSize);
+    const wFace = new Float32Array(wFaceSize);
+    const uOld = new Float32Array(uFaceSize);
+    const vOld = new Float32Array(vFaceSize);
+    const wOld = new Float32Array(wFaceSize);
+    const uWeight = new Float32Array(uFaceSize);
+    const vWeight = new Float32Array(vFaceSize);
+    const wWeight = new Float32Array(wFaceSize);
+    const cellType = new Uint8Array(FLUID_CELLS);
+
+    let fluidCount = 0;
+    let fluidCursor = 0;
+    let fluidVisible = true;
+    let fluidCountIdx = 3;
+    let fluidTargetCount = FLUID_COUNT_STEPS[fluidCountIdx];
+    let activeEmitterIndex = 0;
+    let gpuFlip = null;
+    let gpuFlipReady = false;
+    let gpuFlipNeedsUpload = true;
+    let gpuFlipInitToken = 0;
+
+    simBoundsMat = new THREE.LineBasicMaterial({
+      color: new THREE.Color(renderParams.boundsColor),
+      transparent: true,
+      opacity: renderParams.boundsOpacity,
+      depthWrite: false,
+    });
+    simBounds = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)),
+      simBoundsMat
+    );
+    simBounds.scale.setScalar(simBoxSize);
+    simBounds.frustumCulled = false;
+    scene.add(simBounds);
+
+    function gridIndex(x, y, z) {
+      return x + FLUID_GRID * (y + FLUID_GRID * z);
+    }
+
+    function inCell(i, j, k) {
+      return i >= 0 && i < FLUID_GRID && j >= 0 && j < FLUID_GRID && k >= 0 && k < FLUID_GRID;
+    }
+
+    function faceIndex(i, j, k, sx, sy) {
+      return i + sx * (j + sy * k);
+    }
+
+    function uIndex(i, j, k) {
+      return faceIndex(i, j, k, FLUID_GRID + 1, FLUID_GRID);
+    }
+
+    function vIndex(i, j, k) {
+      return faceIndex(i, j, k, FLUID_GRID, FLUID_GRID + 1);
+    }
+
+    function wIndex(i, j, k) {
+      return faceIndex(i, j, k, FLUID_GRID, FLUID_GRID);
+    }
+
+    function gridCenter(i, j, k, out) {
+      out.set(
+        FLUID_MIN + (i + 0.5) * FLUID_CELL,
+        FLUID_MIN + (j + 0.5) * FLUID_CELL,
+        FLUID_MIN + (k + 0.5) * FLUID_CELL
+      );
+      return out;
+    }
+
+    function sampleFaceField(field, sx, sy, sz, ox, oy, oz, x, y, z) {
+      let gx = (x - ox) / FLUID_CELL;
+      let gy = (y - oy) / FLUID_CELL;
+      let gz = (z - oz) / FLUID_CELL;
+      gx = THREE.MathUtils.clamp(gx, 0, sx - 1);
+      gy = THREE.MathUtils.clamp(gy, 0, sy - 1);
+      gz = THREE.MathUtils.clamp(gz, 0, sz - 1);
+
+      const ix = Math.min(Math.floor(gx), sx - 2);
+      const iy = Math.min(Math.floor(gy), sy - 2);
+      const iz = Math.min(Math.floor(gz), sz - 2);
+      const fx = gx - ix, fy = gy - iy, fz = gz - iz;
+      let value = 0;
+
+      for (let dz = 0; dz <= 1; dz++) {
+        const k = iz + dz;
+        const wz = dz ? fz : 1 - fz;
+        for (let dy = 0; dy <= 1; dy++) {
+          const j = iy + dy;
+          const wy = dy ? fy : 1 - fy;
+          for (let dx = 0; dx <= 1; dx++) {
+            const i = ix + dx;
+            const wx = dx ? fx : 1 - fx;
+            value += field[faceIndex(i, j, k, sx, sy)] * wx * wy * wz;
+          }
+        }
+      }
+
+      return value;
+    }
+
+    function sampleGridVelocity(x, y, z, useOld, out) {
+      const u = useOld ? uOld : uFace;
+      const v = useOld ? vOld : vFace;
+      const w = useOld ? wOld : wFace;
+      out.set(
+        sampleFaceField(u, FLUID_GRID + 1, FLUID_GRID, FLUID_GRID, FLUID_MIN, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN + FLUID_CELL * 0.5, x, y, z),
+        sampleFaceField(v, FLUID_GRID, FLUID_GRID + 1, FLUID_GRID, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN, FLUID_MIN + FLUID_CELL * 0.5, x, y, z),
+        sampleFaceField(w, FLUID_GRID, FLUID_GRID, FLUID_GRID + 1, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN, x, y, z)
+      );
+      return out;
+    }
+
+    function removeFluidParticle(i) {
+      const last = fluidCount - 1;
+      if (i !== last) {
+        const dst = i * 3;
+        const src = last * 3;
+        fluidPos[dst] = fluidPos[src];
+        fluidPos[dst + 1] = fluidPos[src + 1];
+        fluidPos[dst + 2] = fluidPos[src + 2];
+        fluidVel[dst] = fluidVel[src];
+        fluidVel[dst + 1] = fluidVel[src + 1];
+        fluidVel[dst + 2] = fluidVel[src + 2];
+        fluidAge[i] = fluidAge[last];
+        fluidLife[i] = fluidLife[last];
+        fluidAge01[i] = fluidAge01[last];
+      }
+      fluidCount = Math.max(0, fluidCount - 1);
+    }
+
+    function emitterAt(index) {
+      if (!cmeEmitters.length) {
+        return {
+          center: new THREE.Vector3(0, 1, 0),
+          positive: new THREE.Vector3(0.1, 0.99, 0),
+          negative: new THREE.Vector3(-0.1, 0.99, 0),
+          strength: 1,
+          phase: 0,
+        };
+      }
+      return cmeEmitters[index % cmeEmitters.length];
+    }
+
+    function spawnFluidParticle(emitter, burst = true) {
+      const n = emitter.center.clone().normalize();
+      const [t1, t2] = tangentBasis(n);
+      const ring = emitterParams.burstRadius * Math.sqrt(Math.random());
+      const a = Math.random() * Math.PI * 2;
+      const surface = n.clone()
+        .multiplyScalar(Math.cos(ring))
+        .addScaledVector(t1, Math.sin(ring) * Math.cos(a))
+        .addScaledVector(t2, Math.sin(ring) * Math.sin(a))
+        .normalize();
+
+      const along = emitter.negative.clone().sub(emitter.positive);
+      along.addScaledVector(n, -along.dot(n));
+      if (along.lengthSq() < 1e-5) along.copy(t1);
+      along.normalize();
+      const twist = new THREE.Vector3().crossVectors(n, along).normalize();
+      const b = sampleMagneticField(surface.clone().multiplyScalar(emitterParams.magneticSampleRadius));
+      const bDir = b.lengthSq() > 1e-7 ? b.normalize() : n.clone();
+
+      const i = fluidCount < FLUID_MAX ? fluidCount++ : (fluidCursor++ % FLUID_MAX);
+      const p = i * 3;
+      const lift = emitterParams.liftBase + Math.random() * emitterParams.liftRandom;
+      const shear = (Math.random() - 0.5) * emitterParams.shearRandom;
+      const spin = (Math.random() - 0.5) * emitterParams.spinRandom;
+      const puff = emitterParams.puff * Math.random();
+      const startRadius = emitterParams.startRadius + puff;
+
+      fluidPos[p] = surface.x * startRadius;
+      fluidPos[p + 1] = surface.y * startRadius;
+      fluidPos[p + 2] = surface.z * startRadius;
+      fluidVel[p] = n.x * lift + along.x * shear + twist.x * spin + bDir.x * emitterParams.magneticInfluence;
+      fluidVel[p + 1] = n.y * lift + along.y * shear + twist.y * spin + bDir.y * emitterParams.magneticInfluence;
+      fluidVel[p + 2] = n.z * lift + along.z * shear + twist.z * spin + bDir.z * emitterParams.magneticInfluence;
+      fluidAge[i] = 0;
+      fluidLife[i] = emitterParams.lifeBase + Math.random() * emitterParams.lifeRandom;
+      fluidAge01[i] = 0;
+    }
+
+    function seedFluid3D(count, emitterIndex = activeEmitterIndex) {
+      const emitter = emitterAt(emitterIndex);
+      fluidCount = 0;
+      fluidCursor = 0;
+      for (let i = 0; i < count; i++) spawnFluidParticle(emitter, true);
+      fluidGeom.setDrawRange(0, fluidCount);
+      fluidGeom.attributes.position.needsUpdate = true;
+      fluidGeom.attributes.aAge.needsUpdate = true;
+      gpuFlipNeedsUpload = true;
+      if (gpuFlipReady && gpuFlip) gpuFlip.uploadFromCpu();
+    }
+
+    function resetFluid3D() {
+      activeEmitterIndex = cmeEmitters.length ? (activeEmitterIndex + 1) % cmeEmitters.length : 0;
+      if (FLIP_3D_ENABLED) seedFluid3D(fluidTargetCount, activeEmitterIndex);
+    }
+
+    function isSolidCell(i, j, k) {
+      return !inCell(i, j, k) || cellType[gridIndex(i, j, k)] === CELL_SOLID;
+    }
+
+    function isFluidCell(i, j, k) {
+      return inCell(i, j, k) && cellType[gridIndex(i, j, k)] === CELL_FLUID;
+    }
+
+    function uFaceBlocked(i, j, k) {
+      return i <= 0 || i >= FLUID_GRID || isSolidCell(i - 1, j, k) || isSolidCell(i, j, k);
+    }
+
+    function vFaceBlocked(i, j, k) {
+      return j <= 0 || j >= FLUID_GRID || isSolidCell(i, j - 1, k) || isSolidCell(i, j, k);
+    }
+
+    function wFaceBlocked(i, j, k) {
+      return k <= 0 || k >= FLUID_GRID || isSolidCell(i, j, k - 1) || isSolidCell(i, j, k);
+    }
+
+    function uFaceHasFluid(i, j, k) {
+      return isFluidCell(i - 1, j, k) || isFluidCell(i, j, k);
+    }
+
+    function vFaceHasFluid(i, j, k) {
+      return isFluidCell(i, j - 1, k) || isFluidCell(i, j, k);
+    }
+
+    function wFaceHasFluid(i, j, k) {
+      return isFluidCell(i, j, k - 1) || isFluidCell(i, j, k);
+    }
+
+    function classifyFluidCells() {
+      cellType.fill(CELL_AIR);
+      gActive.fill(0);
+      gMass.fill(0);
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        const z = FLUID_MIN + (k + 0.5) * FLUID_CELL;
+        for (let j = 0; j < FLUID_GRID; j++) {
+          const y = FLUID_MIN + (j + 0.5) * FLUID_CELL;
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const x = FLUID_MIN + (i + 0.5) * FLUID_CELL;
+            const gi = gridIndex(i, j, k);
+            if (x * x + y * y + z * z < 1.0) cellType[gi] = CELL_SOLID;
+          }
+        }
+      }
+    }
+
+    function splatFace(field, weight, sx, sy, sz, ox, oy, oz, x, y, z, value) {
+      const gx = (x - ox) / FLUID_CELL;
+      const gy = (y - oy) / FLUID_CELL;
+      const gz = (z - oz) / FLUID_CELL;
+      const ix = Math.floor(gx), iy = Math.floor(gy), iz = Math.floor(gz);
+      const fx = gx - ix, fy = gy - iy, fz = gz - iz;
+
+      for (let dz = 0; dz <= 1; dz++) {
+        const k = iz + dz;
+        if (k < 0 || k >= sz) continue;
+        const wz = dz ? fz : 1 - fz;
+        for (let dy = 0; dy <= 1; dy++) {
+          const j = iy + dy;
+          if (j < 0 || j >= sy) continue;
+          const wy = dy ? fy : 1 - fy;
+          for (let dx = 0; dx <= 1; dx++) {
+            const i = ix + dx;
+            if (i < 0 || i >= sx) continue;
+            const wx = dx ? fx : 1 - fx;
+            const w = wx * wy * wz;
+            const idx = faceIndex(i, j, k, sx, sy);
+            field[idx] += value * w;
+            weight[idx] += w;
+          }
+        }
+      }
+    }
+
+    function normalizeFaceVelocities(field, weight) {
+      for (let i = 0; i < field.length; i++) {
+        if (weight[i] > 1e-6) field[i] /= weight[i];
+        else field[i] = 0;
+      }
+    }
+
+    function enforceFaceBoundaries() {
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 0; i <= FLUID_GRID; i++) {
+            if (uFaceBlocked(i, j, k)) uFace[uIndex(i, j, k)] = 0;
+          }
+        }
+      }
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 0; j <= FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            if (vFaceBlocked(i, j, k)) vFace[vIndex(i, j, k)] = 0;
+          }
+        }
+      }
+
+      for (let k = 0; k <= FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            if (wFaceBlocked(i, j, k)) wFace[wIndex(i, j, k)] = 0;
+          }
+        }
+      }
+    }
+
+    function splatFluidToGrid() {
+      gMass.fill(0);
+      uFace.fill(0);
+      vFace.fill(0);
+      wFace.fill(0);
+      uWeight.fill(0);
+      vWeight.fill(0);
+      wWeight.fill(0);
+      classifyFluidCells();
+
+      for (let p = 0; p < fluidCount; p++) {
+        const pi = p * 3;
+        const x = fluidPos[pi];
+        const y = fluidPos[pi + 1];
+        const z = fluidPos[pi + 2];
+        const ci = Math.floor((x - FLUID_MIN) / FLUID_CELL);
+        const cj = Math.floor((y - FLUID_MIN) / FLUID_CELL);
+        const ck = Math.floor((z - FLUID_MIN) / FLUID_CELL);
+
+        if (inCell(ci, cj, ck)) {
+          const gi = gridIndex(ci, cj, ck);
+          if (cellType[gi] !== CELL_SOLID) {
+            cellType[gi] = CELL_FLUID;
+            gActive[gi] = 1;
+            gMass[gi] += 1;
+          }
+        }
+
+        splatFace(uFace, uWeight, FLUID_GRID + 1, FLUID_GRID, FLUID_GRID, FLUID_MIN, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN + FLUID_CELL * 0.5, x, y, z, fluidVel[pi]);
+        splatFace(vFace, vWeight, FLUID_GRID, FLUID_GRID + 1, FLUID_GRID, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN, FLUID_MIN + FLUID_CELL * 0.5, x, y, z, fluidVel[pi + 1]);
+        splatFace(wFace, wWeight, FLUID_GRID, FLUID_GRID, FLUID_GRID + 1, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN, x, y, z, fluidVel[pi + 2]);
+      }
+
+      normalizeFaceVelocities(uFace, uWeight);
+      normalizeFaceVelocities(vFace, vWeight);
+      normalizeFaceVelocities(wFace, wWeight);
+      enforceFaceBoundaries();
+
+      uOld.set(uFace);
+      vOld.set(vFace);
+      wOld.set(wFace);
+    }
+
+    const fluidTmp = new THREE.Vector3();
+    const fluidForce = new THREE.Vector3();
+    const fluidB = new THREE.Vector3();
+
+    function fluidForceAt(x, y, z, out) {
+      fluidTmp.set(x, y, z);
+      const r = Math.max(fluidTmp.length(), 0.001);
+      const rx = x / r, ry = y / r, rz = z / r;
+      const gravity = simParams.gravity / (r * r + simParams.gravitySoftness);
+
+      out.set(rx * gravity, ry * gravity, rz * gravity);
+      fluidB.copy(sampleMagneticField(fluidTmp));
+      const bLen = fluidB.length();
+      if (bLen > 1e-5) {
+        fluidB.multiplyScalar(1 / bLen);
+        const guide = Math.min(simParams.magneticCap, bLen * simParams.magneticScale);
+        const outward = Math.max(0, fluidB.x * rx + fluidB.y * ry + fluidB.z * rz) * simParams.magneticRadialLift;
+        out.addScaledVector(fluidB, guide);
+        out.x += rx * outward;
+        out.y += ry * outward;
+        out.z += rz * outward;
+      }
+
+      return out;
+    }
+
+    function applyFluidForces(dt) {
+      for (let k = 0; k < FLUID_GRID; k++) {
+        const z = FLUID_MIN + (k + 0.5) * FLUID_CELL;
+        for (let j = 0; j < FLUID_GRID; j++) {
+          const y = FLUID_MIN + (j + 0.5) * FLUID_CELL;
+          for (let i = 0; i <= FLUID_GRID; i++) {
+            const idx = uIndex(i, j, k);
+            if (uFaceBlocked(i, j, k) || (uWeight[idx] <= 0 && !uFaceHasFluid(i, j, k))) continue;
+            const x = FLUID_MIN + i * FLUID_CELL;
+            fluidForceAt(x, y, z, fluidForce);
+            uFace[idx] = (uFace[idx] + fluidForce.x * dt) * simParams.velocityDamping;
+          }
+        }
+      }
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        const z = FLUID_MIN + (k + 0.5) * FLUID_CELL;
+        for (let j = 0; j <= FLUID_GRID; j++) {
+          const y = FLUID_MIN + j * FLUID_CELL;
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const idx = vIndex(i, j, k);
+            if (vFaceBlocked(i, j, k) || (vWeight[idx] <= 0 && !vFaceHasFluid(i, j, k))) continue;
+            const x = FLUID_MIN + (i + 0.5) * FLUID_CELL;
+            fluidForceAt(x, y, z, fluidForce);
+            vFace[idx] = (vFace[idx] + fluidForce.y * dt) * simParams.velocityDamping;
+          }
+        }
+      }
+
+      for (let k = 0; k <= FLUID_GRID; k++) {
+        const z = FLUID_MIN + k * FLUID_CELL;
+        for (let j = 0; j < FLUID_GRID; j++) {
+          const y = FLUID_MIN + (j + 0.5) * FLUID_CELL;
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const idx = wIndex(i, j, k);
+            if (wFaceBlocked(i, j, k) || (wWeight[idx] <= 0 && !wFaceHasFluid(i, j, k))) continue;
+            const x = FLUID_MIN + (i + 0.5) * FLUID_CELL;
+            fluidForceAt(x, y, z, fluidForce);
+            wFace[idx] = (wFace[idx] + fluidForce.z * dt) * simParams.velocityDamping;
+          }
+        }
+      }
+
+      enforceFaceBoundaries();
+    }
+
+    function pressureProjectFluid() {
+      gDiv.fill(0);
+      gPressureA.fill(0);
+      gPressureB.fill(0);
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const gi = gridIndex(i, j, k);
+            if (cellType[gi] !== CELL_FLUID) continue;
+
+            gDiv[gi] = (
+              uFace[uIndex(i + 1, j, k)] - uFace[uIndex(i, j, k)] +
+              vFace[vIndex(i, j + 1, k)] - vFace[vIndex(i, j, k)] +
+              wFace[wIndex(i, j, k + 1)] - wFace[wIndex(i, j, k)]
+            ) / FLUID_CELL;
+          }
+        }
+      }
+
+      function neighborPressure(i, j, k, pressure) {
+        if (!inCell(i, j, k)) return null;
+        const ni = gridIndex(i, j, k);
+        if (cellType[ni] === CELL_SOLID) return null;
+        return cellType[ni] === CELL_FLUID ? pressure[ni] : 0;
+      }
+
+      for (let iter = 0; iter < Math.max(0, Math.round(simParams.pressureIterations)); iter++) {
+        gPressureB.fill(0);
+        for (let k = 0; k < FLUID_GRID; k++) {
+          for (let j = 0; j < FLUID_GRID; j++) {
+            for (let i = 0; i < FLUID_GRID; i++) {
+              const gi = gridIndex(i, j, k);
+              if (cellType[gi] !== CELL_FLUID) continue;
+
+              let sum = 0;
+              let count = 0;
+              let pN = neighborPressure(i + 1, j, k, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i - 1, j, k, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i, j + 1, k, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i, j - 1, k, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i, j, k + 1, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i, j, k - 1, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              gPressureB[gi] = count > 0 ? (sum - gDiv[gi] * FLUID_CELL * FLUID_CELL) / count : 0;
+            }
+          }
+        }
+        [gPressureA, gPressureB] = [gPressureB, gPressureA];
+      }
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 1; i < FLUID_GRID; i++) {
+            const left = gridIndex(i - 1, j, k);
+            const right = gridIndex(i, j, k);
+            const leftType = cellType[left];
+            const rightType = cellType[right];
+            const idx = uIndex(i, j, k);
+            if (leftType === CELL_SOLID || rightType === CELL_SOLID) {
+              uFace[idx] = 0;
+              continue;
+            }
+            if (leftType !== CELL_FLUID && rightType !== CELL_FLUID) continue;
+            const pL = leftType === CELL_FLUID ? gPressureA[left] : 0;
+            const pR = rightType === CELL_FLUID ? gPressureA[right] : 0;
+            uFace[idx] -= (pR - pL) / FLUID_CELL;
+          }
+        }
+      }
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 1; j < FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const bottom = gridIndex(i, j - 1, k);
+            const top = gridIndex(i, j, k);
+            const bottomType = cellType[bottom];
+            const topType = cellType[top];
+            const idx = vIndex(i, j, k);
+            if (bottomType === CELL_SOLID || topType === CELL_SOLID) {
+              vFace[idx] = 0;
+              continue;
+            }
+            if (bottomType !== CELL_FLUID && topType !== CELL_FLUID) continue;
+            const pB = bottomType === CELL_FLUID ? gPressureA[bottom] : 0;
+            const pT = topType === CELL_FLUID ? gPressureA[top] : 0;
+            vFace[idx] -= (pT - pB) / FLUID_CELL;
+          }
+        }
+      }
+
+      for (let k = 1; k < FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const back = gridIndex(i, j, k - 1);
+            const front = gridIndex(i, j, k);
+            const backType = cellType[back];
+            const frontType = cellType[front];
+            const idx = wIndex(i, j, k);
+            if (backType === CELL_SOLID || frontType === CELL_SOLID) {
+              wFace[idx] = 0;
+              continue;
+            }
+            if (backType !== CELL_FLUID && frontType !== CELL_FLUID) continue;
+            const pBack = backType === CELL_FLUID ? gPressureA[back] : 0;
+            const pFront = frontType === CELL_FLUID ? gPressureA[front] : 0;
+            wFace[idx] -= (pFront - pBack) / FLUID_CELL;
+          }
+        }
+      }
+
+      enforceFaceBoundaries();
+    }
+
+    const sampleNewVel = new THREE.Vector3();
+    const sampleOldVel = new THREE.Vector3();
+    const radialTmp = new THREE.Vector3();
+
+    function updateFluidParticles(dt) {
+      for (let p = 0; p < fluidCount; p++) {
+        const pi = p * 3;
+        sampleGridVelocity(fluidPos[pi], fluidPos[pi + 1], fluidPos[pi + 2], false, sampleNewVel);
+        sampleGridVelocity(fluidPos[pi], fluidPos[pi + 1], fluidPos[pi + 2], true, sampleOldVel);
+
+        const vx = fluidVel[pi] + sampleNewVel.x - sampleOldVel.x;
+        const vy = fluidVel[pi + 1] + sampleNewVel.y - sampleOldVel.y;
+        const vz = fluidVel[pi + 2] + sampleNewVel.z - sampleOldVel.z;
+        fluidVel[pi] = vx * simParams.flipBlend + sampleNewVel.x * (1 - simParams.flipBlend);
+        fluidVel[pi + 1] = vy * simParams.flipBlend + sampleNewVel.y * (1 - simParams.flipBlend);
+        fluidVel[pi + 2] = vz * simParams.flipBlend + sampleNewVel.z * (1 - simParams.flipBlend);
+        const speed = Math.hypot(fluidVel[pi], fluidVel[pi + 1], fluidVel[pi + 2]);
+        if (speed > simParams.maxSpeed) {
+          const scale = simParams.maxSpeed / speed;
+          fluidVel[pi] *= scale;
+          fluidVel[pi + 1] *= scale;
+          fluidVel[pi + 2] *= scale;
+        }
+
+        fluidPos[pi] += fluidVel[pi] * dt;
+        fluidPos[pi + 1] += fluidVel[pi + 1] * dt;
+        fluidPos[pi + 2] += fluidVel[pi + 2] * dt;
+
+        radialTmp.set(fluidPos[pi], fluidPos[pi + 1], fluidPos[pi + 2]);
+        const r = radialTmp.length();
+        fluidAge[p] += dt;
+        fluidAge01[p] = Math.min(1, fluidAge[p] / fluidLife[p]);
+        if (fluidAge[p] > fluidLife[p] || r < simParams.surfaceKillRadius || r > simParams.outerKillRadius) {
+          removeFluidParticle(p);
+          p--;
+        }
+      }
+    }
+
+    class WebGpuFlipSolver {
+      constructor() {
+        this.ready = false;
+        this.count = 0;
+        this.poleCount = 0;
+        this.version = 0;
+        this.readbackPending = false;
+        this.maxFaceSize = Math.max(uFaceSize, vFaceSize, wFaceSize);
+        this.posUpload = new Float32Array(FLUID_MAX * 4);
+        this.velUpload = new Float32Array(FLUID_MAX * 4);
+        this.poleUpload = new Float32Array(32 * 4);
+        this.paramBytes = new ArrayBuffer(16);
+        this.paramFloats = new Float32Array(this.paramBytes);
+        this.paramU32 = new Uint32Array(this.paramBytes);
+      }
+
+      async init() {
+        if (!navigator.gpu) throw new Error('WebGPU is not available in this browser');
+        this.adapter = await navigator.gpu.requestAdapter();
+        if (!this.adapter) throw new Error('No WebGPU adapter available');
+        this.device = await this.adapter.requestDevice();
+        this.device.lost.then((info) => {
+          console.warn(`WebGPU FLIP device lost: ${info.message}`);
+          if (this !== gpuFlip) return;
+          gpuFlipReady = false;
+        });
+
+        const usageStorage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+        const usageStorageRead = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
+        const makeBuffer = (size, usage, label) => this.device.createBuffer({
+          label,
+          size: Math.ceil(size / 4) * 4,
+          usage,
+        });
+
+        this.posBytes = FLUID_MAX * 4 * 4;
+        this.velBytes = FLUID_MAX * 4 * 4;
+        this.cellBytes = FLUID_CELLS * 4;
+        this.uFaceBytes = uFaceSize * 4;
+        this.vFaceBytes = vFaceSize * 4;
+        this.wFaceBytes = wFaceSize * 4;
+
+        this.paramBuffer = makeBuffer(16, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, 'flip params');
+        this.posBuffer = makeBuffer(this.posBytes, usageStorageRead, 'flip particle positions');
+        this.velBuffer = makeBuffer(this.velBytes, usageStorageRead, 'flip particle velocities');
+        this.poleBuffer = makeBuffer(this.poleUpload.byteLength, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST, 'magnetic poles');
+        this.cellTypeBuffer = makeBuffer(this.cellBytes, usageStorage, 'flip cell types');
+        this.uMomBuffer = makeBuffer(this.uFaceBytes, usageStorage, 'u momentum');
+        this.vMomBuffer = makeBuffer(this.vFaceBytes, usageStorage, 'v momentum');
+        this.wMomBuffer = makeBuffer(this.wFaceBytes, usageStorage, 'w momentum');
+        this.uWeightBuffer = makeBuffer(this.uFaceBytes, usageStorage, 'u weights');
+        this.vWeightBuffer = makeBuffer(this.vFaceBytes, usageStorage, 'v weights');
+        this.wWeightBuffer = makeBuffer(this.wFaceBytes, usageStorage, 'w weights');
+        this.uFaceBuffer = makeBuffer(this.uFaceBytes, usageStorage, 'u faces');
+        this.vFaceBuffer = makeBuffer(this.vFaceBytes, usageStorage, 'v faces');
+        this.wFaceBuffer = makeBuffer(this.wFaceBytes, usageStorage, 'w faces');
+        this.uOldBuffer = makeBuffer(this.uFaceBytes, usageStorage, 'old u faces');
+        this.vOldBuffer = makeBuffer(this.vFaceBytes, usageStorage, 'old v faces');
+        this.wOldBuffer = makeBuffer(this.wFaceBytes, usageStorage, 'old w faces');
+        this.divBuffer = makeBuffer(this.cellBytes, usageStorage, 'divergence');
+        this.pressureABuffer = makeBuffer(this.cellBytes, usageStorage, 'pressure A');
+        this.pressureBBuffer = makeBuffer(this.cellBytes, usageStorage, 'pressure B');
+        this.posReadBuffer = makeBuffer(this.posBytes, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, 'position readback');
+        this.velReadBuffer = makeBuffer(this.velBytes, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, 'velocity readback');
+
+        const layoutEntries = [
+          { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+          { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+          { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 9, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 10, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 11, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 12, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 13, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 14, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 15, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 16, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 17, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 18, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          { binding: 19, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+        ];
+        this.bindGroupLayout = this.device.createBindGroupLayout({ entries: layoutEntries });
+        this.pipelineLayout = this.device.createPipelineLayout({ bindGroupLayouts: [this.bindGroupLayout] });
+        this.bindGroup = this.device.createBindGroup({
+          layout: this.bindGroupLayout,
+          entries: [
+            { binding: 0, resource: { buffer: this.paramBuffer } },
+            { binding: 1, resource: { buffer: this.posBuffer } },
+            { binding: 2, resource: { buffer: this.velBuffer } },
+            { binding: 3, resource: { buffer: this.poleBuffer } },
+            { binding: 4, resource: { buffer: this.cellTypeBuffer } },
+            { binding: 5, resource: { buffer: this.uMomBuffer } },
+            { binding: 6, resource: { buffer: this.vMomBuffer } },
+            { binding: 7, resource: { buffer: this.wMomBuffer } },
+            { binding: 8, resource: { buffer: this.uWeightBuffer } },
+            { binding: 9, resource: { buffer: this.vWeightBuffer } },
+            { binding: 10, resource: { buffer: this.wWeightBuffer } },
+            { binding: 11, resource: { buffer: this.uFaceBuffer } },
+            { binding: 12, resource: { buffer: this.vFaceBuffer } },
+            { binding: 13, resource: { buffer: this.wFaceBuffer } },
+            { binding: 14, resource: { buffer: this.uOldBuffer } },
+            { binding: 15, resource: { buffer: this.vOldBuffer } },
+            { binding: 16, resource: { buffer: this.wOldBuffer } },
+            { binding: 17, resource: { buffer: this.divBuffer } },
+            { binding: 18, resource: { buffer: this.pressureABuffer } },
+            { binding: 19, resource: { buffer: this.pressureBBuffer } },
+          ],
+        });
+
+        const shaderModule = this.device.createShaderModule({ code: this.shaderCode() });
+        const entries = [
+          'classifyCells',
+          'particleToGrid',
+          'normalizeFaces',
+          'applyForces',
+          'computeDivergence',
+          'jacobiAtoB',
+          'jacobiBtoA',
+          'projectFaces',
+          'gridToParticle',
+        ];
+        this.pipelines = {};
+        await Promise.all(entries.map(async (entryPoint) => {
+          this.pipelines[entryPoint] = await this.device.createComputePipelineAsync({
+            layout: this.pipelineLayout,
+            compute: { module: shaderModule, entryPoint },
+          });
+        }));
+
+        this.ready = true;
+        this.uploadPoles(poleData);
+        this.uploadFromCpu();
+      }
+
+      shaderCode() {
+        return /* wgsl */`
+struct Params {
+  dt: f32,
+  flip: f32,
+  count: u32,
+  poleCount: u32,
+}
+
+@group(0) @binding(0) var<uniform> params: Params;
+@group(0) @binding(1) var<storage, read_write> pos: array<vec4f>;
+@group(0) @binding(2) var<storage, read_write> vel: array<vec4f>;
+@group(0) @binding(3) var<storage, read> poles: array<vec4f>;
+@group(0) @binding(4) var<storage, read_write> cellType: array<atomic<u32>>;
+@group(0) @binding(5) var<storage, read_write> uMom: array<atomic<i32>>;
+@group(0) @binding(6) var<storage, read_write> vMom: array<atomic<i32>>;
+@group(0) @binding(7) var<storage, read_write> wMom: array<atomic<i32>>;
+@group(0) @binding(8) var<storage, read_write> uWeight: array<atomic<u32>>;
+@group(0) @binding(9) var<storage, read_write> vWeight: array<atomic<u32>>;
+@group(0) @binding(10) var<storage, read_write> wWeight: array<atomic<u32>>;
+@group(0) @binding(11) var<storage, read_write> uFace: array<f32>;
+@group(0) @binding(12) var<storage, read_write> vFace: array<f32>;
+@group(0) @binding(13) var<storage, read_write> wFace: array<f32>;
+@group(0) @binding(14) var<storage, read_write> uOld: array<f32>;
+@group(0) @binding(15) var<storage, read_write> vOld: array<f32>;
+@group(0) @binding(16) var<storage, read_write> wOld: array<f32>;
+@group(0) @binding(17) var<storage, read_write> divField: array<f32>;
+@group(0) @binding(18) var<storage, read_write> pressureA: array<f32>;
+@group(0) @binding(19) var<storage, read_write> pressureB: array<f32>;
+
+const GRID: u32 = ${FLUID_GRID}u;
+const CELLS: u32 = ${FLUID_CELLS}u;
+const U_SIZE: u32 = ${uFaceSize}u;
+const V_SIZE: u32 = ${vFaceSize}u;
+const W_SIZE: u32 = ${wFaceSize}u;
+const MAX_FACE_SIZE: u32 = ${Math.max(uFaceSize, vFaceSize, wFaceSize)}u;
+const MINW: f32 = ${FLUID_MIN.toFixed(8)};
+const CELL: f32 = ${FLUID_CELL.toFixed(8)};
+const MOM_SCALE: f32 = 32768.0;
+const CELL_AIR: u32 = 0u;
+const CELL_SOLID: u32 = 1u;
+const CELL_FLUID_BASE: u32 = 4u;
+const CELL_FLUID: u32 = CELL_FLUID_BASE;
+
+fn gridIndex(i: u32, j: u32, k: u32) -> u32 {
+  return i + GRID * (j + GRID * k);
+}
+
+fn faceIndex(i: u32, j: u32, k: u32, sx: u32, sy: u32) -> u32 {
+  return i + sx * (j + sy * k);
+}
+
+fn uIndex(i: u32, j: u32, k: u32) -> u32 { return faceIndex(i, j, k, GRID + 1u, GRID); }
+fn vIndex(i: u32, j: u32, k: u32) -> u32 { return faceIndex(i, j, k, GRID, GRID + 1u); }
+fn wIndex(i: u32, j: u32, k: u32) -> u32 { return faceIndex(i, j, k, GRID, GRID); }
+
+fn inCell(i: i32, j: i32, k: i32) -> bool {
+  return i >= 0 && i < i32(GRID) && j >= 0 && j < i32(GRID) && k >= 0 && k < i32(GRID);
+}
+
+fn cellAt(i: i32, j: i32, k: i32) -> u32 {
+  if (!inCell(i, j, k)) { return CELL_SOLID; }
+  return atomicLoad(&cellType[gridIndex(u32(i), u32(j), u32(k))]);
+}
+
+fn isFluid(i: i32, j: i32, k: i32) -> bool { return cellAt(i, j, k) == CELL_FLUID; }
+fn isSolid(i: i32, j: i32, k: i32) -> bool { return cellAt(i, j, k) == CELL_SOLID; }
+
+fn uBlocked(i: u32, j: u32, k: u32) -> bool {
+  return i == 0u || i >= GRID || isSolid(i32(i) - 1, i32(j), i32(k)) || isSolid(i32(i), i32(j), i32(k));
+}
+
+fn vBlocked(i: u32, j: u32, k: u32) -> bool {
+  return j == 0u || j >= GRID || isSolid(i32(i), i32(j) - 1, i32(k)) || isSolid(i32(i), i32(j), i32(k));
+}
+
+fn wBlocked(i: u32, j: u32, k: u32) -> bool {
+  return k == 0u || k >= GRID || isSolid(i32(i), i32(j), i32(k) - 1) || isSolid(i32(i), i32(j), i32(k));
+}
+
+fn uHasFluid(i: u32, j: u32, k: u32) -> bool {
+  return isFluid(i32(i) - 1, i32(j), i32(k)) || isFluid(i32(i), i32(j), i32(k));
+}
+
+fn vHasFluid(i: u32, j: u32, k: u32) -> bool {
+  return isFluid(i32(i), i32(j) - 1, i32(k)) || isFluid(i32(i), i32(j), i32(k));
+}
+
+fn wHasFluid(i: u32, j: u32, k: u32) -> bool {
+  return isFluid(i32(i), i32(j), i32(k) - 1) || isFluid(i32(i), i32(j), i32(k));
+}
+
+fn decodeU(id: u32) -> vec3u {
+  let sx = GRID + 1u;
+  return vec3u(id % sx, (id / sx) % GRID, id / (sx * GRID));
+}
+
+fn decodeV(id: u32) -> vec3u {
+  let sx = GRID;
+  let sy = GRID + 1u;
+  return vec3u(id % sx, (id / sx) % sy, id / (sx * sy));
+}
+
+fn decodeW(id: u32) -> vec3u {
+  let sx = GRID;
+  return vec3u(id % sx, (id / sx) % GRID, id / (sx * GRID));
+}
+
+fn magneticField(p: vec3f) -> vec3f {
+  var b = vec3f(0.0);
+  for (var i = 0u; i < 32u; i = i + 1u) {
+    if (i >= params.poleCount) { break; }
+    let pole = poles[i];
+    let d = p - pole.xyz;
+    let r2 = dot(d, d) + 0.010;
+    b = b + d * (pole.w / (r2 * sqrt(r2)));
+  }
+  return b;
+}
+
+fn forceAt(p: vec3f) -> vec3f {
+  let r = max(length(p), 0.001);
+  let radial = p / r;
+  var f = radial * (-0.30 / (r * r + 0.18));
+  var b = magneticField(p);
+  let bLen = length(b);
+  if (bLen > 0.00001) {
+    b = b / bLen;
+    let guide = min(1.15, bLen * 0.020);
+    f = f + b * guide + radial * max(0.0, dot(b, radial)) * 0.16;
+  }
+  return f;
+}
+
+fn addScaledAtomic(target: ptr<storage, atomic<i32>, read_write>, value: f32) {
+  atomicAdd(target, i32(round(value * MOM_SCALE)));
+}
+
+fn addWeightAtomic(target: ptr<storage, atomic<u32>, read_write>, weight: f32) {
+  atomicAdd(target, u32(max(1.0, round(weight * MOM_SCALE))));
+}
+
+fn splatU(p: vec3f, value: f32) {
+  let gx = (p.x - MINW) / CELL;
+  let gy = (p.y - (MINW + CELL * 0.5)) / CELL;
+  let gz = (p.z - (MINW + CELL * 0.5)) / CELL;
+  let ix = i32(floor(gx));
+  let iy = i32(floor(gy));
+  let iz = i32(floor(gz));
+  let fx = gx - f32(ix);
+  let fy = gy - f32(iy);
+  let fz = gz - f32(iz);
+  for (var dz = 0; dz <= 1; dz = dz + 1) {
+    let k = iz + dz;
+    if (k < 0 || k >= i32(GRID)) { continue; }
+    let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) {
+      let j = iy + dy;
+      if (j < 0 || j >= i32(GRID)) { continue; }
+      let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) {
+        let i = ix + dx;
+        if (i < 0 || i > i32(GRID)) { continue; }
+        let wx = select(1.0 - fx, fx, dx == 1);
+        let ww = max(0.0, wx * wy * wz);
+        if (ww <= 0.0) { continue; }
+        let idx = uIndex(u32(i), u32(j), u32(k));
+        addScaledAtomic(&uMom[idx], value * ww);
+        addWeightAtomic(&uWeight[idx], ww);
+      }
+    }
+  }
+}
+
+fn splatV(p: vec3f, value: f32) {
+  let gx = (p.x - (MINW + CELL * 0.5)) / CELL;
+  let gy = (p.y - MINW) / CELL;
+  let gz = (p.z - (MINW + CELL * 0.5)) / CELL;
+  let ix = i32(floor(gx));
+  let iy = i32(floor(gy));
+  let iz = i32(floor(gz));
+  let fx = gx - f32(ix);
+  let fy = gy - f32(iy);
+  let fz = gz - f32(iz);
+  for (var dz = 0; dz <= 1; dz = dz + 1) {
+    let k = iz + dz;
+    if (k < 0 || k >= i32(GRID)) { continue; }
+    let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) {
+      let j = iy + dy;
+      if (j < 0 || j > i32(GRID)) { continue; }
+      let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) {
+        let i = ix + dx;
+        if (i < 0 || i >= i32(GRID)) { continue; }
+        let wx = select(1.0 - fx, fx, dx == 1);
+        let ww = max(0.0, wx * wy * wz);
+        if (ww <= 0.0) { continue; }
+        let idx = vIndex(u32(i), u32(j), u32(k));
+        addScaledAtomic(&vMom[idx], value * ww);
+        addWeightAtomic(&vWeight[idx], ww);
+      }
+    }
+  }
+}
+
+fn splatW(p: vec3f, value: f32) {
+  let gx = (p.x - (MINW + CELL * 0.5)) / CELL;
+  let gy = (p.y - (MINW + CELL * 0.5)) / CELL;
+  let gz = (p.z - MINW) / CELL;
+  let ix = i32(floor(gx));
+  let iy = i32(floor(gy));
+  let iz = i32(floor(gz));
+  let fx = gx - f32(ix);
+  let fy = gy - f32(iy);
+  let fz = gz - f32(iz);
+  for (var dz = 0; dz <= 1; dz = dz + 1) {
+    let k = iz + dz;
+    if (k < 0 || k > i32(GRID)) { continue; }
+    let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) {
+      let j = iy + dy;
+      if (j < 0 || j >= i32(GRID)) { continue; }
+      let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) {
+        let i = ix + dx;
+        if (i < 0 || i >= i32(GRID)) { continue; }
+        let wx = select(1.0 - fx, fx, dx == 1);
+        let ww = max(0.0, wx * wy * wz);
+        if (ww <= 0.0) { continue; }
+        let idx = wIndex(u32(i), u32(j), u32(k));
+        addScaledAtomic(&wMom[idx], value * ww);
+        addWeightAtomic(&wWeight[idx], ww);
+      }
+    }
+  }
+}
+
+fn readU(idx: u32, old: bool) -> f32 { if (old) { return uOld[idx]; } return uFace[idx]; }
+fn readV(idx: u32, old: bool) -> f32 { if (old) { return vOld[idx]; } return vFace[idx]; }
+fn readW(idx: u32, old: bool) -> f32 { if (old) { return wOld[idx]; } return wFace[idx]; }
+
+fn sampleU(p: vec3f, old: bool) -> f32 {
+  let gx = clamp((p.x - MINW) / CELL, 0.0, f32(GRID));
+  let gy = clamp((p.y - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let gz = clamp((p.z - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let ix = min(i32(floor(gx)), i32(GRID) - 1);
+  let iy = min(i32(floor(gy)), i32(GRID) - 2);
+  let iz = min(i32(floor(gz)), i32(GRID) - 2);
+  let fx = gx - f32(ix);
+  let fy = gy - f32(iy);
+  let fz = gz - f32(iz);
+  var value = 0.0;
+  for (var dz = 0; dz <= 1; dz = dz + 1) {
+    let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) {
+      let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) {
+        let wx = select(1.0 - fx, fx, dx == 1);
+        value = value + readU(uIndex(u32(ix + dx), u32(iy + dy), u32(iz + dz)), old) * wx * wy * wz;
+      }
+    }
+  }
+  return value;
+}
+
+fn sampleV(p: vec3f, old: bool) -> f32 {
+  let gx = clamp((p.x - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let gy = clamp((p.y - MINW) / CELL, 0.0, f32(GRID));
+  let gz = clamp((p.z - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let ix = min(i32(floor(gx)), i32(GRID) - 2);
+  let iy = min(i32(floor(gy)), i32(GRID) - 1);
+  let iz = min(i32(floor(gz)), i32(GRID) - 2);
+  let fx = gx - f32(ix);
+  let fy = gy - f32(iy);
+  let fz = gz - f32(iz);
+  var value = 0.0;
+  for (var dz = 0; dz <= 1; dz = dz + 1) {
+    let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) {
+      let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) {
+        let wx = select(1.0 - fx, fx, dx == 1);
+        value = value + readV(vIndex(u32(ix + dx), u32(iy + dy), u32(iz + dz)), old) * wx * wy * wz;
+      }
+    }
+  }
+  return value;
+}
+
+fn sampleW(p: vec3f, old: bool) -> f32 {
+  let gx = clamp((p.x - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let gy = clamp((p.y - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let gz = clamp((p.z - MINW) / CELL, 0.0, f32(GRID));
+  let ix = min(i32(floor(gx)), i32(GRID) - 2);
+  let iy = min(i32(floor(gy)), i32(GRID) - 2);
+  let iz = min(i32(floor(gz)), i32(GRID) - 1);
+  let fx = gx - f32(ix);
+  let fy = gy - f32(iy);
+  let fz = gz - f32(iz);
+  var value = 0.0;
+  for (var dz = 0; dz <= 1; dz = dz + 1) {
+    let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) {
+      let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) {
+        let wx = select(1.0 - fx, fx, dx == 1);
+        value = value + readW(wIndex(u32(ix + dx), u32(iy + dy), u32(iz + dz)), old) * wx * wy * wz;
+      }
+    }
+  }
+  return value;
+}
+
+fn sampleVelocity(p: vec3f, old: bool) -> vec3f {
+  return vec3f(sampleU(p, old), sampleV(p, old), sampleW(p, old));
+}
+
+fn pressureInfoA(i: i32, j: i32, k: i32) -> vec2f {
+  if (!inCell(i, j, k)) { return vec2f(0.0, 0.0); }
+  let idx = gridIndex(u32(i), u32(j), u32(k));
+  let t = atomicLoad(&cellType[idx]);
+  if (t == CELL_SOLID) { return vec2f(0.0, 0.0); }
+  if (t == CELL_FLUID) { return vec2f(pressureA[idx], 1.0); }
+  return vec2f(0.0, 1.0);
+}
+
+fn pressureInfoB(i: i32, j: i32, k: i32) -> vec2f {
+  if (!inCell(i, j, k)) { return vec2f(0.0, 0.0); }
+  let idx = gridIndex(u32(i), u32(j), u32(k));
+  let t = atomicLoad(&cellType[idx]);
+  if (t == CELL_SOLID) { return vec2f(0.0, 0.0); }
+  if (t == CELL_FLUID) { return vec2f(pressureB[idx], 1.0); }
+  return vec2f(0.0, 1.0);
+}
+
+@compute @workgroup_size(128)
+fn classifyCells(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x;
+  if (id >= CELLS) { return; }
+  let i = id % GRID;
+  let j = (id / GRID) % GRID;
+  let k = id / (GRID * GRID);
+  let p = vec3f(
+    MINW + (f32(i) + 0.5) * CELL,
+    MINW + (f32(j) + 0.5) * CELL,
+    MINW + (f32(k) + 0.5) * CELL
+  );
+  let kind = select(CELL_AIR, CELL_SOLID, dot(p, p) < 1.0);
+  atomicStore(&cellType[id], kind);
+}
+
+@compute @workgroup_size(128)
+fn particleToGrid(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x;
+  if (id >= params.count) { return; }
+  let p4 = pos[id];
+  let v4 = vel[id];
+  if (p4.w >= v4.w) { return; }
+  let p = p4.xyz;
+  let ci = i32(floor((p.x - MINW) / CELL));
+  let cj = i32(floor((p.y - MINW) / CELL));
+  let ck = i32(floor((p.z - MINW) / CELL));
+  if (inCell(ci, cj, ck)) {
+    let gi = gridIndex(u32(ci), u32(cj), u32(ck));
+    if (atomicLoad(&cellType[gi]) != CELL_SOLID) {
+      atomicStore(&cellType[gi], CELL_FLUID);
+    }
+  }
+  splatU(p, v4.x);
+  splatV(p, v4.y);
+  splatW(p, v4.z);
+}
+
+@compute @workgroup_size(128)
+fn normalizeFaces(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x;
+  if (id >= MAX_FACE_SIZE) { return; }
+  if (id < U_SIZE) {
+    let ijk = decodeU(id);
+    let wt = atomicLoad(&uWeight[id]);
+    var value = 0.0;
+    if (wt > 0u) { value = f32(atomicLoad(&uMom[id])) / f32(wt); }
+    if (uBlocked(ijk.x, ijk.y, ijk.z)) { value = 0.0; }
+    uFace[id] = value;
+    uOld[id] = value;
+  }
+  if (id < V_SIZE) {
+    let ijk = decodeV(id);
+    let wt = atomicLoad(&vWeight[id]);
+    var value = 0.0;
+    if (wt > 0u) { value = f32(atomicLoad(&vMom[id])) / f32(wt); }
+    if (vBlocked(ijk.x, ijk.y, ijk.z)) { value = 0.0; }
+    vFace[id] = value;
+    vOld[id] = value;
+  }
+  if (id < W_SIZE) {
+    let ijk = decodeW(id);
+    let wt = atomicLoad(&wWeight[id]);
+    var value = 0.0;
+    if (wt > 0u) { value = f32(atomicLoad(&wMom[id])) / f32(wt); }
+    if (wBlocked(ijk.x, ijk.y, ijk.z)) { value = 0.0; }
+    wFace[id] = value;
+    wOld[id] = value;
+  }
+}
+
+@compute @workgroup_size(128)
+fn applyForces(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x;
+  if (id >= MAX_FACE_SIZE) { return; }
+  if (id < U_SIZE) {
+    let ijk = decodeU(id);
+    if (!uBlocked(ijk.x, ijk.y, ijk.z) && (atomicLoad(&uWeight[id]) > 0u || uHasFluid(ijk.x, ijk.y, ijk.z))) {
+      let p = vec3f(MINW + f32(ijk.x) * CELL, MINW + (f32(ijk.y) + 0.5) * CELL, MINW + (f32(ijk.z) + 0.5) * CELL);
+      uFace[id] = (uFace[id] + forceAt(p).x * params.dt) * 0.996;
+    } else {
+      uFace[id] = 0.0;
+    }
+  }
+  if (id < V_SIZE) {
+    let ijk = decodeV(id);
+    if (!vBlocked(ijk.x, ijk.y, ijk.z) && (atomicLoad(&vWeight[id]) > 0u || vHasFluid(ijk.x, ijk.y, ijk.z))) {
+      let p = vec3f(MINW + (f32(ijk.x) + 0.5) * CELL, MINW + f32(ijk.y) * CELL, MINW + (f32(ijk.z) + 0.5) * CELL);
+      vFace[id] = (vFace[id] + forceAt(p).y * params.dt) * 0.996;
+    } else {
+      vFace[id] = 0.0;
+    }
+  }
+  if (id < W_SIZE) {
+    let ijk = decodeW(id);
+    if (!wBlocked(ijk.x, ijk.y, ijk.z) && (atomicLoad(&wWeight[id]) > 0u || wHasFluid(ijk.x, ijk.y, ijk.z))) {
+      let p = vec3f(MINW + (f32(ijk.x) + 0.5) * CELL, MINW + (f32(ijk.y) + 0.5) * CELL, MINW + f32(ijk.z) * CELL);
+      wFace[id] = (wFace[id] + forceAt(p).z * params.dt) * 0.996;
+    } else {
+      wFace[id] = 0.0;
+    }
+  }
+}
+
+@compute @workgroup_size(128)
+fn computeDivergence(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x;
+  if (id >= CELLS) { return; }
+  if (atomicLoad(&cellType[id]) != CELL_FLUID) {
+    divField[id] = 0.0;
+    return;
+  }
+  let i = id % GRID;
+  let j = (id / GRID) % GRID;
+  let k = id / (GRID * GRID);
+  divField[id] = (
+    uFace[uIndex(i + 1u, j, k)] - uFace[uIndex(i, j, k)] +
+    vFace[vIndex(i, j + 1u, k)] - vFace[vIndex(i, j, k)] +
+    wFace[wIndex(i, j, k + 1u)] - wFace[wIndex(i, j, k)]
+  ) / CELL;
+}
+
+@compute @workgroup_size(128)
+fn jacobiAtoB(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x;
+  if (id >= CELLS) { return; }
+  if (atomicLoad(&cellType[id]) != CELL_FLUID) {
+    pressureB[id] = 0.0;
+    return;
+  }
+  let i = i32(id % GRID);
+  let j = i32((id / GRID) % GRID);
+  let k = i32(id / (GRID * GRID));
+  var s = vec2f(0.0);
+  s = s + pressureInfoA(i + 1, j, k);
+  s = s + pressureInfoA(i - 1, j, k);
+  s = s + pressureInfoA(i, j + 1, k);
+  s = s + pressureInfoA(i, j - 1, k);
+  s = s + pressureInfoA(i, j, k + 1);
+  s = s + pressureInfoA(i, j, k - 1);
+  pressureB[id] = select(0.0, (s.x - divField[id] * CELL * CELL) / s.y, s.y > 0.0);
+}
+
+@compute @workgroup_size(128)
+fn jacobiBtoA(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x;
+  if (id >= CELLS) { return; }
+  if (atomicLoad(&cellType[id]) != CELL_FLUID) {
+    pressureA[id] = 0.0;
+    return;
+  }
+  let i = i32(id % GRID);
+  let j = i32((id / GRID) % GRID);
+  let k = i32(id / (GRID * GRID));
+  var s = vec2f(0.0);
+  s = s + pressureInfoB(i + 1, j, k);
+  s = s + pressureInfoB(i - 1, j, k);
+  s = s + pressureInfoB(i, j + 1, k);
+  s = s + pressureInfoB(i, j - 1, k);
+  s = s + pressureInfoB(i, j, k + 1);
+  s = s + pressureInfoB(i, j, k - 1);
+  pressureA[id] = select(0.0, (s.x - divField[id] * CELL * CELL) / s.y, s.y > 0.0);
+}
+
+@compute @workgroup_size(128)
+fn projectFaces(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x;
+  if (id >= MAX_FACE_SIZE) { return; }
+  if (id < U_SIZE) {
+    let ijk = decodeU(id);
+    if (ijk.x == 0u || ijk.x >= GRID) { uFace[id] = 0.0; }
+    else {
+      let left = gridIndex(ijk.x - 1u, ijk.y, ijk.z);
+      let right = gridIndex(ijk.x, ijk.y, ijk.z);
+      let lt = atomicLoad(&cellType[left]);
+      let rt = atomicLoad(&cellType[right]);
+      if (lt == CELL_SOLID || rt == CELL_SOLID) { uFace[id] = 0.0; }
+      else if (lt == CELL_FLUID || rt == CELL_FLUID) {
+        let pL = select(0.0, pressureA[left], lt == CELL_FLUID);
+        let pR = select(0.0, pressureA[right], rt == CELL_FLUID);
+        uFace[id] = uFace[id] - (pR - pL) / CELL;
+      }
+    }
+  }
+  if (id < V_SIZE) {
+    let ijk = decodeV(id);
+    if (ijk.y == 0u || ijk.y >= GRID) { vFace[id] = 0.0; }
+    else {
+      let bottom = gridIndex(ijk.x, ijk.y - 1u, ijk.z);
+      let top = gridIndex(ijk.x, ijk.y, ijk.z);
+      let bt = atomicLoad(&cellType[bottom]);
+      let tt = atomicLoad(&cellType[top]);
+      if (bt == CELL_SOLID || tt == CELL_SOLID) { vFace[id] = 0.0; }
+      else if (bt == CELL_FLUID || tt == CELL_FLUID) {
+        let pB = select(0.0, pressureA[bottom], bt == CELL_FLUID);
+        let pT = select(0.0, pressureA[top], tt == CELL_FLUID);
+        vFace[id] = vFace[id] - (pT - pB) / CELL;
+      }
+    }
+  }
+  if (id < W_SIZE) {
+    let ijk = decodeW(id);
+    if (ijk.z == 0u || ijk.z >= GRID) { wFace[id] = 0.0; }
+    else {
+      let back = gridIndex(ijk.x, ijk.y, ijk.z - 1u);
+      let front = gridIndex(ijk.x, ijk.y, ijk.z);
+      let bt = atomicLoad(&cellType[back]);
+      let ft = atomicLoad(&cellType[front]);
+      if (bt == CELL_SOLID || ft == CELL_SOLID) { wFace[id] = 0.0; }
+      else if (bt == CELL_FLUID || ft == CELL_FLUID) {
+        let pB = select(0.0, pressureA[back], bt == CELL_FLUID);
+        let pF = select(0.0, pressureA[front], ft == CELL_FLUID);
+        wFace[id] = wFace[id] - (pF - pB) / CELL;
+      }
+    }
+  }
+}
+
+@compute @workgroup_size(128)
+fn gridToParticle(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x;
+  if (id >= params.count) { return; }
+  var p4 = pos[id];
+  var v4 = vel[id];
+  if (p4.w >= v4.w) { return; }
+  let gNew = sampleVelocity(p4.xyz, false);
+  let gOld = sampleVelocity(p4.xyz, true);
+  var pv = v4.xyz + (gNew - gOld);
+  pv = pv * params.flip + gNew * (1.0 - params.flip);
+  let speed = length(pv);
+  if (speed > 3.2) { pv = pv * (3.2 / speed); }
+  var np = p4.xyz + pv * params.dt;
+  let r = length(np);
+  if (r < 1.018) {
+    let n = np / max(r, 0.001);
+    np = n * 1.018;
+    let inward = min(0.0, dot(pv, n));
+    pv = pv - n * inward * 1.15;
+  }
+  let age = p4.w + params.dt;
+  if (age > v4.w || length(np) > 2.75) {
+    pos[id] = vec4f(np, v4.w);
+    vel[id] = vec4f(0.0, 0.0, 0.0, v4.w);
+  } else {
+    pos[id] = vec4f(np, age);
+    vel[id] = vec4f(pv, v4.w);
+  }
+}
+`;
+      }
+
+      uploadPoles(polesIn) {
+        if (!this.device) return;
+        this.poleUpload.fill(0);
+        this.poleCount = Math.min(32, polesIn.length);
+        for (let i = 0; i < this.poleCount; i++) {
+          const p = polesIn[i].pos;
+          const o = i * 4;
+          this.poleUpload[o] = p.x;
+          this.poleUpload[o + 1] = p.y;
+          this.poleUpload[o + 2] = p.z;
+          this.poleUpload[o + 3] = polesIn[i].charge;
+        }
+        this.device.queue.writeBuffer(this.poleBuffer, 0, this.poleUpload);
+      }
+
+      uploadFromCpu() {
+        if (!this.ready) return;
+        this.count = fluidCount;
+        this.version++;
+        this.posUpload.fill(0);
+        this.velUpload.fill(0);
+        for (let i = 0; i < this.count; i++) {
+          const p3 = i * 3;
+          const p4 = i * 4;
+          this.posUpload[p4] = fluidPos[p3];
+          this.posUpload[p4 + 1] = fluidPos[p3 + 1];
+          this.posUpload[p4 + 2] = fluidPos[p3 + 2];
+          this.posUpload[p4 + 3] = fluidAge[i];
+          this.velUpload[p4] = fluidVel[p3];
+          this.velUpload[p4 + 1] = fluidVel[p3 + 1];
+          this.velUpload[p4 + 2] = fluidVel[p3 + 2];
+          this.velUpload[p4 + 3] = fluidLife[i];
+        }
+        this.uploadPoles(poleData);
+        this.device.queue.writeBuffer(this.posBuffer, 0, this.posUpload);
+        this.device.queue.writeBuffer(this.velBuffer, 0, this.velUpload);
+        this.updateParams(0);
+        gpuFlipNeedsUpload = false;
+      }
+
+      updateParams(dt) {
+        this.paramFloats[0] = dt;
+        this.paramFloats[1] = FLUID_FLIP_BLEND;
+        this.paramU32[2] = this.count;
+        this.paramU32[3] = this.poleCount;
+        this.device.queue.writeBuffer(this.paramBuffer, 0, this.paramBytes);
+      }
+
+      step(dt) {
+        if (!this.ready || this.count <= 0) return;
+        if (gpuFlipNeedsUpload) this.uploadFromCpu();
+        const subDt = Math.min(dt, 1 / 45);
+        this.updateParams(subDt);
+
+        const encoder = this.device.createCommandEncoder();
+        encoder.clearBuffer(this.uMomBuffer);
+        encoder.clearBuffer(this.vMomBuffer);
+        encoder.clearBuffer(this.wMomBuffer);
+        encoder.clearBuffer(this.uWeightBuffer);
+        encoder.clearBuffer(this.vWeightBuffer);
+        encoder.clearBuffer(this.wWeightBuffer);
+        encoder.clearBuffer(this.pressureABuffer);
+        encoder.clearBuffer(this.pressureBBuffer);
+
+        const pass = encoder.beginComputePass();
+        pass.setBindGroup(0, this.bindGroup);
+        pass.setPipeline(this.pipelines.classifyCells);
+        pass.dispatchWorkgroups(Math.ceil(FLUID_CELLS / 128));
+        pass.setPipeline(this.pipelines.particleToGrid);
+        pass.dispatchWorkgroups(Math.ceil(this.count / 128));
+        pass.setPipeline(this.pipelines.normalizeFaces);
+        pass.dispatchWorkgroups(Math.ceil(this.maxFaceSize / 128));
+        pass.setPipeline(this.pipelines.applyForces);
+        pass.dispatchWorkgroups(Math.ceil(this.maxFaceSize / 128));
+        pass.setPipeline(this.pipelines.computeDivergence);
+        pass.dispatchWorkgroups(Math.ceil(FLUID_CELLS / 128));
+        for (let i = 0; i < FLUID_PRESSURE_ITER; i++) {
+          pass.setPipeline(i % 2 === 0 ? this.pipelines.jacobiAtoB : this.pipelines.jacobiBtoA);
+          pass.dispatchWorkgroups(Math.ceil(FLUID_CELLS / 128));
+        }
+        pass.setPipeline(this.pipelines.projectFaces);
+        pass.dispatchWorkgroups(Math.ceil(this.maxFaceSize / 128));
+        pass.setPipeline(this.pipelines.gridToParticle);
+        pass.dispatchWorkgroups(Math.ceil(this.count / 128));
+        pass.end();
+
+        let readbackVersion = -1;
+        if (!this.readbackPending) {
+          readbackVersion = this.version;
+          encoder.copyBufferToBuffer(this.posBuffer, 0, this.posReadBuffer, 0, this.posBytes);
+          encoder.copyBufferToBuffer(this.velBuffer, 0, this.velReadBuffer, 0, this.velBytes);
+          this.readbackPending = true;
+        }
+
+        this.device.queue.submit([encoder.finish()]);
+        if (readbackVersion >= 0) this.finishReadback(readbackVersion);
+      }
+
+      async finishReadback(version) {
+        try {
+          await Promise.all([
+            this.posReadBuffer.mapAsync(GPUMapMode.READ),
+            this.velReadBuffer.mapAsync(GPUMapMode.READ),
+          ]);
+          const posData = new Float32Array(this.posReadBuffer.getMappedRange());
+          const velData = new Float32Array(this.velReadBuffer.getMappedRange());
+          if (version === this.version) {
+            const n = this.count;
+            for (let i = 0; i < n; i++) {
+              const p3 = i * 3;
+              const p4 = i * 4;
+              fluidPos[p3] = posData[p4];
+              fluidPos[p3 + 1] = posData[p4 + 1];
+              fluidPos[p3 + 2] = posData[p4 + 2];
+              fluidVel[p3] = velData[p4];
+              fluidVel[p3 + 1] = velData[p4 + 1];
+              fluidVel[p3 + 2] = velData[p4 + 2];
+              fluidAge[i] = posData[p4 + 3];
+              fluidLife[i] = Math.max(0.001, velData[p4 + 3]);
+              fluidAge01[i] = Math.min(1, fluidAge[i] / fluidLife[i]);
+            }
+            fluidGeom.setDrawRange(0, n);
+            fluidGeom.attributes.position.needsUpdate = true;
+            fluidGeom.attributes.aAge.needsUpdate = true;
+            if (ppEl) ppEl.textContent = n.toLocaleString();
+          }
+          this.posReadBuffer.unmap();
+          this.velReadBuffer.unmap();
+        } catch (err) {
+          console.warn('WebGPU FLIP readback failed', err);
+        } finally {
+          this.readbackPending = false;
+        }
+      }
+    }
+
+    class PackedWebGpuFlipSolver {
+      constructor() {
+        this.ready = false;
+        this.count = 0;
+        this.poleCount = 0;
+        this.version = 0;
+        this.readbackPending = false;
+        this.maxFaceSize = GPU_FLIP_MAX_FACE_SIZE;
+        this.faceTotal = GPU_FLIP_FACE_TOTAL;
+        this.scalarTotal = GPU_FLIP_CELLS * 3;
+        this.posUpload = new Float32Array(FLUID_MAX * 4);
+        this.velUpload = new Float32Array(FLUID_MAX * 4);
+        this.paramVec4Count = 6;
+        this.poleFloatOffset = 4 + this.paramVec4Count * 4;
+        this.paramBytes = new ArrayBuffer(16 + this.paramVec4Count * 16 + 32 * 16);
+        this.paramFloats = new Float32Array(this.paramBytes);
+        this.paramU32 = new Uint32Array(this.paramBytes);
+      }
+
+      async init() {
+        if (!navigator.gpu) throw new Error('WebGPU is not available in this browser');
+        this.adapter = await navigator.gpu.requestAdapter();
+        if (!this.adapter) throw new Error('No WebGPU adapter available');
+        this.device = await this.adapter.requestDevice();
+        this.device.lost.then((info) => {
+          console.warn(`WebGPU FLIP device lost: ${info.message}`);
+          gpuFlipReady = false;
+        });
+
+        const makeBuffer = (size, usage, label) => this.device.createBuffer({
+          label,
+          size: Math.ceil(size / 4) * 4,
+          usage,
+        });
+        const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+        const storageRead = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC;
+        this.posBytes = FLUID_MAX * 4 * 4;
+        this.velBytes = FLUID_MAX * 4 * 4;
+        this.faceBytes = this.faceTotal * 4;
+        this.scalarBytes = this.scalarTotal * 4;
+
+        this.paramBuffer = makeBuffer(this.paramBytes.byteLength, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, 'packed flip params');
+        this.posBuffer = makeBuffer(this.posBytes, storageRead, 'packed flip pos');
+        this.velBuffer = makeBuffer(this.velBytes, storageRead, 'packed flip vel');
+        this.cellTypeBuffer = makeBuffer(GPU_FLIP_CELLS * 4, storage, 'packed cell types');
+        this.momBuffer = makeBuffer(this.faceBytes, storage, 'packed face momentum');
+        this.weightBuffer = makeBuffer(this.faceBytes, storage, 'packed face weights');
+        this.faceBuffer = makeBuffer(this.faceBytes, storage, 'packed face velocities');
+        this.oldFaceBuffer = makeBuffer(this.faceBytes, storage, 'packed old face velocities');
+        this.scalarBuffer = makeBuffer(this.scalarBytes, storage, 'packed div pressure');
+        this.posReadBuffer = makeBuffer(this.posBytes, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, 'packed pos readback');
+        this.velReadBuffer = makeBuffer(this.velBytes, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, 'packed vel readback');
+
+        this.bindGroupLayout = this.device.createBindGroupLayout({
+          entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+            { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+          ],
+        });
+        this.pipelineLayout = this.device.createPipelineLayout({ bindGroupLayouts: [this.bindGroupLayout] });
+        this.bindGroup = this.device.createBindGroup({
+          layout: this.bindGroupLayout,
+          entries: [
+            { binding: 0, resource: { buffer: this.paramBuffer } },
+            { binding: 1, resource: { buffer: this.posBuffer } },
+            { binding: 2, resource: { buffer: this.velBuffer } },
+            { binding: 3, resource: { buffer: this.cellTypeBuffer } },
+            { binding: 4, resource: { buffer: this.momBuffer } },
+            { binding: 5, resource: { buffer: this.weightBuffer } },
+            { binding: 6, resource: { buffer: this.faceBuffer } },
+            { binding: 7, resource: { buffer: this.oldFaceBuffer } },
+            { binding: 8, resource: { buffer: this.scalarBuffer } },
+          ],
+        });
+
+        const module = this.device.createShaderModule({ code: this.shaderCode() });
+        const entries = ['classifyCells', 'particleToGrid', 'normalizeFaces', 'applyForces', 'computeDivergence', 'jacobiAtoB', 'jacobiBtoA', 'projectFaces', 'gridToParticle'];
+        this.pipelines = {};
+        await Promise.all(entries.map(async (entryPoint) => {
+          this.pipelines[entryPoint] = await this.device.createComputePipelineAsync({
+            layout: this.pipelineLayout,
+            compute: { module, entryPoint },
+          });
+        }));
+        this.ready = true;
+        this.uploadFromCpu();
+      }
+
+      shaderCode() {
+        return /* wgsl */`
+struct Params {
+  dt: f32,
+  flip: f32,
+  count: u32,
+  poleCount: u32,
+  force: vec4f,
+  force2: vec4f,
+  density: vec4f,
+  cohesion: vec4f,
+  cohesion2: vec4f,
+  bounds: vec4f,
+  poles: array<vec4f, 32>,
+}
+
+@group(0) @binding(0) var<uniform> params: Params;
+@group(0) @binding(1) var<storage, read_write> pos: array<vec4f>;
+@group(0) @binding(2) var<storage, read_write> vel: array<vec4f>;
+@group(0) @binding(3) var<storage, read_write> cellType: array<atomic<u32>>;
+@group(0) @binding(4) var<storage, read_write> mom: array<atomic<i32>>;
+@group(0) @binding(5) var<storage, read_write> weight: array<atomic<u32>>;
+@group(0) @binding(6) var<storage, read_write> face: array<f32>;
+@group(0) @binding(7) var<storage, read_write> oldFace: array<f32>;
+@group(0) @binding(8) var<storage, read_write> scalar: array<f32>;
+
+const GRID: u32 = ${GPU_FLIP_GRID}u;
+const CELLS: u32 = ${GPU_FLIP_CELLS}u;
+const U_SIZE: u32 = ${gpuUFaceSize}u;
+const V_SIZE: u32 = ${gpuVFaceSize}u;
+const W_SIZE: u32 = ${gpuWFaceSize}u;
+const U_OFF: u32 = 0u;
+const V_OFF: u32 = ${gpuUFaceSize}u;
+const W_OFF: u32 = ${gpuUFaceSize + gpuVFaceSize}u;
+const FACE_TOTAL: u32 = ${GPU_FLIP_FACE_TOTAL}u;
+const MAX_FACE_SIZE: u32 = ${GPU_FLIP_MAX_FACE_SIZE}u;
+const DIV_OFF: u32 = 0u;
+const PA_OFF: u32 = ${GPU_FLIP_CELLS}u;
+const PB_OFF: u32 = ${GPU_FLIP_CELLS * 2}u;
+const MINW: f32 = ${FLUID_MIN.toFixed(8)};
+const CELL: f32 = ${GPU_FLIP_CELL.toFixed(8)};
+const MOM_SCALE: f32 = 32768.0;
+const CELL_AIR: u32 = 0u;
+const CELL_SOLID: u32 = 1u;
+const CELL_FLUID_BASE: u32 = 4u;
+
+fn gridIndex(i: u32, j: u32, k: u32) -> u32 { return i + GRID * (j + GRID * k); }
+fn faceIndex(i: u32, j: u32, k: u32, sx: u32, sy: u32) -> u32 { return i + sx * (j + sy * k); }
+fn uLocal(i: u32, j: u32, k: u32) -> u32 { return faceIndex(i, j, k, GRID + 1u, GRID); }
+fn vLocal(i: u32, j: u32, k: u32) -> u32 { return faceIndex(i, j, k, GRID, GRID + 1u); }
+fn wLocal(i: u32, j: u32, k: u32) -> u32 { return faceIndex(i, j, k, GRID, GRID); }
+fn uId(i: u32, j: u32, k: u32) -> u32 { return U_OFF + uLocal(i, j, k); }
+fn vId(i: u32, j: u32, k: u32) -> u32 { return V_OFF + vLocal(i, j, k); }
+fn wId(i: u32, j: u32, k: u32) -> u32 { return W_OFF + wLocal(i, j, k); }
+fn divId(id: u32) -> u32 { return DIV_OFF + id; }
+fn pAId(id: u32) -> u32 { return PA_OFF + id; }
+fn pBId(id: u32) -> u32 { return PB_OFF + id; }
+
+fn inCell(i: i32, j: i32, k: i32) -> bool {
+  return i >= 0 && i < i32(GRID) && j >= 0 && j < i32(GRID) && k >= 0 && k < i32(GRID);
+}
+
+fn cellAt(i: i32, j: i32, k: i32) -> u32 {
+  if (!inCell(i, j, k)) { return CELL_SOLID; }
+  return atomicLoad(&cellType[gridIndex(u32(i), u32(j), u32(k))]);
+}
+
+fn isFluidType(t: u32) -> bool { return t >= CELL_FLUID_BASE; }
+fn particleCountFromType(t: u32) -> f32 { return f32(t / CELL_FLUID_BASE); }
+fn isFluid(i: i32, j: i32, k: i32) -> bool { return isFluidType(cellAt(i, j, k)); }
+fn isSolid(i: i32, j: i32, k: i32) -> bool { return cellAt(i, j, k) == CELL_SOLID; }
+fn uBlocked(i: u32, j: u32, k: u32) -> bool { return i == 0u || i >= GRID || isSolid(i32(i) - 1, i32(j), i32(k)) || isSolid(i32(i), i32(j), i32(k)); }
+fn vBlocked(i: u32, j: u32, k: u32) -> bool { return j == 0u || j >= GRID || isSolid(i32(i), i32(j) - 1, i32(k)) || isSolid(i32(i), i32(j), i32(k)); }
+fn wBlocked(i: u32, j: u32, k: u32) -> bool { return k == 0u || k >= GRID || isSolid(i32(i), i32(j), i32(k) - 1) || isSolid(i32(i), i32(j), i32(k)); }
+fn uHasFluid(i: u32, j: u32, k: u32) -> bool { return isFluid(i32(i) - 1, i32(j), i32(k)) || isFluid(i32(i), i32(j), i32(k)); }
+fn vHasFluid(i: u32, j: u32, k: u32) -> bool { return isFluid(i32(i), i32(j) - 1, i32(k)) || isFluid(i32(i), i32(j), i32(k)); }
+fn wHasFluid(i: u32, j: u32, k: u32) -> bool { return isFluid(i32(i), i32(j), i32(k) - 1) || isFluid(i32(i), i32(j), i32(k)); }
+
+fn densityAt(i: i32, j: i32, k: i32) -> f32 {
+  if (!inCell(i, j, k)) { return 0.0; }
+  let t = atomicLoad(&cellType[gridIndex(u32(i), u32(j), u32(k))]);
+  if (!isFluidType(t)) { return 0.0; }
+  return particleCountFromType(t);
+}
+
+fn cohesionAt(p: vec3f) -> vec3f {
+  let ci = i32(floor((p.x - MINW) / CELL));
+  let cj = i32(floor((p.y - MINW) / CELL));
+  let ck = i32(floor((p.z - MINW) / CELL));
+  let c = densityAt(ci, cj, ck);
+  let grad = vec3f(
+    densityAt(ci + 1, cj, ck) - densityAt(ci - 1, cj, ck),
+    densityAt(ci, cj + 1, ck) - densityAt(ci, cj - 1, ck),
+    densityAt(ci, cj, ck + 1) - densityAt(ci, cj, ck - 1)
+  );
+  var pull = vec3f(0.0);
+  let gl = length(grad);
+  if (gl > 0.001 && c < params.cohesion.y) {
+    let surface = 1.0 - smoothstep(params.cohesion.x, params.cohesion.y, c);
+    pull = normalize(grad) * min(params.cohesion.z, gl * params.cohesion.w) * surface;
+  }
+  let radial = normalize(p);
+  return pull - radial * max(0.0, params.cohesion2.x - c) * params.cohesion2.y;
+}
+
+fn decodeU(local: u32) -> vec3u {
+  let sx = GRID + 1u;
+  return vec3u(local % sx, (local / sx) % GRID, local / (sx * GRID));
+}
+fn decodeV(local: u32) -> vec3u {
+  let sx = GRID;
+  let sy = GRID + 1u;
+  return vec3u(local % sx, (local / sx) % sy, local / (sx * sy));
+}
+fn decodeW(local: u32) -> vec3u {
+  let sx = GRID;
+  return vec3u(local % sx, (local / sx) % GRID, local / (sx * GRID));
+}
+
+fn magneticField(p: vec3f) -> vec3f {
+  var b = vec3f(0.0);
+  for (var i = 0u; i < 32u; i = i + 1u) {
+    if (i >= params.poleCount) { break; }
+    let pole = params.poles[i];
+    let d = p - pole.xyz;
+    let r2 = dot(d, d) + params.force2.w;
+    b = b + d * (pole.w / (r2 * sqrt(r2)));
+  }
+  return b;
+}
+
+fn forceAt(p: vec3f) -> vec3f {
+  let r = max(length(p), 0.001);
+  let radial = p / r;
+  var f = radial * (params.force.x / (r * r + params.force.y));
+  var b = magneticField(p);
+  let bLen = length(b);
+  if (bLen > 0.00001) {
+    b = b / bLen;
+    f = f + b * min(params.force.w, bLen * params.force.z) + radial * max(0.0, dot(b, radial)) * params.force2.x;
+  }
+  return f;
+}
+
+fn splatU(p: vec3f, value: f32) {
+  let gx = (p.x - MINW) / CELL;
+  let gy = (p.y - (MINW + CELL * 0.5)) / CELL;
+  let gz = (p.z - (MINW + CELL * 0.5)) / CELL;
+  let ix = i32(floor(gx)); let iy = i32(floor(gy)); let iz = i32(floor(gz));
+  let fx = gx - f32(ix); let fy = gy - f32(iy); let fz = gz - f32(iz);
+  for (var dz = 0; dz <= 1; dz = dz + 1) {
+    let k = iz + dz; if (k < 0 || k >= i32(GRID)) { continue; }
+    let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) {
+      let j = iy + dy; if (j < 0 || j >= i32(GRID)) { continue; }
+      let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) {
+        let i = ix + dx; if (i < 0 || i > i32(GRID)) { continue; }
+        let ww = max(0.0, select(1.0 - fx, fx, dx == 1) * wy * wz);
+        if (ww <= 0.0) { continue; }
+        let idx = uId(u32(i), u32(j), u32(k));
+        atomicAdd(&mom[idx], i32(round(value * ww * MOM_SCALE)));
+        atomicAdd(&weight[idx], u32(max(1.0, round(ww * MOM_SCALE))));
+      }
+    }
+  }
+}
+
+fn splatV(p: vec3f, value: f32) {
+  let gx = (p.x - (MINW + CELL * 0.5)) / CELL;
+  let gy = (p.y - MINW) / CELL;
+  let gz = (p.z - (MINW + CELL * 0.5)) / CELL;
+  let ix = i32(floor(gx)); let iy = i32(floor(gy)); let iz = i32(floor(gz));
+  let fx = gx - f32(ix); let fy = gy - f32(iy); let fz = gz - f32(iz);
+  for (var dz = 0; dz <= 1; dz = dz + 1) {
+    let k = iz + dz; if (k < 0 || k >= i32(GRID)) { continue; }
+    let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) {
+      let j = iy + dy; if (j < 0 || j > i32(GRID)) { continue; }
+      let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) {
+        let i = ix + dx; if (i < 0 || i >= i32(GRID)) { continue; }
+        let ww = max(0.0, select(1.0 - fx, fx, dx == 1) * wy * wz);
+        if (ww <= 0.0) { continue; }
+        let idx = vId(u32(i), u32(j), u32(k));
+        atomicAdd(&mom[idx], i32(round(value * ww * MOM_SCALE)));
+        atomicAdd(&weight[idx], u32(max(1.0, round(ww * MOM_SCALE))));
+      }
+    }
+  }
+}
+
+fn splatW(p: vec3f, value: f32) {
+  let gx = (p.x - (MINW + CELL * 0.5)) / CELL;
+  let gy = (p.y - (MINW + CELL * 0.5)) / CELL;
+  let gz = (p.z - MINW) / CELL;
+  let ix = i32(floor(gx)); let iy = i32(floor(gy)); let iz = i32(floor(gz));
+  let fx = gx - f32(ix); let fy = gy - f32(iy); let fz = gz - f32(iz);
+  for (var dz = 0; dz <= 1; dz = dz + 1) {
+    let k = iz + dz; if (k < 0 || k > i32(GRID)) { continue; }
+    let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) {
+      let j = iy + dy; if (j < 0 || j >= i32(GRID)) { continue; }
+      let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) {
+        let i = ix + dx; if (i < 0 || i >= i32(GRID)) { continue; }
+        let ww = max(0.0, select(1.0 - fx, fx, dx == 1) * wy * wz);
+        if (ww <= 0.0) { continue; }
+        let idx = wId(u32(i), u32(j), u32(k));
+        atomicAdd(&mom[idx], i32(round(value * ww * MOM_SCALE)));
+        atomicAdd(&weight[idx], u32(max(1.0, round(ww * MOM_SCALE))));
+      }
+    }
+  }
+}
+
+fn readFace(idx: u32, old: bool) -> f32 { if (old) { return oldFace[idx]; } return face[idx]; }
+
+fn sampleU(p: vec3f, old: bool) -> f32 {
+  let gx = clamp((p.x - MINW) / CELL, 0.0, f32(GRID));
+  let gy = clamp((p.y - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let gz = clamp((p.z - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let ix = min(i32(floor(gx)), i32(GRID) - 1); let iy = min(i32(floor(gy)), i32(GRID) - 2); let iz = min(i32(floor(gz)), i32(GRID) - 2);
+  let fx = gx - f32(ix); let fy = gy - f32(iy); let fz = gz - f32(iz);
+  var value = 0.0;
+  for (var dz = 0; dz <= 1; dz = dz + 1) { let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) { let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) { let wx = select(1.0 - fx, fx, dx == 1);
+        value = value + readFace(uId(u32(ix + dx), u32(iy + dy), u32(iz + dz)), old) * wx * wy * wz;
+  }}}
+  return value;
+}
+
+fn sampleV(p: vec3f, old: bool) -> f32 {
+  let gx = clamp((p.x - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let gy = clamp((p.y - MINW) / CELL, 0.0, f32(GRID));
+  let gz = clamp((p.z - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let ix = min(i32(floor(gx)), i32(GRID) - 2); let iy = min(i32(floor(gy)), i32(GRID) - 1); let iz = min(i32(floor(gz)), i32(GRID) - 2);
+  let fx = gx - f32(ix); let fy = gy - f32(iy); let fz = gz - f32(iz);
+  var value = 0.0;
+  for (var dz = 0; dz <= 1; dz = dz + 1) { let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) { let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) { let wx = select(1.0 - fx, fx, dx == 1);
+        value = value + readFace(vId(u32(ix + dx), u32(iy + dy), u32(iz + dz)), old) * wx * wy * wz;
+  }}}
+  return value;
+}
+
+fn sampleW(p: vec3f, old: bool) -> f32 {
+  let gx = clamp((p.x - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let gy = clamp((p.y - (MINW + CELL * 0.5)) / CELL, 0.0, f32(GRID - 1u));
+  let gz = clamp((p.z - MINW) / CELL, 0.0, f32(GRID));
+  let ix = min(i32(floor(gx)), i32(GRID) - 2); let iy = min(i32(floor(gy)), i32(GRID) - 2); let iz = min(i32(floor(gz)), i32(GRID) - 1);
+  let fx = gx - f32(ix); let fy = gy - f32(iy); let fz = gz - f32(iz);
+  var value = 0.0;
+  for (var dz = 0; dz <= 1; dz = dz + 1) { let wz = select(1.0 - fz, fz, dz == 1);
+    for (var dy = 0; dy <= 1; dy = dy + 1) { let wy = select(1.0 - fy, fy, dy == 1);
+      for (var dx = 0; dx <= 1; dx = dx + 1) { let wx = select(1.0 - fx, fx, dx == 1);
+        value = value + readFace(wId(u32(ix + dx), u32(iy + dy), u32(iz + dz)), old) * wx * wy * wz;
+  }}}
+  return value;
+}
+
+fn sampleVelocity(p: vec3f, old: bool) -> vec3f { return vec3f(sampleU(p, old), sampleV(p, old), sampleW(p, old)); }
+
+fn pressureInfo(i: i32, j: i32, k: i32, readA: bool) -> vec2f {
+  if (!inCell(i, j, k)) { return vec2f(0.0, 0.0); }
+  let idx = gridIndex(u32(i), u32(j), u32(k));
+  let t = atomicLoad(&cellType[idx]);
+  if (t == CELL_SOLID) { return vec2f(0.0, 0.0); }
+  if (isFluidType(t)) {
+    let p = select(scalar[pBId(idx)], scalar[pAId(idx)], readA);
+    return vec2f(p, 1.0);
+  }
+  return vec2f(0.0, 1.0);
+}
+
+@compute @workgroup_size(128)
+fn classifyCells(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x; if (id >= CELLS) { return; }
+  let i = id % GRID; let j = (id / GRID) % GRID; let k = id / (GRID * GRID);
+  let p = vec3f(MINW + (f32(i) + 0.5) * CELL, MINW + (f32(j) + 0.5) * CELL, MINW + (f32(k) + 0.5) * CELL);
+  atomicStore(&cellType[id], select(CELL_AIR, CELL_SOLID, dot(p, p) < 1.0));
+}
+
+@compute @workgroup_size(128)
+fn particleToGrid(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x; if (id >= params.count) { return; }
+  let p4 = pos[id]; let v4 = vel[id]; if (p4.w >= v4.w) { return; }
+  let p = p4.xyz;
+  let ci = i32(floor((p.x - MINW) / CELL)); let cj = i32(floor((p.y - MINW) / CELL)); let ck = i32(floor((p.z - MINW) / CELL));
+  if (inCell(ci, cj, ck)) {
+    let gi = gridIndex(u32(ci), u32(cj), u32(ck));
+    if (atomicLoad(&cellType[gi]) != CELL_SOLID) { atomicAdd(&cellType[gi], CELL_FLUID_BASE); }
+  }
+  splatU(p, v4.x); splatV(p, v4.y); splatW(p, v4.z);
+}
+
+@compute @workgroup_size(128)
+fn normalizeFaces(@builtin(global_invocation_id) id3: vec3u) {
+  let local = id3.x; if (local >= MAX_FACE_SIZE) { return; }
+  if (local < U_SIZE) {
+    let ijk = decodeU(local); let idx = U_OFF + local; let wt = atomicLoad(&weight[idx]);
+    var v = 0.0; if (wt > 0u) { v = f32(atomicLoad(&mom[idx])) / f32(wt); }
+    if (uBlocked(ijk.x, ijk.y, ijk.z)) { v = 0.0; }
+    face[idx] = v; oldFace[idx] = v;
+  }
+  if (local < V_SIZE) {
+    let ijk = decodeV(local); let idx = V_OFF + local; let wt = atomicLoad(&weight[idx]);
+    var v = 0.0; if (wt > 0u) { v = f32(atomicLoad(&mom[idx])) / f32(wt); }
+    if (vBlocked(ijk.x, ijk.y, ijk.z)) { v = 0.0; }
+    face[idx] = v; oldFace[idx] = v;
+  }
+  if (local < W_SIZE) {
+    let ijk = decodeW(local); let idx = W_OFF + local; let wt = atomicLoad(&weight[idx]);
+    var v = 0.0; if (wt > 0u) { v = f32(atomicLoad(&mom[idx])) / f32(wt); }
+    if (wBlocked(ijk.x, ijk.y, ijk.z)) { v = 0.0; }
+    face[idx] = v; oldFace[idx] = v;
+  }
+}
+
+@compute @workgroup_size(128)
+fn applyForces(@builtin(global_invocation_id) id3: vec3u) {
+  let local = id3.x; if (local >= MAX_FACE_SIZE) { return; }
+  if (local < U_SIZE) {
+    let ijk = decodeU(local); let idx = U_OFF + local;
+    if (!uBlocked(ijk.x, ijk.y, ijk.z) && (atomicLoad(&weight[idx]) > 0u || uHasFluid(ijk.x, ijk.y, ijk.z))) {
+      let p = vec3f(MINW + f32(ijk.x) * CELL, MINW + (f32(ijk.y) + 0.5) * CELL, MINW + (f32(ijk.z) + 0.5) * CELL);
+      face[idx] = (face[idx] + forceAt(p).x * params.dt) * params.force2.y;
+    } else { face[idx] = 0.0; }
+  }
+  if (local < V_SIZE) {
+    let ijk = decodeV(local); let idx = V_OFF + local;
+    if (!vBlocked(ijk.x, ijk.y, ijk.z) && (atomicLoad(&weight[idx]) > 0u || vHasFluid(ijk.x, ijk.y, ijk.z))) {
+      let p = vec3f(MINW + (f32(ijk.x) + 0.5) * CELL, MINW + f32(ijk.y) * CELL, MINW + (f32(ijk.z) + 0.5) * CELL);
+      face[idx] = (face[idx] + forceAt(p).y * params.dt) * params.force2.y;
+    } else { face[idx] = 0.0; }
+  }
+  if (local < W_SIZE) {
+    let ijk = decodeW(local); let idx = W_OFF + local;
+    if (!wBlocked(ijk.x, ijk.y, ijk.z) && (atomicLoad(&weight[idx]) > 0u || wHasFluid(ijk.x, ijk.y, ijk.z))) {
+      let p = vec3f(MINW + (f32(ijk.x) + 0.5) * CELL, MINW + (f32(ijk.y) + 0.5) * CELL, MINW + f32(ijk.z) * CELL);
+      face[idx] = (face[idx] + forceAt(p).z * params.dt) * params.force2.y;
+    } else { face[idx] = 0.0; }
+  }
+}
+
+@compute @workgroup_size(128)
+fn computeDivergence(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x; if (id >= CELLS) { return; }
+  let ctype = atomicLoad(&cellType[id]);
+  if (!isFluidType(ctype)) { scalar[divId(id)] = 0.0; return; }
+  let i = id % GRID; let j = (id / GRID) % GRID; let k = id / (GRID * GRID);
+  let faceDiv = (face[uId(i + 1u, j, k)] - face[uId(i, j, k)] + face[vId(i, j + 1u, k)] - face[vId(i, j, k)] + face[wId(i, j, k + 1u)] - face[wId(i, j, k)]) / CELL;
+  let compression = min(params.density.y, max(0.0, particleCountFromType(ctype) - params.density.x));
+  scalar[divId(id)] = faceDiv - compression * params.density.z;
+}
+
+fn jacobiValue(id: u32, readA: bool) -> f32 {
+  let i = i32(id % GRID); let j = i32((id / GRID) % GRID); let k = i32(id / (GRID * GRID));
+  var s = vec2f(0.0, 0.0);
+  s = s + pressureInfo(i + 1, j, k, readA); s = s + pressureInfo(i - 1, j, k, readA);
+  s = s + pressureInfo(i, j + 1, k, readA); s = s + pressureInfo(i, j - 1, k, readA);
+  s = s + pressureInfo(i, j, k + 1, readA); s = s + pressureInfo(i, j, k - 1, readA);
+  return select(0.0, (s.x - scalar[divId(id)] * CELL * CELL) / s.y, s.y > 0.0);
+}
+
+@compute @workgroup_size(128)
+fn jacobiAtoB(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x; if (id >= CELLS) { return; }
+  scalar[pBId(id)] = select(0.0, jacobiValue(id, true), isFluidType(atomicLoad(&cellType[id])));
+}
+
+@compute @workgroup_size(128)
+fn jacobiBtoA(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x; if (id >= CELLS) { return; }
+  scalar[pAId(id)] = select(0.0, jacobiValue(id, false), isFluidType(atomicLoad(&cellType[id])));
+}
+
+@compute @workgroup_size(128)
+fn projectFaces(@builtin(global_invocation_id) id3: vec3u) {
+  let local = id3.x; if (local >= MAX_FACE_SIZE) { return; }
+  if (local < U_SIZE) {
+    let ijk = decodeU(local); let idx = U_OFF + local;
+    if (ijk.x == 0u || ijk.x >= GRID) { face[idx] = 0.0; }
+    else {
+      let l = gridIndex(ijk.x - 1u, ijk.y, ijk.z); let r = gridIndex(ijk.x, ijk.y, ijk.z);
+      let lt = atomicLoad(&cellType[l]); let rt = atomicLoad(&cellType[r]);
+      if (lt == CELL_SOLID || rt == CELL_SOLID) { face[idx] = 0.0; }
+      else if (isFluidType(lt) || isFluidType(rt)) { face[idx] = face[idx] - (select(0.0, scalar[pAId(r)], isFluidType(rt)) - select(0.0, scalar[pAId(l)], isFluidType(lt))) / CELL; }
+    }
+  }
+  if (local < V_SIZE) {
+    let ijk = decodeV(local); let idx = V_OFF + local;
+    if (ijk.y == 0u || ijk.y >= GRID) { face[idx] = 0.0; }
+    else {
+      let b = gridIndex(ijk.x, ijk.y - 1u, ijk.z); let t = gridIndex(ijk.x, ijk.y, ijk.z);
+      let bt = atomicLoad(&cellType[b]); let tt = atomicLoad(&cellType[t]);
+      if (bt == CELL_SOLID || tt == CELL_SOLID) { face[idx] = 0.0; }
+      else if (isFluidType(bt) || isFluidType(tt)) { face[idx] = face[idx] - (select(0.0, scalar[pAId(t)], isFluidType(tt)) - select(0.0, scalar[pAId(b)], isFluidType(bt))) / CELL; }
+    }
+  }
+  if (local < W_SIZE) {
+    let ijk = decodeW(local); let idx = W_OFF + local;
+    if (ijk.z == 0u || ijk.z >= GRID) { face[idx] = 0.0; }
+    else {
+      let b = gridIndex(ijk.x, ijk.y, ijk.z - 1u); let f = gridIndex(ijk.x, ijk.y, ijk.z);
+      let bt = atomicLoad(&cellType[b]); let ft = atomicLoad(&cellType[f]);
+      if (bt == CELL_SOLID || ft == CELL_SOLID) { face[idx] = 0.0; }
+      else if (isFluidType(bt) || isFluidType(ft)) { face[idx] = face[idx] - (select(0.0, scalar[pAId(f)], isFluidType(ft)) - select(0.0, scalar[pAId(b)], isFluidType(bt))) / CELL; }
+    }
+  }
+}
+
+@compute @workgroup_size(128)
+fn gridToParticle(@builtin(global_invocation_id) id3: vec3u) {
+  let id = id3.x; if (id >= params.count) { return; }
+  var p4 = pos[id]; var v4 = vel[id]; if (p4.w >= v4.w) { return; }
+  let gNew = sampleVelocity(p4.xyz, false); let gOld = sampleVelocity(p4.xyz, true);
+  var pv = (v4.xyz + gNew - gOld) * params.flip + gNew * (1.0 - params.flip);
+  let cohesive = cohesionAt(p4.xyz);
+  pv = pv + cohesive * params.dt * params.cohesion2.z;
+  let speed = length(pv); if (speed > params.force2.z) { pv = pv * (params.force2.z / speed); }
+  var np = p4.xyz + pv * params.dt + cohesive * params.dt * params.dt * params.cohesion2.w;
+  let r = length(np);
+  let age = p4.w + params.dt;
+  if (age > v4.w || r < params.bounds.x || r > params.bounds.y) {
+    pos[id] = vec4f(np, v4.w); vel[id] = vec4f(0.0, 0.0, 0.0, v4.w);
+  } else {
+    pos[id] = vec4f(np, age); vel[id] = vec4f(pv, v4.w);
+  }
+}
+`;
+      }
+
+      uploadPoles(polesIn) {
+        this.poleCount = Math.min(32, polesIn.length);
+        for (let i = 0; i < 32; i++) {
+          const o = this.poleFloatOffset + i * 4;
+          if (i < this.poleCount) {
+            const p = polesIn[i].pos;
+            this.paramFloats[o] = p.x;
+            this.paramFloats[o + 1] = p.y;
+            this.paramFloats[o + 2] = p.z;
+            this.paramFloats[o + 3] = polesIn[i].charge;
+          } else {
+            this.paramFloats[o] = 0;
+            this.paramFloats[o + 1] = 0;
+            this.paramFloats[o + 2] = 0;
+            this.paramFloats[o + 3] = 0;
+          }
+        }
+      }
+
+      uploadFromCpu() {
+        if (!this.ready) return;
+        this.count = fluidCount;
+        this.version++;
+        this.posUpload.fill(0);
+        this.velUpload.fill(0);
+        for (let i = 0; i < this.count; i++) {
+          const p3 = i * 3;
+          const p4 = i * 4;
+          this.posUpload[p4] = fluidPos[p3];
+          this.posUpload[p4 + 1] = fluidPos[p3 + 1];
+          this.posUpload[p4 + 2] = fluidPos[p3 + 2];
+          this.posUpload[p4 + 3] = fluidAge[i];
+          this.velUpload[p4] = fluidVel[p3];
+          this.velUpload[p4 + 1] = fluidVel[p3 + 1];
+          this.velUpload[p4 + 2] = fluidVel[p3 + 2];
+          this.velUpload[p4 + 3] = fluidLife[i];
+        }
+        this.uploadPoles(poleData);
+        this.device.queue.writeBuffer(this.posBuffer, 0, this.posUpload);
+        this.device.queue.writeBuffer(this.velBuffer, 0, this.velUpload);
+        this.updateParams(0);
+        gpuFlipNeedsUpload = false;
+      }
+
+      updateParams(dt) {
+        this.uploadPoles(poleData);
+        this.paramFloats[0] = dt;
+        this.paramFloats[1] = simParams.flipBlend;
+        this.paramU32[2] = this.count;
+        this.paramU32[3] = this.poleCount;
+        this.paramFloats[4] = simParams.gravity;
+        this.paramFloats[5] = simParams.gravitySoftness;
+        this.paramFloats[6] = simParams.magneticScale;
+        this.paramFloats[7] = simParams.magneticCap;
+        this.paramFloats[8] = simParams.magneticRadialLift;
+        this.paramFloats[9] = simParams.velocityDamping;
+        this.paramFloats[10] = simParams.maxSpeed;
+        this.paramFloats[11] = simParams.magneticSoftening;
+        this.paramFloats[12] = simParams.compressionTarget;
+        this.paramFloats[13] = simParams.compressionCap;
+        this.paramFloats[14] = simParams.compressionStrength;
+        this.paramFloats[15] = 0;
+        this.paramFloats[16] = simParams.cohesionLow;
+        this.paramFloats[17] = simParams.cohesionHigh;
+        this.paramFloats[18] = simParams.cohesionMaxPull;
+        this.paramFloats[19] = simParams.cohesionGradientScale;
+        this.paramFloats[20] = simParams.sparseThreshold;
+        this.paramFloats[21] = simParams.sparseStrength;
+        this.paramFloats[22] = simParams.cohesionVelocityScale;
+        this.paramFloats[23] = simParams.cohesionAdvectionOffset;
+        this.paramFloats[24] = simParams.surfaceKillRadius;
+        this.paramFloats[25] = simParams.outerKillRadius;
+        this.paramFloats[26] = 0;
+        this.paramFloats[27] = 0;
+        this.device.queue.writeBuffer(this.paramBuffer, 0, this.paramBytes);
+      }
+
+      step(dt) {
+        if (!this.ready || this.count <= 0) return;
+        if (gpuFlipNeedsUpload) this.uploadFromCpu();
+        this.updateParams(Math.min(dt * simParams.dtScale, simParams.maxDt));
+        const encoder = this.device.createCommandEncoder();
+        encoder.clearBuffer(this.momBuffer);
+        encoder.clearBuffer(this.weightBuffer);
+        encoder.clearBuffer(this.scalarBuffer);
+        const pass = encoder.beginComputePass();
+        pass.setBindGroup(0, this.bindGroup);
+        pass.setPipeline(this.pipelines.classifyCells);
+        pass.dispatchWorkgroups(Math.ceil(GPU_FLIP_CELLS / 128));
+        pass.setPipeline(this.pipelines.particleToGrid);
+        pass.dispatchWorkgroups(Math.ceil(this.count / 128));
+        pass.setPipeline(this.pipelines.normalizeFaces);
+        pass.dispatchWorkgroups(Math.ceil(this.maxFaceSize / 128));
+        pass.setPipeline(this.pipelines.applyForces);
+        pass.dispatchWorkgroups(Math.ceil(this.maxFaceSize / 128));
+        pass.setPipeline(this.pipelines.computeDivergence);
+        pass.dispatchWorkgroups(Math.ceil(GPU_FLIP_CELLS / 128));
+        const pressureIterations = Math.max(0, Math.round(simParams.pressureIterations));
+        const evenPressureIterations = pressureIterations + pressureIterations % 2;
+        for (let i = 0; i < evenPressureIterations; i++) {
+          pass.setPipeline(i % 2 === 0 ? this.pipelines.jacobiAtoB : this.pipelines.jacobiBtoA);
+          pass.dispatchWorkgroups(Math.ceil(GPU_FLIP_CELLS / 128));
+        }
+        pass.setPipeline(this.pipelines.projectFaces);
+        pass.dispatchWorkgroups(Math.ceil(this.maxFaceSize / 128));
+        pass.setPipeline(this.pipelines.gridToParticle);
+        pass.dispatchWorkgroups(Math.ceil(this.count / 128));
+        pass.end();
+        let readbackVersion = -1;
+        if (!this.readbackPending) {
+          readbackVersion = this.version;
+          encoder.copyBufferToBuffer(this.posBuffer, 0, this.posReadBuffer, 0, this.posBytes);
+          encoder.copyBufferToBuffer(this.velBuffer, 0, this.velReadBuffer, 0, this.velBytes);
+          this.readbackPending = true;
+        }
+        this.device.queue.submit([encoder.finish()]);
+        if (readbackVersion >= 0) this.finishReadback(readbackVersion);
+      }
+
+      async finishReadback(version) {
+        try {
+          await Promise.all([
+            this.posReadBuffer.mapAsync(GPUMapMode.READ),
+            this.velReadBuffer.mapAsync(GPUMapMode.READ),
+          ]);
+          const posData = new Float32Array(this.posReadBuffer.getMappedRange());
+          const velData = new Float32Array(this.velReadBuffer.getMappedRange());
+          if (version === this.version) {
+            const n = this.count;
+            for (let i = 0; i < n; i++) {
+              const p3 = i * 3;
+              const p4 = i * 4;
+              fluidPos[p3] = posData[p4];
+              fluidPos[p3 + 1] = posData[p4 + 1];
+              fluidPos[p3 + 2] = posData[p4 + 2];
+              fluidVel[p3] = velData[p4];
+              fluidVel[p3 + 1] = velData[p4 + 1];
+              fluidVel[p3 + 2] = velData[p4 + 2];
+              fluidAge[i] = posData[p4 + 3];
+              fluidLife[i] = Math.max(0.001, velData[p4 + 3]);
+              fluidAge01[i] = Math.min(1, fluidAge[i] / fluidLife[i]);
+            }
+            fluidGeom.setDrawRange(0, n);
+            fluidGeom.attributes.position.needsUpdate = true;
+            fluidGeom.attributes.aAge.needsUpdate = true;
+            if (ppEl) ppEl.textContent = n.toLocaleString();
+          }
+          this.posReadBuffer.unmap();
+          this.velReadBuffer.unmap();
+        } catch (err) {
+          console.warn('WebGPU FLIP readback failed', err);
+        } finally {
+          this.readbackPending = false;
+        }
+      }
+    }
+
+    async function initWebGpuFlipSolver() {
+      const initToken = ++gpuFlipInitToken;
+      gpuFlipReady = false;
+      try {
+        const nextGpuFlip = new PackedWebGpuFlipSolver();
+        await nextGpuFlip.init();
+        if (initToken !== gpuFlipInitToken) return false;
+        gpuFlip = nextGpuFlip;
+        gpuFlipReady = true;
+        const status = document.getElementById('status');
+        if (status) status.textContent = `WEBGPU FLIP ${GPU_FLIP_GRID}^3`;
+        showToast(`WebGPU ${GPU_FLIP_GRID}^3 FLIP solver active`);
+        return true;
+      } catch (err) {
+        if (initToken !== gpuFlipInitToken) return false;
+        gpuFlip = null;
+        gpuFlipReady = false;
+        const status = document.getElementById('status');
+        if (status) status.textContent = 'CPU MAC FLIP';
+        console.warn('WebGPU FLIP unavailable, using CPU MAC fallback', err);
+        showToast('CPU MAC FLIP fallback');
+        return false;
+      }
+    }
+
+    let fluidGeom;
+    function stepFluid3D(dt) {
+      if (!FLIP_3D_ENABLED || !fluidVisible) return;
+
+      if (gpuFlipReady && gpuFlip) {
+        gpuFlip.step(dt);
+        fluidGeom.setDrawRange(0, fluidCount);
+        return;
+      }
+
+      const subDt = Math.min(dt * simParams.dtScale, simParams.maxDt);
+      splatFluidToGrid();
+      applyFluidForces(subDt);
+      pressureProjectFluid();
+      updateFluidParticles(subDt);
+
+      fluidGeom.setDrawRange(0, fluidCount);
+      fluidGeom.attributes.position.needsUpdate = true;
+      fluidGeom.attributes.aAge.needsUpdate = true;
+    }
+
+    fluidGeom = new THREE.BufferGeometry();
+    fluidGeom.setAttribute('position', new THREE.BufferAttribute(fluidPos, 3).setUsage(THREE.DynamicDrawUsage));
+    fluidGeom.setAttribute('aAge', new THREE.BufferAttribute(fluidAge01, 1).setUsage(THREE.DynamicDrawUsage));
+    fluidGeom.setDrawRange(0, 0);
+
+    const fluidMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uPixelRatio: { value: renderer.getPixelRatio() },
+        uSizeYoung: { value: renderParams.particleSizeYoung },
+        uSizeOld: { value: renderParams.particleSizeOld },
+        uSizeAgeStart: { value: renderParams.particleSizeAgeStart },
+        uSizeAgeEnd: { value: renderParams.particleSizeAgeEnd },
+        uSizeMin: { value: renderParams.particleSizeMin },
+        uSizeMax: { value: renderParams.particleSizeMax },
+        uSpriteFalloff: { value: renderParams.spriteFalloff },
+        uParticleAlpha: { value: renderParams.particleAlpha },
+        uAgeFadeYoung: { value: renderParams.ageFadeYoung },
+        uAgeFadeOld: { value: renderParams.ageFadeOld },
+        uHotColor: { value: new THREE.Color(renderParams.hotColor) },
+        uPaleColor: { value: new THREE.Color(renderParams.paleColor) },
+        uHighColor: { value: new THREE.Color(renderParams.highColor) },
+        uHeightBlend: { value: renderParams.heightBlend },
+        uHeightRange: { value: renderParams.heightRange },
+      },
+      vertexShader: `
+        attribute float aAge;
+        varying float vAge;
+        varying float vRadius;
+        uniform float uPixelRatio;
+        uniform float uSizeYoung;
+        uniform float uSizeOld;
+        uniform float uSizeAgeStart;
+        uniform float uSizeAgeEnd;
+        uniform float uSizeMin;
+        uniform float uSizeMax;
+        void main(){
+          vAge = aAge;
+          vRadius = length(position);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mv;
+          float size = mix(uSizeYoung, uSizeOld, smoothstep(uSizeAgeStart, uSizeAgeEnd, aAge)) * uPixelRatio;
+          gl_PointSize = clamp(size / max(-mv.z, 0.35), uSizeMin, uSizeMax);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying float vAge;
+        varying float vRadius;
+        uniform float uSpriteFalloff;
+        uniform float uParticleAlpha;
+        uniform float uAgeFadeYoung;
+        uniform float uAgeFadeOld;
+        uniform vec3 uHotColor;
+        uniform vec3 uPaleColor;
+        uniform vec3 uHighColor;
+        uniform float uHeightBlend;
+        uniform float uHeightRange;
+        void main(){
+          vec2 c = gl_PointCoord - 0.5;
+          float d = dot(c, c);
+          if (d > 0.25) discard;
+          float core = exp(-d * uSpriteFalloff);
+          float fade = smoothstep(uAgeFadeOld, uAgeFadeYoung, vAge);
+          float height = clamp((vRadius - 1.0) / uHeightRange, 0.0, 1.0);
+          vec3 col = mix(mix(uHotColor, uPaleColor, smoothstep(0.0, 0.35, vAge)), uHighColor, height * uHeightBlend);
+          gl_FragColor = vec4(col * core * fade, core * fade * uParticleAlpha);
+        }
+      `,
+    });
+    const fluidPoints = new THREE.Points(fluidGeom, fluidMat);
+    fluidPoints.frustumCulled = false;
+    scene.add(fluidPoints);
+    resetFluid3D();
+
+    const starMat = new THREE.PointsMaterial({
+      color: 0xe6ecf2,
+      size: 0.018,
+      transparent: true,
+      opacity: 0.7,
+    });
+    const stars = (() => {
+      const n = 360;
+      const pos = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        const r = 9 + Math.random() * 4;
+        const th = Math.random() * Math.PI * 2;
+        const ph = Math.acos(Math.random() * 2 - 1);
+        pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+        pos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+        pos[i * 3 + 2] = r * Math.cos(ph);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      return new THREE.Points(g, starMat);
+    })();
+    scene.add(stars);
+
+    const fieldColorPoint = new THREE.Vector3();
+
+    function refreshFieldLineColors() {
+      if (!fieldLines) return;
+      const posAttr = fieldLines.geometry.getAttribute('position');
+      const colAttr = fieldLines.geometry.getAttribute('color');
+      if (!posAttr || !colAttr) return;
+      for (let i = 0; i < posAttr.count; i++) {
+        fieldColorPoint.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
+        const c = lineColorAt(fieldColorPoint);
+        colAttr.setXYZ(i, c.r, c.g, c.b);
+      }
+      colAttr.needsUpdate = true;
+    }
+
+    function refreshPoleColors() {
+      if (!polePoints) return;
+      const colAttr = polePoints.geometry.getAttribute('color');
+      if (!colAttr) return;
+      const positive = new THREE.Color(renderParams.positivePoleColor);
+      const negative = new THREE.Color(renderParams.negativePoleColor);
+      for (let i = 0; i < poleData.length; i++) {
+        const c = poleData[i].charge > 0 ? positive : negative;
+        colAttr.setXYZ(i, c.r, c.g, c.b);
+      }
+      colAttr.needsUpdate = true;
+    }
+
+    function applyRenderParams() {
+      fluidMat.uniforms.uSizeYoung.value = renderParams.particleSizeYoung;
+      fluidMat.uniforms.uSizeOld.value = renderParams.particleSizeOld;
+      fluidMat.uniforms.uSizeAgeStart.value = renderParams.particleSizeAgeStart;
+      fluidMat.uniforms.uSizeAgeEnd.value = renderParams.particleSizeAgeEnd;
+      fluidMat.uniforms.uSizeMin.value = renderParams.particleSizeMin;
+      fluidMat.uniforms.uSizeMax.value = renderParams.particleSizeMax;
+      fluidMat.uniforms.uSpriteFalloff.value = renderParams.spriteFalloff;
+      fluidMat.uniforms.uParticleAlpha.value = renderParams.particleAlpha;
+      fluidMat.uniforms.uAgeFadeYoung.value = renderParams.ageFadeYoung;
+      fluidMat.uniforms.uAgeFadeOld.value = renderParams.ageFadeOld;
+      fluidMat.uniforms.uHotColor.value.set(renderParams.hotColor);
+      fluidMat.uniforms.uPaleColor.value.set(renderParams.paleColor);
+      fluidMat.uniforms.uHighColor.value.set(renderParams.highColor);
+      fluidMat.uniforms.uHeightBlend.value = renderParams.heightBlend;
+      fluidMat.uniforms.uHeightRange.value = renderParams.heightRange;
+
+      sphereCore.scale.setScalar(renderParams.sunCoreRadius / 0.985);
+      sphereCore.material.color.set(renderParams.sunCoreColor);
+      glow.scale.setScalar(renderParams.glowRadius / 1.32);
+      glowMat.uniforms.uColor.value.set(renderParams.glowColor);
+      glowMat.uniforms.uIntensity.value = renderParams.glowIntensity;
+      glowMat.uniforms.uRim.value = renderParams.glowRim;
+      simBoundsMat.color.set(renderParams.boundsColor);
+      simBoundsMat.opacity = renderParams.boundsOpacity;
+      fieldLineMat.opacity = renderParams.fieldOpacity;
+      poleMat.size = renderParams.poleSize;
+      poleMat.opacity = renderParams.poleOpacity;
+      starMat.size = renderParams.starSize;
+      starMat.opacity = renderParams.starOpacity;
+      refreshFieldLineColors();
+      refreshPoleColors();
+    }
+
+    function applyViewParams() {
+      pixelRatioCap = viewParams.pixelRatioCap;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap));
+      const dir = camera.position.lengthSq() > 1e-6 ? camera.position.clone().normalize() : new THREE.Vector3(0, 0, 1);
+      camera.position.copy(dir.multiplyScalar(viewParams.cameraDistance));
+      camera.fov = viewParams.cameraFov;
+      camera.updateProjectionMatrix();
+      controls.dampingFactor = viewParams.orbitDamping;
+      controls.rotateSpeed = viewParams.orbitRotateSpeed;
+      controls.minDistance = viewParams.orbitMinDistance;
+      controls.maxDistance = viewParams.orbitMaxDistance;
+      controls.zoomSpeed = viewParams.orbitZoomSpeed;
+      resize();
+    }
+
+    function clampEmitterIndex() {
+      activeEmitterIndex = THREE.MathUtils.clamp(Math.round(activeEmitterIndex), 0, Math.max(0, cmeEmitters.length - 1));
+    }
+
+    function rebuildMagneticField(resetBurst = true) {
+      generateMagneticField(fieldSeed);
+      clampEmitterIndex();
+      magneticFieldGroup.visible = fieldVisible;
+      applyRenderParams();
+      gpuFlipNeedsUpload = true;
+      if (resetBurst) {
+        seedFluid3D(fluidTargetCount, activeEmitterIndex);
+        fluidPoints.visible = fluidVisible;
+      }
+    }
+
+    function reseedFluid() {
+      clampEmitterIndex();
+      seedFluid3D(fluidTargetCount, activeEmitterIndex);
+      fluidPoints.visible = fluidVisible;
+    }
+
+    async function rebuildGpuFlipGrid() {
+      gpuFlipReady = false;
+      gpuFlip = null;
+      gpuFlipNeedsUpload = true;
+      const status = document.getElementById('status');
+      if (status) status.textContent = `REBUILDING GPU ${GPU_FLIP_GRID}^3`;
+      showToast(`Rebuilding ${GPU_FLIP_GRID}^3 solver`);
+      reseedFluid();
+      return await initWebGpuFlipSolver();
+    }
+
+    async function commitSolverDomain() {
+      const oldGrid = GPU_FLIP_GRID;
+      const oldBoxSize = simBoxSize;
+      setGpuGridResolution(pendingGpuGrid);
+      setSimBoxSize(pendingSimBoxSize);
+      syncPendingDomainControls();
+      if (oldGrid !== GPU_FLIP_GRID || oldBoxSize !== simBoxSize) {
+        return await rebuildGpuFlipGrid();
+      }
+      showToast(`Domain ${GPU_FLIP_GRID}^3 / ${simBoxSize.toFixed(2)}`);
+      return true;
+    }
+
+    applyRenderParams();
+
+    // =================== UI ===================
+    let rotate = true, fieldVisible = true;
+    let sunRotationY = 0;
+    const bRot = document.getElementById('b-rot');
+    const bField = document.getElementById('b-field');
+    const bFluid = document.getElementById('b-fluid');
+    const bEject = document.getElementById('b-eject');
+    const bReset = document.getElementById('b-reset');
+    bRot.onclick = () => {
+      rotate = !rotate;
+      bRot.classList.toggle('active', rotate);
+      scheduleSettingsSave();
+    };
+    bField.onclick = () => {
+      fieldVisible = !fieldVisible;
+      magneticFieldGroup.visible = fieldVisible;
+      bField.classList.toggle('active', fieldVisible);
+      scheduleSettingsSave();
+    };
+    bFluid.onclick = () => {
+      fluidVisible = !fluidVisible;
+      fluidPoints.visible = fluidVisible;
+      bFluid.classList.toggle('active', fluidVisible);
+      scheduleSettingsSave();
+    };
+    bEject.onclick = () => {
+      reseedFluid();
+      showToast(`${fluidTargetCount.toLocaleString()} particle CME`);
+    };
+    bReset.onclick = () => {
+      fieldSeed += 1;
+      rebuildMagneticField(true);
+      scheduleSettingsSave();
+    };
+
+    // --- toast helper ---
+    const toast = document.getElementById('toast');
+    let toastTimer = null;
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    // --- 3D FLIP burst particle count slider ---
+    const sFluidCount = document.getElementById('s-fluid-count');
+    const vFluidCount = document.getElementById('v-fluid-count');
+    function setFluidCountIndex(index) {
+      fluidCountIdx = THREE.MathUtils.clamp(Math.round(index), 0, FLUID_COUNT_STEPS.length - 1);
+      fluidTargetCount = FLUID_COUNT_STEPS[fluidCountIdx];
+      if (sFluidCount) sFluidCount.value = String(fluidCountIdx);
+      if (vFluidCount) vFluidCount.textContent = fluidTargetCount.toLocaleString();
+    }
+    function applyFluidCount(seedNow = false) {
+      if (!sFluidCount || !vFluidCount) return;
+      setFluidCountIndex(parseInt(sFluidCount.value, 10));
+      if (seedNow) {
+        reseedFluid();
+        showToast(`${fluidTargetCount.toLocaleString()} particle burst`);
+        scheduleSettingsSave();
+      }
+    }
+    if (sFluidCount && vFluidCount) {
+      sFluidCount.addEventListener('input', () => applyFluidCount(false));
+      sFluidCount.addEventListener('change', () => applyFluidCount(true));
+      applyFluidCount(false);
+    }
+
+    const paramModal = document.getElementById('param-modal');
+    const paramTitle = document.getElementById('param-title');
+    const paramContent = document.getElementById('param-content');
+    const bSimPanel = document.getElementById('b-sim-panel');
+    const bLookPanel = document.getElementById('b-look-panel');
+    const bParamClose = document.getElementById('param-close');
+    const bParamSave = document.getElementById('param-save');
+    const bParamLoad = document.getElementById('param-load');
+    const bParamReset = document.getElementById('param-reset');
+
+    const fmt = {
+      fixed2: (v) => Number(v).toFixed(2),
+      fixed3: (v) => Number(v).toFixed(3),
+      int: (v) => Math.round(Number(v)).toLocaleString(),
+      count: () => fluidTargetCount.toLocaleString(),
+      emitter: () => `${activeEmitterIndex} / ${Math.max(0, cmeEmitters.length - 1)}`,
+    };
+
+    const valOf = (row) => row.get ? row.get() : row.obj[row.key];
+    const setVal = (row, value) => {
+      const v = row.integer ? Math.round(Number(value)) : row.type === 'color' ? value : Number(value);
+      if (row.set) row.set(v);
+      else row.obj[row.key] = v;
+    };
+    const boundOf = (row, key) => typeof row[key] === 'function' ? row[key]() : row[key];
+    const formatVal = (row) => row.format ? row.format(valOf(row)) : row.type === 'color' ? valOf(row) : Number(valOf(row)).toFixed(3);
+
+    function syncPanelOutputs() {
+      paramContent.querySelectorAll('[data-param-index]').forEach((output) => {
+        const index = Number(output.dataset.paramIndex);
+        const row = activeParamRows[index];
+        if (row) output.textContent = formatVal(row);
+      });
+      paramContent.querySelectorAll('[data-param-input-index]').forEach((input) => {
+        const index = Number(input.dataset.paramInputIndex);
+        const row = activeParamRows[index];
+        if (row) input.value = valOf(row);
+      });
+    }
+
+    function appendParamWarning(item, row) {
+      if (!row.warning) return;
+      item.classList.add('has-warning');
+      const warning = document.createElement('div');
+      warning.className = 'param-warning';
+      warning.textContent = row.warning;
+      item.appendChild(warning);
+    }
+
+    let activeParamRows = [];
+    function openParamPanel(title, sections) {
+      activeParamRows = [];
+      paramTitle.textContent = title;
+      paramContent.replaceChildren();
+
+      for (const section of sections) {
+        const wrap = document.createElement('section');
+        wrap.className = 'param-section';
+        const h = document.createElement('h3');
+        h.textContent = section.title;
+        wrap.appendChild(h);
+
+        for (const row of section.rows) {
+          const item = document.createElement('div');
+          item.className = 'param-row';
+          const label = document.createElement('label');
+          label.textContent = row.label;
+          item.appendChild(label);
+
+          if (row.readonly) {
+            const text = document.createElement('div');
+            text.className = 'param-readonly';
+            text.textContent = row.value;
+            item.appendChild(text);
+            const out = document.createElement('output');
+            out.textContent = row.mode || '';
+            item.appendChild(out);
+            wrap.appendChild(item);
+            continue;
+          }
+
+          const index = activeParamRows.push(row) - 1;
+          if (row.type === 'numberCommit') {
+            const control = document.createElement('div');
+            control.className = 'param-commit-control';
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = row.step || 'any';
+            input.value = valOf(row);
+            input.dataset.paramInputIndex = String(index);
+
+            const commit = document.createElement('button');
+            commit.type = 'button';
+            commit.textContent = 'Commit';
+
+            const out = document.createElement('output');
+            out.dataset.paramIndex = String(index);
+            out.textContent = formatVal(row);
+
+            const commitValue = async () => {
+              setVal(row, input.value);
+              input.value = valOf(row);
+              out.textContent = formatVal(row);
+              let ok = true;
+              try {
+                if (row.onCommit) ok = await row.onCommit();
+              } catch (err) {
+                console.warn('Parameter commit failed', err);
+                showToast('Commit failed');
+                ok = false;
+              }
+              syncPanelOutputs();
+              if (ok !== false) scheduleSettingsSave();
+            };
+
+            input.addEventListener('input', () => {
+              out.textContent = row.previewFormat ? row.previewFormat(input.value) : input.value;
+            });
+            input.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter') commitValue();
+            });
+            commit.addEventListener('click', commitValue);
+
+            control.appendChild(input);
+            control.appendChild(commit);
+            item.appendChild(control);
+            item.appendChild(out);
+            appendParamWarning(item, row);
+            wrap.appendChild(item);
+            continue;
+          }
+
+          const input = document.createElement('input');
+          input.type = row.type === 'color' ? 'color' : 'range';
+          if (input.type === 'range') {
+            input.min = boundOf(row, 'min');
+            input.max = boundOf(row, 'max');
+            input.step = row.step;
+          }
+          input.value = valOf(row);
+          input.dataset.paramInputIndex = String(index);
+
+          const out = document.createElement('output');
+          out.dataset.paramIndex = String(index);
+          out.textContent = formatVal(row);
+
+          input.addEventListener('input', () => {
+            if (row.deferred) {
+              setVal(row, input.value);
+              out.textContent = formatVal(row);
+              return;
+            }
+            setVal(row, input.value);
+            out.textContent = formatVal(row);
+            if (row.onInput) row.onInput();
+            scheduleSettingsSave();
+          });
+          input.addEventListener('change', () => {
+            if (row.deferred) {
+              setVal(row, input.value);
+              out.textContent = formatVal(row);
+              syncPanelOutputs();
+              return;
+            }
+            setVal(row, input.value);
+            out.textContent = formatVal(row);
+            const commitResult = row.onCommit ? row.onCommit() : undefined;
+            Promise.resolve(commitResult).then((ok) => {
+              syncPanelOutputs();
+              if (ok !== false) scheduleSettingsSave();
+            }).catch((err) => {
+              console.warn('Parameter commit failed', err);
+              showToast('Commit failed');
+            });
+          });
+
+          item.appendChild(input);
+          item.appendChild(out);
+          wrap.appendChild(item);
+        }
+
+        paramContent.appendChild(wrap);
+      }
+
+      paramModal.classList.add('open');
+      paramModal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeParamPanel() {
+      paramModal.classList.remove('open');
+      paramModal.setAttribute('aria-hidden', 'true');
+    }
+
+    const SETTINGS_KEY = 'corona-v001-settings';
+    const SETTINGS_AUTOSAVE_DELAY_MS = 6500;
+    let settingsSaveTimer = null;
+    let loadingSettings = false;
+
+    function copyParamGroup(group) {
+      return { ...group };
+    }
+
+    function applyParamGroup(target, source) {
+      if (!source || typeof source !== 'object') return;
+      for (const key of Object.keys(target)) {
+        if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
+        const next = source[key];
+        if (typeof target[key] === 'number') {
+          const n = Number(next);
+          if (Number.isFinite(n)) target[key] = n;
+        } else if (typeof target[key] === 'string' && typeof next === 'string') {
+          target[key] = next;
+        }
+      }
+    }
+
+    function settingsSnapshot() {
+      return {
+        version: 2,
+        savedAt: new Date().toISOString(),
+        gpuGrid: GPU_FLIP_GRID,
+        simBoxSize,
+        fluidCountIdx,
+        activeEmitterIndex,
+        fieldSeed,
+        toggles: { rotate, fieldVisible, fluidVisible },
+        simParams: copyParamGroup(simParams),
+        emitterParams: copyParamGroup(emitterParams),
+        fieldParams: copyParamGroup(fieldParams),
+        renderParams: copyParamGroup(renderParams),
+        viewParams: copyParamGroup(viewParams),
+      };
+    }
+
+    function saveSettingsNow(message = 'Settings saved') {
+      try {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(settingsSnapshot()));
+        showToast(message);
+        return true;
+      } catch (err) {
+        console.warn('Settings save failed', err);
+        showToast('Settings save failed');
+        return false;
+      }
+    }
+
+    function scheduleSettingsSave() {
+      if (loadingSettings) return;
+      clearTimeout(settingsSaveTimer);
+      settingsSaveTimer = setTimeout(() => {
+        settingsSaveTimer = null;
+        saveSettingsNow('Settings autosaved');
+      }, SETTINGS_AUTOSAVE_DELAY_MS);
+    }
+
+    function applyVisibilityButtons() {
+      bRot.classList.toggle('active', rotate);
+      bField.classList.toggle('active', fieldVisible);
+      bFluid.classList.toggle('active', fluidVisible);
+      magneticFieldGroup.visible = fieldVisible;
+      fluidPoints.visible = fluidVisible;
+    }
+
+    async function applySettingsSnapshot(data, silent = false) {
+      if (!data || typeof data !== 'object') return false;
+      loadingSettings = true;
+      clearTimeout(settingsSaveTimer);
+      settingsSaveTimer = null;
+
+      const oldGrid = GPU_FLIP_GRID;
+      const oldBoxSize = simBoxSize;
+      try {
+        if (Object.prototype.hasOwnProperty.call(data, 'gpuGrid')) setGpuGridResolution(data.gpuGrid);
+        if (Object.prototype.hasOwnProperty.call(data, 'simBoxSize')) setSimBoxSize(data.simBoxSize);
+        applyParamGroup(simParams, data.simParams);
+        applyParamGroup(emitterParams, data.emitterParams);
+        applyParamGroup(fieldParams, data.fieldParams);
+        applyParamGroup(renderParams, data.renderParams);
+        applyParamGroup(viewParams, data.viewParams);
+
+        if (Number.isFinite(Number(data.fluidCountIdx))) setFluidCountIndex(Number(data.fluidCountIdx));
+        if (Number.isFinite(Number(data.activeEmitterIndex))) activeEmitterIndex = Math.round(Number(data.activeEmitterIndex));
+        if (Number.isFinite(Number(data.fieldSeed))) fieldSeed = Math.max(1, Math.round(Number(data.fieldSeed)));
+        if (data.toggles && typeof data.toggles === 'object') {
+          if (typeof data.toggles.rotate === 'boolean') rotate = data.toggles.rotate;
+          if (typeof data.toggles.fieldVisible === 'boolean') fieldVisible = data.toggles.fieldVisible;
+          if (typeof data.toggles.fluidVisible === 'boolean') fluidVisible = data.toggles.fluidVisible;
+        }
+
+        rebuildMagneticField(true);
+        applyRenderParams();
+        applyViewParams();
+        applyVisibilityButtons();
+
+        syncPendingDomainControls();
+
+        if ((oldGrid !== GPU_FLIP_GRID || oldBoxSize !== simBoxSize) && gpuFlip) {
+          await rebuildGpuFlipGrid();
+        } else {
+          gpuFlipNeedsUpload = true;
+          if (gpuFlipReady && gpuFlip) gpuFlip.uploadFromCpu();
+        }
+
+        syncPanelOutputs();
+        if (!silent) showToast('Settings loaded');
+        return true;
+      } catch (err) {
+        console.warn('Settings load failed', err);
+        if (!silent) showToast('Settings load failed');
+        return false;
+      } finally {
+        loadingSettings = false;
+      }
+    }
+
+    async function loadSettings(silent = false) {
+      try {
+        const raw = localStorage.getItem(SETTINGS_KEY);
+        if (!raw) {
+          if (!silent) showToast('No saved settings');
+          return false;
+        }
+        return await applySettingsSnapshot(JSON.parse(raw), silent);
+      } catch (err) {
+        console.warn('Settings load failed', err);
+        if (!silent) showToast('Settings load failed');
+        return false;
+      }
+    }
+
+    const DEFAULT_SETTINGS = settingsSnapshot();
+
+    async function resetSettingsToDefaults() {
+      const ok = await applySettingsSnapshot(DEFAULT_SETTINGS, true);
+      if (!ok) {
+        showToast('Reset failed');
+        return false;
+      }
+      try {
+        localStorage.removeItem(SETTINGS_KEY);
+      } catch (err) {
+        console.warn('Settings reset storage clear failed', err);
+      }
+      syncPanelOutputs();
+      showToast('Defaults restored');
+      return true;
+    }
+
+    const solverRows = [
+      { label: 'GPU grid', get: () => pendingGpuGrid, set: setPendingGpuGrid, type: 'numberCommit', step: 'any', integer: true, format: () => `${pendingGpuGrid}^3`, previewFormat: previewGpuGridResolution, onCommit: commitSolverDomain, warning: 'No UI cap. Use positive whole numbers; very large grids can freeze the tab or exhaust GPU memory before delayed autosave runs.' },
+      { label: 'Box size', get: () => pendingSimBoxSize, set: setPendingSimBoxSize, min: SIM_BOX_SIZE_MIN, max: SIM_BOX_SIZE_MAX, step: 0.05, deferred: true, format: () => pendingSimBoxSize.toFixed(2) },
+      { label: 'CPU fallback grid', readonly: true, value: `${FLUID_GRID}^3 MAC`, mode: 'rebuild' },
+      { label: 'Particle capacity', readonly: true, value: FLUID_MAX.toLocaleString(), mode: 'rebuild' },
+      { label: 'Workgroup size', readonly: true, value: '128', mode: 'rebuild' },
+      { label: 'Burst particles', get: () => fluidCountIdx, set: setFluidCountIndex, min: 0, max: FLUID_COUNT_STEPS.length - 1, step: 1, integer: true, format: fmt.count, onCommit: reseedFluid },
+      { label: 'Pressure iterations', obj: simParams, key: 'pressureIterations', min: 4, max: 96, step: 1, integer: true, format: fmt.int },
+      { label: 'FLIP blend', obj: simParams, key: 'flipBlend', min: 0, max: 1, step: 0.01, format: fmt.fixed2 },
+      { label: 'Max dt', obj: simParams, key: 'maxDt', min: 0.004, max: 0.05, step: 0.001, format: fmt.fixed3 },
+      { label: 'DT scale', obj: simParams, key: 'dtScale', min: 0, max: 2, step: 0.01, format: fmt.fixed2 },
+    ];
+
+    const emitterRows = [
+      { label: 'Source spot', get: () => activeEmitterIndex, set: (v) => { activeEmitterIndex = Math.round(v); clampEmitterIndex(); }, min: 0, max: () => Math.max(0, cmeEmitters.length - 1), step: 1, integer: true, format: fmt.emitter, onCommit: reseedFluid },
+      { label: 'Burst radius', obj: emitterParams, key: 'burstRadius', min: 0.01, max: 0.25, step: 0.001, format: fmt.fixed3, onCommit: reseedFluid },
+      { label: 'Start radius', obj: emitterParams, key: 'startRadius', min: 1.0, max: 1.16, step: 0.001, format: fmt.fixed3, onCommit: reseedFluid },
+      { label: 'Puff depth', obj: emitterParams, key: 'puff', min: 0, max: 0.12, step: 0.001, format: fmt.fixed3, onCommit: reseedFluid },
+      { label: 'Lift base', obj: emitterParams, key: 'liftBase', min: 0, max: 2.4, step: 0.01, format: fmt.fixed2, onCommit: reseedFluid },
+      { label: 'Lift random', obj: emitterParams, key: 'liftRandom', min: 0, max: 1.5, step: 0.01, format: fmt.fixed2, onCommit: reseedFluid },
+      { label: 'Shear random', obj: emitterParams, key: 'shearRandom', min: 0, max: 1.2, step: 0.01, format: fmt.fixed2, onCommit: reseedFluid },
+      { label: 'Spin random', obj: emitterParams, key: 'spinRandom', min: 0, max: 1.5, step: 0.01, format: fmt.fixed2, onCommit: reseedFluid },
+      { label: 'Magnetic kick', obj: emitterParams, key: 'magneticInfluence', min: 0, max: 1.2, step: 0.01, format: fmt.fixed2, onCommit: reseedFluid },
+      { label: 'Magnetic sample radius', obj: emitterParams, key: 'magneticSampleRadius', min: 1.0, max: 1.5, step: 0.01, format: fmt.fixed2, onCommit: reseedFluid },
+      { label: 'Lifetime base', obj: emitterParams, key: 'lifeBase', min: 0.5, max: 14, step: 0.1, format: fmt.fixed2, onCommit: reseedFluid },
+      { label: 'Lifetime random', obj: emitterParams, key: 'lifeRandom', min: 0, max: 8, step: 0.1, format: fmt.fixed2, onCommit: reseedFluid },
+    ];
+
+    const simRows = [
+      { label: 'Gravity', obj: simParams, key: 'gravity', min: -2, max: 0.5, step: 0.01, format: fmt.fixed2 },
+      { label: 'Gravity softness', obj: simParams, key: 'gravitySoftness', min: 0.01, max: 1.2, step: 0.01, format: fmt.fixed2 },
+      { label: 'Magnetic scale', obj: simParams, key: 'magneticScale', min: 0, max: 0.12, step: 0.001, format: fmt.fixed3 },
+      { label: 'Magnetic cap', obj: simParams, key: 'magneticCap', min: 0, max: 4, step: 0.01, format: fmt.fixed2 },
+      { label: 'Magnetic radial lift', obj: simParams, key: 'magneticRadialLift', min: -1, max: 1.5, step: 0.01, format: fmt.fixed2 },
+      { label: 'Magnetic softening', obj: simParams, key: 'magneticSoftening', min: 0.001, max: 0.08, step: 0.001, format: fmt.fixed3, onCommit: () => rebuildMagneticField(false) },
+      { label: 'Velocity damping', obj: simParams, key: 'velocityDamping', min: 0.94, max: 1.0, step: 0.001, format: fmt.fixed3 },
+      { label: 'Max speed', obj: simParams, key: 'maxSpeed', min: 0.5, max: 12, step: 0.1, format: fmt.fixed2 },
+      { label: 'Compression target', obj: simParams, key: 'compressionTarget', min: 1, max: 48, step: 0.5, format: fmt.fixed2 },
+      { label: 'Compression cap', obj: simParams, key: 'compressionCap', min: 1, max: 96, step: 0.5, format: fmt.fixed2 },
+      { label: 'Compression strength', obj: simParams, key: 'compressionStrength', min: 0, max: 0.4, step: 0.005, format: fmt.fixed3 },
+      { label: 'Cohesion low', obj: simParams, key: 'cohesionLow', min: 0, max: 48, step: 0.5, format: fmt.fixed2 },
+      { label: 'Cohesion high', obj: simParams, key: 'cohesionHigh', min: 1, max: 96, step: 0.5, format: fmt.fixed2 },
+      { label: 'Cohesion max pull', obj: simParams, key: 'cohesionMaxPull', min: 0, max: 12, step: 0.1, format: fmt.fixed2 },
+      { label: 'Cohesion gradient scale', obj: simParams, key: 'cohesionGradientScale', min: 0, max: 0.8, step: 0.01, format: fmt.fixed2 },
+      { label: 'Sparse threshold', obj: simParams, key: 'sparseThreshold', min: 0, max: 48, step: 0.5, format: fmt.fixed2 },
+      { label: 'Sparse strength', obj: simParams, key: 'sparseStrength', min: 0, max: 0.5, step: 0.005, format: fmt.fixed3 },
+      { label: 'Cohesion velocity scale', obj: simParams, key: 'cohesionVelocityScale', min: 0, max: 3, step: 0.05, format: fmt.fixed2 },
+      { label: 'Cohesion advection', obj: simParams, key: 'cohesionAdvectionOffset', min: 0, max: 1.5, step: 0.01, format: fmt.fixed2 },
+      { label: 'Surface kill radius', obj: simParams, key: 'surfaceKillRadius', min: 0.8, max: 1.2, step: 0.001, format: fmt.fixed3 },
+      { label: 'Outer kill radius', obj: simParams, key: 'outerKillRadius', min: 1.0, max: 5.0, step: 0.05, format: fmt.fixed2 },
+    ];
+
+    const fieldRows = [
+      { label: 'Field seed', get: () => fieldSeed, set: (v) => { fieldSeed = Math.round(v); }, min: 1, max: 999, step: 1, integer: true, format: fmt.int, onCommit: () => rebuildMagneticField(true) },
+      { label: 'Bipolar pairs', obj: fieldParams, key: 'pairCount', min: 0, max: 15, step: 1, integer: true, format: fmt.int, onCommit: () => rebuildMagneticField(true) },
+      { label: 'Global strength', obj: fieldParams, key: 'globalStrength', min: 0, max: 4, step: 0.05, format: fmt.fixed2, onCommit: () => rebuildMagneticField(true) },
+      { label: 'Separation min', obj: fieldParams, key: 'separationMin', min: 0.02, max: 0.5, step: 0.01, format: fmt.fixed2, onCommit: () => rebuildMagneticField(true) },
+      { label: 'Separation range', obj: fieldParams, key: 'separationRange', min: 0, max: 0.6, step: 0.01, format: fmt.fixed2, onCommit: () => rebuildMagneticField(true) },
+      { label: 'Strength min', obj: fieldParams, key: 'strengthMin', min: 0, max: 3, step: 0.05, format: fmt.fixed2, onCommit: () => rebuildMagneticField(true) },
+      { label: 'Strength range', obj: fieldParams, key: 'strengthRange', min: 0, max: 3, step: 0.05, format: fmt.fixed2, onCommit: () => rebuildMagneticField(true) },
+      { label: 'Lines per pole', obj: fieldParams, key: 'linesPerPole', min: 1, max: 30, step: 1, integer: true, format: fmt.int, onCommit: () => rebuildMagneticField(false) },
+      { label: 'Line step', obj: fieldParams, key: 'lineStep', min: 0.006, max: 0.06, step: 0.001, format: fmt.fixed3, onCommit: () => rebuildMagneticField(false) },
+      { label: 'Line max steps', obj: fieldParams, key: 'lineMaxSteps', min: 40, max: 700, step: 10, integer: true, format: fmt.int, onCommit: () => rebuildMagneticField(false) },
+      { label: 'Line outer cutoff', obj: fieldParams, key: 'lineOuter', min: 1.2, max: 4.0, step: 0.05, format: fmt.fixed2, onCommit: () => rebuildMagneticField(false) },
+      { label: 'Line inner cutoff', obj: fieldParams, key: 'lineInner', min: 1.0, max: 1.08, step: 0.001, format: fmt.fixed3, onCommit: () => rebuildMagneticField(false) },
+      { label: 'Seed ring min', obj: fieldParams, key: 'seedRingMin', min: 0, max: 0.12, step: 0.001, format: fmt.fixed3, onCommit: () => rebuildMagneticField(false) },
+      { label: 'Seed ring range', obj: fieldParams, key: 'seedRingRange', min: 0, max: 0.2, step: 0.001, format: fmt.fixed3, onCommit: () => rebuildMagneticField(false) },
+    ];
+
+    const renderRows = [
+      { label: 'Particle size young', obj: renderParams, key: 'particleSizeYoung', min: 2, max: 80, step: 0.5, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Particle size old', obj: renderParams, key: 'particleSizeOld', min: 1, max: 60, step: 0.5, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Size age start', obj: renderParams, key: 'particleSizeAgeStart', min: 0, max: 1, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Size age end', obj: renderParams, key: 'particleSizeAgeEnd', min: 0, max: 1, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Particle size min', obj: renderParams, key: 'particleSizeMin', min: 1, max: 20, step: 0.1, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Particle size max', obj: renderParams, key: 'particleSizeMax', min: 4, max: 120, step: 1, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Sprite falloff', obj: renderParams, key: 'spriteFalloff', min: 1, max: 18, step: 0.1, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Particle alpha', obj: renderParams, key: 'particleAlpha', min: 0, max: 1.5, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Age fade young', obj: renderParams, key: 'ageFadeYoung', min: 0, max: 1, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Age fade old', obj: renderParams, key: 'ageFadeOld', min: 0, max: 1, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Hot color', obj: renderParams, key: 'hotColor', type: 'color', onInput: applyRenderParams },
+      { label: 'Pale color', obj: renderParams, key: 'paleColor', type: 'color', onInput: applyRenderParams },
+      { label: 'High color', obj: renderParams, key: 'highColor', type: 'color', onInput: applyRenderParams },
+      { label: 'Height blend', obj: renderParams, key: 'heightBlend', min: 0, max: 1, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Height range', obj: renderParams, key: 'heightRange', min: 0.2, max: 3, step: 0.05, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Field opacity', obj: renderParams, key: 'fieldOpacity', min: 0, max: 1.5, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Field pulse', obj: renderParams, key: 'fieldPulse', min: 0, max: 0.5, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Field near color', obj: renderParams, key: 'fieldNearColor', type: 'color', onInput: applyRenderParams },
+      { label: 'Field far color', obj: renderParams, key: 'fieldFarColor', type: 'color', onInput: applyRenderParams },
+      { label: 'Field color range', obj: renderParams, key: 'fieldHeightRange', min: 0.2, max: 3, step: 0.05, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Pole size', obj: renderParams, key: 'poleSize', min: 0.005, max: 0.18, step: 0.001, format: fmt.fixed3, onInput: applyRenderParams },
+      { label: 'Pole opacity', obj: renderParams, key: 'poleOpacity', min: 0, max: 1.5, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Positive pole color', obj: renderParams, key: 'positivePoleColor', type: 'color', onInput: applyRenderParams },
+      { label: 'Negative pole color', obj: renderParams, key: 'negativePoleColor', type: 'color', onInput: applyRenderParams },
+      { label: 'Sun core radius', obj: renderParams, key: 'sunCoreRadius', min: 0.8, max: 1.1, step: 0.001, format: fmt.fixed3, onInput: applyRenderParams },
+      { label: 'Sun core color', obj: renderParams, key: 'sunCoreColor', type: 'color', onInput: applyRenderParams },
+      { label: 'Glow radius', obj: renderParams, key: 'glowRadius', min: 1.0, max: 2.2, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Glow color', obj: renderParams, key: 'glowColor', type: 'color', onInput: applyRenderParams },
+      { label: 'Glow intensity', obj: renderParams, key: 'glowIntensity', min: 0, max: 2, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Glow rim', obj: renderParams, key: 'glowRim', min: 0.4, max: 8, step: 0.1, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Bounds color', obj: renderParams, key: 'boundsColor', type: 'color', onInput: applyRenderParams },
+      { label: 'Bounds opacity', obj: renderParams, key: 'boundsOpacity', min: 0, max: 1, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Star size', obj: renderParams, key: 'starSize', min: 0.001, max: 0.08, step: 0.001, format: fmt.fixed3, onInput: applyRenderParams },
+      { label: 'Star opacity', obj: renderParams, key: 'starOpacity', min: 0, max: 1, step: 0.01, format: fmt.fixed2, onInput: applyRenderParams },
+      { label: 'Star count', readonly: true, value: '360', mode: 'rebuild' },
+    ];
+
+    const viewRows = [
+      { label: 'Auto rotate speed', obj: viewParams, key: 'autoRotateSpeed', min: 0, max: 1, step: 0.01, format: fmt.fixed2 },
+      { label: 'Camera FOV', obj: viewParams, key: 'cameraFov', min: 15, max: 75, step: 1, integer: true, format: fmt.int, onInput: applyViewParams },
+      { label: 'Camera distance', obj: viewParams, key: 'cameraDistance', min: 1.6, max: 9, step: 0.05, format: fmt.fixed2, onInput: applyViewParams },
+      { label: 'Orbit damping', obj: viewParams, key: 'orbitDamping', min: 0, max: 0.3, step: 0.01, format: fmt.fixed2, onInput: applyViewParams },
+      { label: 'Orbit rotate speed', obj: viewParams, key: 'orbitRotateSpeed', min: 0.1, max: 2.5, step: 0.05, format: fmt.fixed2, onInput: applyViewParams },
+      { label: 'Orbit min distance', obj: viewParams, key: 'orbitMinDistance', min: 0.8, max: 4, step: 0.05, format: fmt.fixed2, onInput: applyViewParams },
+      { label: 'Orbit max distance', obj: viewParams, key: 'orbitMaxDistance', min: 3, max: 16, step: 0.1, format: fmt.fixed2, onInput: applyViewParams },
+      { label: 'Orbit zoom speed', obj: viewParams, key: 'orbitZoomSpeed', min: 0.1, max: 2.5, step: 0.05, format: fmt.fixed2, onInput: applyViewParams },
+      { label: 'Pixel ratio cap', obj: viewParams, key: 'pixelRatioCap', min: 0.5, max: 3, step: 0.1, format: fmt.fixed2, onInput: applyViewParams },
+    ];
+
+    bSimPanel.onclick = () => {
+      syncPendingDomainControls();
+      openParamPanel('Solver / Emitter / Sim / Field', [
+      { title: 'Solver', rows: solverRows },
+      { title: 'Emitter', rows: emitterRows },
+      { title: 'Sim', rows: simRows },
+      { title: 'Field', rows: fieldRows },
+      ]);
+    };
+    bLookPanel.onclick = () => openParamPanel('Rendering / View', [
+      { title: 'Rendering', rows: renderRows },
+      { title: 'View', rows: viewRows },
+    ]);
+    bParamClose.onclick = closeParamPanel;
+    bParamSave.onclick = () => saveSettingsNow('Settings saved');
+    bParamLoad.onclick = () => loadSettings(false);
+    bParamReset.onclick = () => resetSettingsToDefaults();
+    paramModal.addEventListener('click', (event) => {
+      if (event.target === paramModal) closeParamPanel();
+    });
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeParamPanel();
+    });
+
+    const startupSettingsPromise = loadSettings(true);
+
+    // =================== Resize ===================
+    function resize() {
+      const main = document.querySelector('main');
+      const w = main.clientWidth, h = main.clientHeight;
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap));
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      fluidMat.uniforms.uPixelRatio.value = renderer.getPixelRatio();
+    }
+    window.addEventListener('resize', resize);
+    applyViewParams();
+
+    // =================== Loop ===================
+    const fpsEl = document.getElementById('fps');
+    const ttEl = document.getElementById('tt');
+    const ppEl = document.getElementById('pp');
+    if (ppEl) ppEl.textContent = fluidCount.toLocaleString();
+    let last = performance.now(), accum = 0, frames = 0, simTime = 0;
+    startupSettingsPromise.then(() => initWebGpuFlipSolver());
+
+    function tick(now) {
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      simTime += dt;
+
+      stepFluid3D(dt);
+
+      if (rotate && !userDragging) {
+        sunRotationY += dt * viewParams.autoRotateSpeed;
+      }
+      sphereCore.rotation.y = sunRotationY;
+      glow.rotation.y = sunRotationY;
+      magneticFieldGroup.rotation.y = sunRotationY;
+      fluidPoints.rotation.y = sunRotationY;
+      simBounds.rotation.y = sunRotationY;
+      const fieldPulse = Math.sin(simTime * 0.8) * Math.sin(simTime * 0.8);
+      fieldLineMat.opacity = fieldVisible ? renderParams.fieldOpacity + renderParams.fieldPulse * fieldPulse : 0.0;
+      stars.rotation.y += dt * 0.005;
+
+      controls.update();
+      renderer.render(scene, camera);
+
+      frames++; accum += dt;
+      if (accum > 0.5) {
+        fpsEl.textContent = Math.round(frames / accum);
+        ttEl.textContent = simTime.toFixed(1);
+        if (ppEl) ppEl.textContent = fluidCount.toLocaleString();
+        frames = 0; accum = 0;
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  </script>
+</body>
+
+</html>

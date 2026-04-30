@@ -1,0 +1,2664 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Solar Corona Simulation — FLIP MHD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #070809;
+      --ink: #e6ecf2;
+      --dim: #5a6470;
+      --accent: #ffb474;
+      --warm: #ff5533;
+      --line: rgba(230, 236, 242, 0.10);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      overflow: hidden;
+      font-family: 'JetBrains Mono', monospace
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(255, 180, 116, 0.06), transparent 55%),
+        radial-gradient(ellipse at 70% 80%, rgba(255, 85, 51, 0.04), transparent 55%),
+        var(--bg);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.35 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+      opacity: .4;
+      mix-blend-mode: overlay;
+    }
+
+    header {
+      padding: 22px 32px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--line);
+      z-index: 2;
+    }
+
+    header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 26px;
+      letter-spacing: 0.02em;
+    }
+
+    header h1 .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-style: normal;
+      font-size: 10px;
+      color: var(--dim);
+      margin-right: 14px;
+      letter-spacing: 0.3em
+    }
+
+    header .meta {
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase
+    }
+
+    header .meta b {
+      color: var(--accent);
+      font-weight: 400
+    }
+
+    main {
+      position: relative;
+      overflow: hidden
+    }
+
+    #stage {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%
+    }
+
+    .corner {
+      position: absolute;
+      font-size: 9px;
+      color: var(--dim);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 3;
+      line-height: 1.7;
+    }
+
+    .corner.tl {
+      top: 18px;
+      left: 32px
+    }
+
+    .corner.tr {
+      top: 18px;
+      right: 32px;
+      text-align: right
+    }
+
+    .corner.bl {
+      bottom: 18px;
+      left: 32px
+    }
+
+    .corner.br {
+      bottom: 18px;
+      right: 32px;
+      text-align: right
+    }
+
+    .corner b {
+      color: var(--accent);
+      font-weight: 400
+    }
+
+    .ornament {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Cormorant Garamond', serif;
+      color: var(--dim);
+      font-size: 11px;
+      letter-spacing: 0.35em;
+      z-index: 3;
+      pointer-events: none;
+      font-style: italic;
+    }
+
+    .ornament.top {
+      top: 14px
+    }
+
+    .ornament.bot {
+      bottom: 14px
+    }
+
+    footer {
+      padding: 14px 32px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    footer .controls {
+      display: flex;
+      gap: 10px;
+      row-gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap
+    }
+
+    footer button {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: all .25s ease;
+    }
+
+    footer button:hover {
+      border-color: var(--accent);
+      color: var(--accent)
+    }
+
+    footer button.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(127, 199, 255, 0.06)
+    }
+
+    footer button.loaded {
+      border-color: var(--warm);
+      color: var(--warm)
+    }
+
+    footer .sep {
+      width: 1px;
+      height: 18px;
+      background: var(--line);
+      margin: 0 4px
+    }
+
+    footer .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: var(--dim);
+    }
+
+    footer .slider-group label {
+      min-width: auto
+    }
+
+    footer .slider-group .val {
+      color: var(--accent);
+      min-width: 54px;
+      text-align: right;
+      font-variant-numeric: tabular-nums
+    }
+
+    footer input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 120px;
+      height: 1px;
+      background: var(--line);
+      outline: none;
+      cursor: pointer;
+    }
+
+    footer input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    footer input[type=range]::-moz-range-thumb {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    footer input[type=file] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      left: -9999px;
+    }
+
+    @media (max-width: 980px) {
+      header,
+      footer {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      footer .controls {
+        justify-content: flex-start;
+        width: 100%;
+      }
+    }
+
+    #toast {
+      position: absolute;
+      left: 50%;
+      bottom: 64px;
+      transform: translateX(-50%);
+      background: rgba(7, 8, 9, 0.85);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    #toast.show {
+      opacity: 1
+    }
+
+    #readout {
+      position: absolute;
+      right: 32px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--dim);
+      writing-mode: vertical-rl;
+      z-index: 3;
+      pointer-events: none;
+      text-align: right;
+      line-height: 2;
+    }
+
+    #readout span {
+      color: var(--accent)
+    }
+
+    #status {
+      position: absolute;
+      left: 32px;
+      top: 50%;
+      transform: translateY(-50%) rotate(180deg);
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: var(--dim);
+      writing-mode: vertical-rl;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .crosshair {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1px;
+      height: 1px;
+      z-index: 2;
+      pointer-events: none
+    }
+
+    .crosshair::before,
+    .crosshair::after {
+      content: "";
+      position: absolute;
+      background: var(--line)
+    }
+
+    .crosshair::before {
+      width: 22px;
+      height: 1px;
+      left: -11px;
+      top: 0
+    }
+
+    .crosshair::after {
+      width: 1px;
+      height: 22px;
+      left: 0;
+      top: -11px
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>
+      <span class="num">№ 03 — VOL. I</span>
+      Solar Corona Simulation <span style="color:var(--dim);font-size:14px;font-style:normal"> · magnetic field lines</span>
+    </h1>
+    <div class="meta">PIC/FLIP · WebGL2 · <b>Magnetic Forces</b></div>
+  </header>
+
+  <main>
+    <div class="ornament top">— surface poles · traced coronal field lines —</div>
+
+    <div class="corner tl">manifold<br><b>S² via cubemap</b><br>geodesic advection</div>
+    <div class="corner tr">atlas <b>3×2 of 128²</b><br>no pole singularity<br>3D vel storage</div>
+    <div class="corner bl">surface flux<br>balanced <b>+ / -</b> poles</div>
+    <div class="corner br">jacobi <b>30</b> iter<br>seams via face id</div>
+
+    <div class="crosshair"></div>
+    <div id="status">SIMULATION ACTIVE</div>
+    <div id="readout">fps <span id="fps">0</span> · t <span id="tt">0.0</span>s · p <span id="pp">0</span></div>
+
+    <canvas id="stage"></canvas>
+
+    <div class="ornament bot">⟡ ⟡ ⟡</div>
+  </main>
+
+  <footer>
+    <div>3D GPU FLIP plasma guided by gravity and the magnetic vector field</div>
+    <div class="controls">
+      <div class="slider-group">
+        <label>N</label>
+        <input id="s-fluid-count" type="range" min="0" max="5" step="1" value="2" />
+        <span id="v-fluid-count" class="val">4,200</span>
+      </div>
+      <div class="sep"></div>
+      <button id="b-rot" class="active">Rotate</button>
+      <button id="b-field" class="active">Field</button>
+      <button id="b-fluid" class="active">Fluid</button>
+      <button id="b-eject">Eject</button>
+      <button id="b-reset">Reset</button>
+    </div>
+  </footer>
+  <div id="toast"></div>
+
+  <script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js",
+    "three/addons/controls/OrbitControls.js": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js"
+  }
+}
+</script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    /* =================================================================
+       FLIP ON A SPHERE  —  cube-atlas formulation
+       -----------------------------------------------------------------
+       • particles live on S² (unit sphere) with 3D velocity tangent to it
+       • velocity grid stored on a 6-face cube atlas (128² each, 384×256)
+       • pressure solve = standard 2D Jacobi per face, with cross-face
+         neighbor lookups (scalar, no rotation needed)
+       • velocity stored as 3D world vectors → no tangent rotation across
+         seams either
+       • particles: P2G splat → solve → G2P sample (FLIP blend) → advect
+         by rotating position vector around (p × v̂)
+       ================================================================= */
+
+    // ---------- Sim constants ----------
+    const FACE = 128;                       // resolution per face
+    const ATLAS_W = FACE * 3, ATLAS_H = FACE * 2;
+    const DT = 0.016;
+    const PRESSURE_ITER = 30;
+    const FLIP_BLEND = 0.97;
+    const PARTICLES_ENABLED = false;
+    const FLIP_3D_ENABLED = true;
+
+    // Particle count steps — each step is a square texture (not strictly power-of-two)
+    //   1024 (32²), 4096 (64²), 16384 (128²), 65536 (256²),
+    //   262144 (512²), 524288 (724²≈), 1048576 (1024²),
+    //   2097152 (1448²), 4194304 (2048²), 8388608 (2896²≈), 16777216 (4096²)
+    const COUNT_STEPS = [
+      { n: 1024, tex: 32 },
+      { n: 4096, tex: 64 },
+      { n: 16384, tex: 128 },
+      { n: 65536, tex: 256 },
+      { n: 262144, tex: 512 },
+      { n: 524288, tex: 724 },
+      { n: 1048576, tex: 1024 },
+      { n: 2097152, tex: 1448 },
+      { n: 4194304, tex: 2048 },
+      { n: 8388608, tex: 2896 },
+      { n: 16777216, tex: 4096 },
+    ];
+    let countIdx = 2;                       // default: 16384
+    let N_PARTICLES = COUNT_STEPS[countIdx].n;
+    let PT_TEX = COUNT_STEPS[countIdx].tex;
+
+    // User-loaded input maps (textures + "loaded" flags)
+    const inputMaps = {
+      color: { tex: null, loaded: false },
+      force: { tex: null, loaded: false },
+      density: { tex: null, loaded: false },
+    };
+
+    // Face index layout in atlas (3 wide, 2 tall):
+    //   row 0:  +X  -X  +Y
+    //   row 1:  -Y  +Z  -Z
+    // Face IDs:  0=+X  1=-X  2=+Y  3=-Y  4=+Z  5=-Z
+    const FACE_TILE = [
+      [0, 0], [1, 0], [2, 0],   // +X, -X, +Y
+      [0, 1], [1, 1], [2, 1],   // -Y, +Z, -Z
+    ];
+
+    // ---------- Renderer ----------
+    const canvas = document.getElementById('stage');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x000000, 0);
+
+    const gl = renderer.getContext();
+    if (!(gl instanceof WebGL2RenderingContext)) {
+      document.body.innerHTML = '<div style="padding:40px;font-family:monospace;color:#e6ecf2">WebGL2 required.</div>';
+      throw new Error('WebGL2 required');
+    }
+    const extCBF = gl.getExtension('EXT_color_buffer_float');
+    const extFL = gl.getExtension('OES_texture_float_linear');
+    if (!extCBF) console.warn('EXT_color_buffer_float missing');
+
+    // ---------- Off-screen sim scene ----------
+    const simScene = new THREE.Scene();
+    const simCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const simQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial());
+    simScene.add(simQuad);
+
+    // ---------- Render targets ----------
+    function makeRT(w, h, opts = {}) {
+      return new THREE.WebGLRenderTarget(w, h, {
+        minFilter: opts.linear ? THREE.LinearFilter : THREE.NearestFilter,
+        magFilter: opts.linear ? THREE.LinearFilter : THREE.NearestFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        format: THREE.RGBAFormat,
+        type: THREE.FloatType,
+        depthBuffer: false,
+        stencilBuffer: false,
+      });
+    }
+
+    // Atlas grids
+    const velA = makeRT(ATLAS_W, ATLAS_H, { linear: true });  // accumulated velocity*weight (rgb) + weight (a)
+    const velB = makeRT(ATLAS_W, ATLAS_H, { linear: true });
+    const velPrev = makeRT(ATLAS_W, ATLAS_H, { linear: true });  // pre-pressure velocity (for FLIP delta)
+    const divRT = makeRT(ATLAS_W, ATLAS_H);
+    const prsA = makeRT(ATLAS_W, ATLAS_H);
+    const prsB = makeRT(ATLAS_W, ATLAS_H);
+    let velRead = velA, velWrite = velB;
+    let prsRead = prsA, prsWrite = prsB;
+
+    // Particle textures (RGBA32F): position (xyz on sphere, a=alive flag),
+    // velocity (xyz tangent, a=age), color (rgb tint, a=1 if from map / 0 if hash fallback)
+    let ptPosA, ptPosB, ptVelA, ptVelB, ptColA, ptColB;
+    let posRead, posWrite, velPRead, velPWrite, colRead, colWrite;
+    function allocParticleTargets() {
+      for (const rt of [ptPosA, ptPosB, ptVelA, ptVelB, ptColA, ptColB]) if (rt) rt.dispose();
+      ptPosA = makeRT(PT_TEX, PT_TEX);
+      ptPosB = makeRT(PT_TEX, PT_TEX);
+      ptVelA = makeRT(PT_TEX, PT_TEX);
+      ptVelB = makeRT(PT_TEX, PT_TEX);
+      ptColA = makeRT(PT_TEX, PT_TEX);
+      ptColB = makeRT(PT_TEX, PT_TEX);
+      posRead = ptPosA; posWrite = ptPosB;
+      velPRead = ptVelA; velPWrite = ptVelB;
+      colRead = ptColA; colWrite = ptColB;
+    }
+    allocParticleTargets();
+
+    // ---------- Common GLSL ----------
+    // Helpers used in many shaders: dir↔atlas-uv, atlas-uv→dir, neighbor lookup across faces.
+    // Implemented as a single string we paste into each fragment.
+    const COMMON_GLSL = /* glsl */`
+  // Atlas layout: 3 cols × 2 rows of FACE×FACE tiles
+  // face id -> tile origin in atlas (in tiles)
+  // 0:+X (0,0)  1:-X (1,0)  2:+Y (2,0)
+  // 3:-Y (0,1)  4:+Z (1,1)  5:-Z (2,1)
+  const float FACE_F = ${FACE.toFixed(1)};
+  const vec2  ATLAS_F = vec2(${ATLAS_W.toFixed(1)}, ${ATLAS_H.toFixed(1)});
+
+  // Get tile origin (in normalized atlas uv) for a face id (0..5)
+  vec2 tileOrigin(int f){
+    // x-tile = f%3, y-tile = f/3
+    int tx = f - 3*(f/3);
+    int ty = f/3;
+    return vec2(float(tx)/3.0, float(ty)/2.0);
+  }
+
+  // Face dir → (face id, local uv in [0..1])
+  void dirToFace(vec3 d, out int face, out vec2 uv){
+    vec3 a = abs(d);
+    if (a.x >= a.y && a.x >= a.z){
+      // ±X face. local axes:
+      //   +X: u = -z/x,  v =  y/x      (so as you move +z, u decreases; we want u going "east")
+      //   -X: u =  z/-x, v =  y/-x
+      if (d.x > 0.0){ face = 0; uv = vec2(-d.z, d.y) / a.x; }
+      else          { face = 1; uv = vec2( d.z, d.y) / a.x; }
+    } else if (a.y >= a.x && a.y >= a.z){
+      if (d.y > 0.0){ face = 2; uv = vec2( d.x, -d.z) / a.y; }
+      else          { face = 3; uv = vec2( d.x,  d.z) / a.y; }
+    } else {
+      if (d.z > 0.0){ face = 4; uv = vec2( d.x, d.y) / a.z; }
+      else          { face = 5; uv = vec2(-d.x, d.y) / a.z; }
+    }
+    uv = uv * 0.5 + 0.5;            // [-1..1] -> [0..1]
+  }
+
+  // Inverse: (face id, local uv [0..1]) → 3D direction (NOT normalized)
+  vec3 faceToDir(int face, vec2 uv){
+    vec2 c = uv * 2.0 - 1.0;        // [-1..1]
+    if (face == 0) return vec3( 1.0,  c.y, -c.x);
+    if (face == 1) return vec3(-1.0,  c.y,  c.x);
+    if (face == 2) return vec3( c.x,  1.0, -c.y);
+    if (face == 3) return vec3( c.x, -1.0,  c.y);
+    if (face == 4) return vec3( c.x,  c.y,  1.0);
+    /* face==5 */  return vec3(-c.x,  c.y, -1.0);
+  }
+
+  // Atlas uv from (face, local uv)
+  vec2 atlasUv(int face, vec2 luv){
+    vec2 origin = tileOrigin(face);
+    return origin + luv * vec2(1.0/3.0, 1.0/2.0);
+  }
+
+  // Atlas uv -> (face, local uv)
+  void atlasToFace(vec2 auv, out int face, out vec2 luv){
+    vec2 t = vec2(auv.x * 3.0, auv.y * 2.0);    // [0..3, 0..2]
+    int tx = int(floor(t.x));  if (tx > 2) tx = 2;
+    int ty = int(floor(t.y));  if (ty > 1) ty = 1;
+    face = ty*3 + tx;
+    luv = vec2(t.x - float(tx), t.y - float(ty));
+  }
+
+  // Sample a scalar field at a 3D direction, using cubemap projection of the atlas.
+  // Linear-blends within a face but takes nearest face at edges (good enough for pressure).
+  float sampleAtlasScalar(sampler2D tex, vec3 dir){
+    int f; vec2 luv;
+    dirToFace(normalize(dir), f, luv);
+    return texture(tex, atlasUv(f, luv)).r;
+  }
+
+  vec3 sampleAtlasVec3(sampler2D tex, vec3 dir){
+    int f; vec2 luv;
+    dirToFace(normalize(dir), f, luv);
+    return texture(tex, atlasUv(f, luv)).rgb;
+  }
+
+  // Neighbor sampling for grid solves.
+  // Given a current atlas pixel's (face, local uv), step by (du,dv) in face-local
+  // coords. If the step leaves the face, project a slightly-offset 3D dir and
+  // look up which face we land on. This avoids hand-coding 24 edge cases.
+  vec2 neighborAtlas(int face, vec2 luv, vec2 step){
+    vec2 nuv = luv + step;
+    if (nuv.x >= 0.0 && nuv.x <= 1.0 && nuv.y >= 0.0 && nuv.y <= 1.0){
+      return atlasUv(face, nuv);
+    }
+    // crossed an edge: convert to direction, re-project
+    vec3 d = normalize(faceToDir(face, nuv));
+    int nf; vec2 nluv;
+    dirToFace(d, nf, nluv);
+    return atlasUv(nf, nluv);
+  }
+`;
+
+    // ---------- Vertex shader (full-screen) ----------
+    const FS_VERT = /* glsl */`
+  out vec2 vUv;
+  void main(){
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+
+    function makeFsMat(fragmentBody, uniforms = {}) {
+      return new THREE.ShaderMaterial({
+        glslVersion: THREE.GLSL3,
+        vertexShader: FS_VERT,
+        fragmentShader: `precision highp float;\nin vec2 vUv;\nout vec4 fragColor;\n${COMMON_GLSL}\n${fragmentBody}`,
+        uniforms,
+        depthTest: false, depthWrite: false,
+      });
+    }
+
+    function blit(target, material) {
+      simQuad.material = material;
+      renderer.setRenderTarget(target);
+      renderer.render(simScene, simCam);
+    }
+
+    // ---------- Init particles: random points on sphere with small tangent velocity ----------
+    function initParticles() {
+      // Compute initial pos/vel/color into Float32Arrays then upload via DataTexture
+      const posArr = new Float32Array(PT_TEX * PT_TEX * 4);
+      const velArr = new Float32Array(PT_TEX * PT_TEX * 4);
+      const colArr = new Float32Array(PT_TEX * PT_TEX * 4);
+      for (let i = 0; i < PT_TEX * PT_TEX; i++) {
+        // uniform on sphere
+        const u = Math.random(), v = Math.random();
+        const z = 1 - 2 * u;
+        const r = Math.sqrt(Math.max(0, 1 - z * z));
+        const phi = 2 * Math.PI * v;
+        const px = r * Math.cos(phi), py = r * Math.sin(phi), pz = z;
+
+        // small tangent velocity: cross(p, randomVec), then normalize and scale
+        const rx = Math.random() - 0.5, ry = Math.random() - 0.5, rz = Math.random() - 0.5;
+        let tx = py * rz - pz * ry, ty = pz * rx - px * rz, tz = px * ry - py * rx;
+        const tlen = Math.hypot(tx, ty, tz) || 1;
+        const speed = 0.3 + 0.2 * Math.random();
+        tx = tx / tlen * speed; ty = ty / tlen * speed; tz = tz / tlen * speed;
+
+        posArr[i * 4 + 0] = px; posArr[i * 4 + 1] = py; posArr[i * 4 + 2] = pz; posArr[i * 4 + 3] = 1.0;
+        velArr[i * 4 + 0] = tx; velArr[i * 4 + 1] = ty; velArr[i * 4 + 2] = tz; velArr[i * 4 + 3] = 0.0;
+
+        // baseline color: zero (the render shader will fall back to speed gradient
+        // when alpha == 0). If a color map is loaded, applyColorMapToParticles()
+        // will overwrite this with sampled values.
+        colArr[i * 4 + 0] = 0; colArr[i * 4 + 1] = 0; colArr[i * 4 + 2] = 0; colArr[i * 4 + 3] = 0;
+      }
+      uploadDataTexture(posRead, posArr);
+      uploadDataTexture(posWrite, posArr);
+      uploadDataTexture(velPRead, velArr);
+      uploadDataTexture(velPWrite, velArr);
+      uploadDataTexture(colRead, colArr);
+      uploadDataTexture(colWrite, colArr);
+
+      // if a color map is already loaded when we (re)init, sample it now
+      if (inputMaps.color.loaded) applyColorMapToParticles();
+    }
+
+    // Sample the loaded color map at every particle's current position and write
+    // the result into colRead. Used after init AND right after the user uploads a map.
+    function applyColorMapToParticles() {
+      if (!inputMaps.color.loaded) return;
+      colorSampleMat.uniforms.uPos.value = posRead.texture;
+      colorSampleMat.uniforms.uColorMap.value = inputMaps.color.tex;
+      blit(colWrite, colorSampleMat);
+      [colRead, colWrite] = [colWrite, colRead];
+    }
+
+    function uploadDataTexture(rt, floatArr) {
+      const tex = new THREE.DataTexture(floatArr, PT_TEX, PT_TEX, THREE.RGBAFormat, THREE.FloatType);
+      tex.needsUpdate = true;
+      // Copy into the RT via a passthrough blit
+      if (!uploadDataTexture._mat) {
+        uploadDataTexture._mat = makeFsMat(`
+      uniform sampler2D uSrc;
+      void main(){ fragColor = texture(uSrc, vUv); }
+    `, { uSrc: { value: null } });
+      }
+      uploadDataTexture._mat.uniforms.uSrc.value = tex;
+      blit(rt, uploadDataTexture._mat);
+      // tex disposed after this scope (small)
+      setTimeout(() => tex.dispose(), 0);
+    }
+
+    // ---------- Pass 1: Clear velocity grid ----------
+    const clearMat = makeFsMat(`
+  void main(){ fragColor = vec4(0.0); }
+`);
+
+    // ---------- Pass 2: P2G (splat particle velocities into atlas grid) ----------
+    // Render N_PARTICLES points; each point's gl_PointCoord doesn't matter — we just
+    // add (vx, vy, vz, 1) at the atlas pixel that the particle lands in. Additive blending.
+    const p2gVert = /* glsl */`
+  precision highp float;
+  uniform sampler2D uPos;
+  uniform sampler2D uVel;
+  uniform float uPtTex;
+  out vec3 vVel;
+  ${COMMON_GLSL}
+
+  void main(){
+    // particle id from gl_VertexID
+    int id = gl_VertexID;
+    int x = id - (id/int(uPtTex)) * int(uPtTex);
+    int y = id / int(uPtTex);
+    vec2 puv = (vec2(float(x), float(y)) + 0.5) / uPtTex;
+
+    vec4 p = texture(uPos, puv);
+    vec4 v = texture(uVel, puv);
+    vVel = v.xyz;
+
+    // dir → atlas uv → clip space
+    int f; vec2 luv;
+    dirToFace(normalize(p.xyz), f, luv);
+    vec2 auv = atlasUv(f, luv);
+    vec2 clip = auv * 2.0 - 1.0;
+
+    gl_Position = vec4(clip, 0.0, 1.0);
+    gl_PointSize = 1.0;
+  }
+`;
+    const p2gFrag = /* glsl */`
+  precision highp float;
+  in vec3 vVel;
+  out vec4 fragColor;
+  void main(){
+    // additive: (vx, vy, vz, 1)
+    fragColor = vec4(vVel, 1.0);
+  }
+`;
+    const p2gMat = new THREE.ShaderMaterial({
+      glslVersion: THREE.GLSL3,
+      vertexShader: '#version 300 es\n' + p2gVert.replace('precision highp float;\n', '').trim().replace(/^/, ''),
+      // simpler: just put precision after version manually
+      // (we'll set via explicit compile below)
+      fragmentShader: '#version 300 es\n' + p2gFrag,
+      uniforms: { uPos: { value: null }, uVel: { value: null }, uPtTex: { value: PT_TEX } },
+      depthTest: false, depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      transparent: true,
+    });
+    // Actually — let three handle the version since glslVersion is GLSL3:
+    p2gMat.glslVersion = THREE.GLSL3;
+    p2gMat.vertexShader = p2gVert;
+    p2gMat.fragmentShader = p2gFrag;
+
+    // Particle index geometry (just N points, vertexID is the data) — recreatable
+    let ptGeom, ptPoints;
+    const p2gScene = new THREE.Scene();
+    const p2gCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    function rebuildP2GGeometry() {
+      if (ptPoints) { p2gScene.remove(ptPoints); ptGeom.dispose(); }
+      ptGeom = new THREE.BufferGeometry();
+      ptGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N_PARTICLES * 3), 3));
+      ptGeom.setDrawRange(0, N_PARTICLES);
+      ptPoints = new THREE.Points(ptGeom, p2gMat);
+      ptPoints.frustumCulled = false;
+      p2gScene.add(ptPoints);
+    }
+    rebuildP2GGeometry();
+
+    // ---------- Pass 3: Normalize velocity (divide accumulated vel by weight) ----------
+    const normalizeMat = makeFsMat(`
+  uniform sampler2D uVel;
+  void main(){
+    vec4 acc = texture(uVel, vUv);
+    float w = acc.a;
+    vec3 v = w > 0.0001 ? acc.rgb / w : vec3(0.0);
+    fragColor = vec4(v, w);
+  }
+`, { uVel: { value: null } });
+
+    // ---------- Pass 4: Add procedural force (gentle stirring on the sphere) ----------
+    const stirMat = makeFsMat(`
+  uniform sampler2D uVel;
+  uniform sampler2D uForceMap;
+  uniform float uHasForceMap;
+  uniform float uTime;
+  uniform float uDt;
+  uniform float uStrength;
+
+  vec3 hash3(vec3 p){
+    p = vec3(dot(p,vec3(127.1,311.7,74.7)),
+             dot(p,vec3(269.5,183.3,246.1)),
+             dot(p,vec3(113.5,271.9,124.6)));
+    return -1.0 + 2.0*fract(sin(p)*43758.5453);
+  }
+  float n3(vec3 p){
+    vec3 i=floor(p), f=fract(p);
+    vec3 u=f*f*(3.0-2.0*f);
+    return mix(
+      mix(mix(dot(hash3(i+vec3(0,0,0)),f-vec3(0,0,0)),
+              dot(hash3(i+vec3(1,0,0)),f-vec3(1,0,0)),u.x),
+          mix(dot(hash3(i+vec3(0,1,0)),f-vec3(0,1,0)),
+              dot(hash3(i+vec3(1,1,0)),f-vec3(1,1,0)),u.x),u.y),
+      mix(mix(dot(hash3(i+vec3(0,0,1)),f-vec3(0,0,1)),
+              dot(hash3(i+vec3(1,0,1)),f-vec3(1,0,1)),u.x),
+          mix(dot(hash3(i+vec3(0,1,1)),f-vec3(0,1,1)),
+              dot(hash3(i+vec3(1,1,1)),f-vec3(1,1,1)),u.x),u.y),u.z);
+  }
+
+  // equirectangular sample
+  vec3 sampleEquirect(sampler2D tex, vec3 d){
+    float lon = atan(d.z, d.x);
+    float lat = asin(clamp(d.y, -1.0, 1.0));
+    vec2 uv = vec2(lon / 6.2831853 + 0.5, lat / 3.1415926 + 0.5);
+    return texture(tex, uv).rgb;
+  }
+
+  void main(){
+    int f; vec2 luv;
+    atlasToFace(vUv, f, luv);
+    vec3 d = normalize(faceToDir(f, luv));
+
+    vec3 force;
+    if (uHasForceMap > 0.5){
+      // user force map: RGB - 0.5 → vector, projected to tangent
+      vec3 raw = sampleEquirect(uForceMap, d) - vec3(0.5);
+      force = raw * 4.0;        // scale up since (RGB-0.5) is small
+    } else {
+      // --- Magnetic Loops & CME Simulation ---
+      float t = uTime * 0.5;
+      
+      // Base turbulence (granulation on the photosphere)
+      vec3 P = d * 6.0 + vec3(0.0, 0.0, t*0.3);
+      float e = 0.04;
+      vec3 nx = vec3(n3(P+vec3(e,0,0))-n3(P-vec3(e,0,0)), n3(P+vec3(0,e,0))-n3(P-vec3(0,e,0)), n3(P+vec3(0,0,e))-n3(P-vec3(0,0,e)));
+      vec3 P2 = d * 6.0 + vec3(11.0, 7.0, t*0.2);
+      vec3 ny = vec3(n3(P2+vec3(e,0,0))-n3(P2-vec3(e,0,0)), n3(P2+vec3(0,e,0))-n3(P2-vec3(0,e,0)), n3(P2+vec3(0,0,e))-n3(P2-vec3(0,0,e)));
+      vec3 baseForce = cross(nx, ny) * 0.3;
+      
+      force = baseForce;
+
+      // Magnetic Active Regions (Sunspots forming coronal loops)
+      // Pair 1
+      vec3 p1 = normalize(vec3(0.7, 0.2, 0.5));
+      vec3 p2 = normalize(vec3(0.5, 0.5, 0.7));
+      float d1 = distance(d, p1);
+      float d2 = distance(d, p2);
+      
+      // Tangential flow representing plasma moving along the magnetic arch
+      force += normalize(p2 - p1) * exp(-d1*d1*10.0) * 1.5;
+      force += normalize(p1 - p2) * exp(-d2*d2*10.0) * 1.5;
+
+      // Pair 2 (Animated Active Region)
+      vec3 p3 = normalize(vec3(-0.6, -0.3, 0.6));
+      vec3 p4 = normalize(vec3(-0.8, 0.1, 0.4));
+      float d3 = distance(d, p3);
+      float d4 = distance(d, p4);
+      force += normalize(p4 - p3) * exp(-d3*d3*15.0) * 1.0;
+      force += normalize(p3 - p4) * exp(-d4*d4*15.0) * 1.0;
+
+      // CME Eruption Force (Coronal Mass Ejection)
+      // Periodically, a massive magnetic reconnection event erupts from a specific spot
+      float cmeCycle = fract(t * 0.15); // Erupts roughly every 6-7 seconds
+      float cmeTrigger = smoothstep(0.9, 0.95, cmeCycle) * (1.0 - smoothstep(0.95, 1.0, cmeCycle));
+      vec3 cmeSpot = normalize(vec3(sin(t*0.2), cos(t*0.2), 0.3));
+      float dCME = distance(d, cmeSpot);
+      
+      // Eruption pushes fluid away aggressively (outward force projected to tangent later)
+      vec3 cmeForce = (d - cmeSpot) * exp(-dCME*dCME*15.0) * 25.0 * cmeTrigger;
+      
+      // Add twisting to the CME (magnetic helicity)
+      vec3 twistForce = cross(d, cmeSpot) * exp(-dCME*dCME*20.0) * 15.0 * cmeTrigger;
+      
+      force += cmeForce + twistForce;
+    }
+    // project to tangent plane
+    force -= d * dot(force, d);
+
+    vec4 cur = texture(uVel, vUv);
+    cur.rgb += force * uStrength * uDt;
+    fragColor = cur;
+  }
+`, {
+      uVel: { value: null },
+      uForceMap: { value: null }, uHasForceMap: { value: 0.0 },
+      uTime: { value: 0 }, uDt: { value: DT }, uStrength: { value: 0.6 },
+    });
+
+    // ---------- Pass 5: Save velocity (for FLIP delta) ----------
+    const copyMat = makeFsMat(`
+  uniform sampler2D uSrc;
+  void main(){ fragColor = texture(uSrc, vUv); }
+`, { uSrc: { value: null } });
+
+    // ---------- Pass 6: Divergence on the cubemap atlas ----------
+    // We use the local face's u/v directions to estimate divergence of the
+    // 3D-stored velocity field. For each cell, look up neighbors at ±u and ±v
+    // (with cross-face lookup), project velocity onto local face axes, and do
+    // finite differences. Cell-size in radians is ~ (π/2) / FACE.
+    const divMat = makeFsMat(`
+  uniform sampler2D uVel;
+
+  void main(){
+    int f; vec2 luv;
+    atlasToFace(vUv, f, luv);
+
+    // Local face axes in 3D — derivatives of faceToDir w.r.t. (u,v)
+    // For a unit cube: faceToDir = unit basis for each face. Tangent vectors:
+    vec3 Tu, Tv;
+    if (f == 0){ Tu = vec3(0, 0,-1); Tv = vec3(0, 1, 0); }
+    else if (f == 1){ Tu = vec3(0, 0, 1); Tv = vec3(0, 1, 0); }
+    else if (f == 2){ Tu = vec3(1, 0, 0); Tv = vec3(0, 0,-1); }
+    else if (f == 3){ Tu = vec3(1, 0, 0); Tv = vec3(0, 0, 1); }
+    else if (f == 4){ Tu = vec3(1, 0, 0); Tv = vec3(0, 1, 0); }
+    else            { Tu = vec3(-1,0, 0); Tv = vec3(0, 1, 0); }
+
+    float dx = 1.0 / FACE_F;
+
+    vec2 uvL = neighborAtlas(f, luv, vec2(-dx, 0));
+    vec2 uvR = neighborAtlas(f, luv, vec2( dx, 0));
+    vec2 uvB = neighborAtlas(f, luv, vec2(0, -dx));
+    vec2 uvT = neighborAtlas(f, luv, vec2(0,  dx));
+
+    vec3 vL = texture(uVel, uvL).rgb;
+    vec3 vR = texture(uVel, uvR).rgb;
+    vec3 vB = texture(uVel, uvB).rgb;
+    vec3 vT = texture(uVel, uvT).rgb;
+
+    float du = (dot(vR, Tu) - dot(vL, Tu)) * 0.5;
+    float dv = (dot(vT, Tv) - dot(vB, Tv)) * 0.5;
+    float div = du + dv;
+
+    fragColor = vec4(div, 0.0, 0.0, 1.0);
+  }
+`, { uVel: { value: null } });
+
+    // ---------- Pass 7: Pressure Jacobi ----------
+    const pressureMat = makeFsMat(`
+  uniform sampler2D uPressure;
+  uniform sampler2D uDivergence;
+  void main(){
+    int f; vec2 luv;
+    atlasToFace(vUv, f, luv);
+    float dx = 1.0 / FACE_F;
+
+    vec2 uvL = neighborAtlas(f, luv, vec2(-dx, 0));
+    vec2 uvR = neighborAtlas(f, luv, vec2( dx, 0));
+    vec2 uvB = neighborAtlas(f, luv, vec2(0, -dx));
+    vec2 uvT = neighborAtlas(f, luv, vec2(0,  dx));
+
+    float pL = texture(uPressure, uvL).r;
+    float pR = texture(uPressure, uvR).r;
+    float pB = texture(uPressure, uvB).r;
+    float pT = texture(uPressure, uvT).r;
+    float d  = texture(uDivergence, vUv).r;
+
+    float p = (pL + pR + pB + pT - d) * 0.25;
+    fragColor = vec4(p, 0.0, 0.0, 1.0);
+  }
+`, { uPressure: { value: null }, uDivergence: { value: null } });
+
+    // ---------- Pass 8: Subtract pressure gradient from velocity ----------
+    const projectMat = makeFsMat(`
+  uniform sampler2D uPressure;
+  uniform sampler2D uVel;
+  void main(){
+    int f; vec2 luv;
+    atlasToFace(vUv, f, luv);
+
+    vec3 d = normalize(faceToDir(f, luv));
+    vec3 Tu, Tv;
+    if (f == 0){ Tu = vec3(0, 0,-1); Tv = vec3(0, 1, 0); }
+    else if (f == 1){ Tu = vec3(0, 0, 1); Tv = vec3(0, 1, 0); }
+    else if (f == 2){ Tu = vec3(1, 0, 0); Tv = vec3(0, 0,-1); }
+    else if (f == 3){ Tu = vec3(1, 0, 0); Tv = vec3(0, 0, 1); }
+    else if (f == 4){ Tu = vec3(1, 0, 0); Tv = vec3(0, 1, 0); }
+    else            { Tu = vec3(-1,0, 0); Tv = vec3(0, 1, 0); }
+
+    float dx = 1.0 / FACE_F;
+    vec2 uvL = neighborAtlas(f, luv, vec2(-dx, 0));
+    vec2 uvR = neighborAtlas(f, luv, vec2( dx, 0));
+    vec2 uvB = neighborAtlas(f, luv, vec2(0, -dx));
+    vec2 uvT = neighborAtlas(f, luv, vec2(0,  dx));
+
+    float pL = texture(uPressure, uvL).r;
+    float pR = texture(uPressure, uvR).r;
+    float pB = texture(uPressure, uvB).r;
+    float pT = texture(uPressure, uvT).r;
+
+    float gu = (pR - pL) * 0.5;
+    float gv = (pT - pB) * 0.5;
+    vec3 grad = Tu * gu + Tv * gv;
+
+    vec4 v = texture(uVel, vUv);
+    v.rgb -= grad;
+
+    // re-project to tangent plane (kill any normal drift)
+    v.rgb -= d * dot(v.rgb, d);
+
+    fragColor = v;
+  }
+`, { uPressure: { value: null }, uVel: { value: null } });
+
+    // ---------- Pass 9: G2P (sample new vel for each particle, FLIP-blend, advect) ----------
+    const g2pVert = /* glsl */`
+  out vec2 vUv;
+  void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+`;
+    const g2pUpdateVelMat = makeFsMat(`
+  uniform sampler2D uPos;
+  uniform sampler2D uVelOld;        // particle old velocity
+  uniform sampler2D uGridNew;       // grid velocity AFTER pressure projection
+  uniform sampler2D uGridOld;       // grid velocity BEFORE pressure projection (saved)
+  uniform float uFlip;
+
+  void main(){
+    vec4 p = texture(uPos, vUv);
+    vec4 vOld = texture(uVelOld, vUv);
+
+    vec3 gNew = sampleAtlasVec3(uGridNew, p.xyz);
+    vec3 gOld = sampleAtlasVec3(uGridOld, p.xyz);
+    vec3 delta = gNew - gOld;
+
+    // FLIP: keep particle velocity, add grid delta.
+    // PIC : overwrite particle velocity with grid velocity.
+    vec3 flip = vOld.xyz + delta;
+    vec3 pic  = gNew;
+    vec3 vNew = mix(pic, flip, uFlip);
+
+    // make tangent
+    vec3 d = normalize(p.xyz);
+    vNew -= d * dot(vNew, d);
+
+    // damping
+    vNew *= 0.995;
+
+    // gentle speed clamp (prevents blow-ups)
+    float s = length(vNew);
+    float maxS = 1.5;
+    if (s > maxS) vNew *= maxS / s;
+
+    fragColor = vec4(vNew, vOld.a + 1.0);
+  }
+`, { uPos: { value: null }, uVelOld: { value: null }, uGridNew: { value: null }, uGridOld: { value: null }, uFlip: { value: FLIP_BLEND } });
+
+    // ---------- Pass 11: density-driven respawn (optional) ----------
+    // If a density map is loaded, particles in low-density regions occasionally
+    // teleport to candidate positions accepted in proportion to map brightness
+    // (single-try rejection sampling per frame).
+    const respawnMat = makeFsMat(`
+  uniform sampler2D uPos;
+  uniform sampler2D uDensity;
+  uniform float uTime;
+
+  // hash from a vec2 -> uniform [0,1)
+  float hash21(vec2 p){
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+  }
+  // hash to a 3D direction on the sphere (uniform)
+  vec3 hashSphere(vec2 seed){
+    float u = hash21(seed);
+    float v = hash21(seed + 17.3);
+    float z = 1.0 - 2.0 * u;
+    float r = sqrt(max(0.0, 1.0 - z*z));
+    float phi = 6.2831853 * v;
+    return vec3(r*cos(phi), r*sin(phi), z);
+  }
+
+  vec3 sampleEquirect(sampler2D tex, vec3 d){
+    float lon = atan(d.z, d.x);
+    float lat = asin(clamp(d.y, -1.0, 1.0));
+    vec2 uv = vec2(lon / 6.2831853 + 0.5, lat / 3.1415926 + 0.5);
+    return texture(tex, uv).rgb;
+  }
+
+  void main(){
+    vec4 p = texture(uPos, vUv);
+    vec3 d = normalize(p.xyz);
+
+    vec2 seed = vUv * 1024.0 + uTime * 7.0;
+
+    float curDensity = dot(sampleEquirect(uDensity, d), vec3(0.299, 0.587, 0.114));
+    float threshold  = 0.15;
+
+    float relocateProb = 0.02;
+    float rngA = hash21(seed);
+    if (curDensity > threshold || rngA > relocateProb){
+      fragColor = p;
+      return;
+    }
+
+    vec3 cand = hashSphere(seed + 3.7);
+    float candDensity = dot(sampleEquirect(uDensity, cand), vec3(0.299, 0.587, 0.114));
+    float rngB = hash21(seed + 11.1);
+
+    if (candDensity > rngB){
+      fragColor = vec4(cand, p.a);
+    } else {
+      fragColor = p;
+    }
+  }
+`, { uPos: { value: null }, uDensity: { value: null }, uTime: { value: 0 } });
+
+    // ---------- Pass 11b: density-respawn COLOR resample ----------
+    // Mirrors respawnMat's accept/reject logic exactly (same seed) — when a
+    // particle is relocated, its color must also be re-sampled at the new spot.
+    // Runs only if both density AND color maps are loaded.
+    const respawnColorMat = makeFsMat(`
+  uniform sampler2D uPos;
+  uniform sampler2D uCol;
+  uniform sampler2D uDensity;
+  uniform sampler2D uColorMap;
+  uniform float uTime;
+
+  float hash21(vec2 p){
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+  }
+  vec3 hashSphere(vec2 seed){
+    float u = hash21(seed);
+    float v = hash21(seed + 17.3);
+    float z = 1.0 - 2.0 * u;
+    float r = sqrt(max(0.0, 1.0 - z*z));
+    float phi = 6.2831853 * v;
+    return vec3(r*cos(phi), r*sin(phi), z);
+  }
+  vec3 sampleEquirect(sampler2D tex, vec3 d){
+    float lon = atan(d.z, d.x);
+    float lat = asin(clamp(d.y, -1.0, 1.0));
+    vec2 uv = vec2(lon / 6.2831853 + 0.5, lat / 3.1415926 + 0.5);
+    return texture(tex, uv).rgb;
+  }
+
+  void main(){
+    vec4 cur = texture(uCol, vUv);
+    // NOTE: respawnMat runs first and updates uPos. So we use the *previous*
+    // pos to recompute the same decision. We need to mirror what respawnMat
+    // saw, which means we should be reading the OLD position. The driver
+    // takes care of this by passing the pre-respawn position texture.
+    vec4 p = texture(uPos, vUv);
+    vec3 d = normalize(p.xyz);
+    vec2 seed = vUv * 1024.0 + uTime * 7.0;
+
+    float curDensity = dot(sampleEquirect(uDensity, d), vec3(0.299, 0.587, 0.114));
+    float threshold  = 0.15;
+    float relocateProb = 0.02;
+
+    float rngA = hash21(seed);
+    if (curDensity > threshold || rngA > relocateProb){
+      fragColor = cur;
+      return;
+    }
+
+    vec3 cand = hashSphere(seed + 3.7);
+    float candDensity = dot(sampleEquirect(uDensity, cand), vec3(0.299, 0.587, 0.114));
+    float rngB = hash21(seed + 11.1);
+
+    if (candDensity > rngB){
+      vec3 c = sampleEquirect(uColorMap, cand);
+      fragColor = vec4(c, 1.0);
+    } else {
+      fragColor = cur;
+    }
+  }
+`, { uPos: { value: null }, uCol: { value: null }, uDensity: { value: null }, uColorMap: { value: null }, uTime: { value: 0 } });
+
+    // ---------- Color-sample pass: at each particle position, sample the color map ----------
+    // Used at init (after a color map is loaded) to seed all particle colors.
+    const colorSampleMat = makeFsMat(`
+  uniform sampler2D uPos;
+  uniform sampler2D uColorMap;
+
+  vec3 sampleEquirect(sampler2D tex, vec3 d){
+    float lon = atan(d.z, d.x);
+    float lat = asin(clamp(d.y, -1.0, 1.0));
+    vec2 uv = vec2(lon / 6.2831853 + 0.5, lat / 3.1415926 + 0.5);
+    return texture(tex, uv).rgb;
+  }
+
+  void main(){
+    vec3 p = texture(uPos, vUv).xyz;
+    vec3 c = sampleEquirect(uColorMap, normalize(p));
+    fragColor = vec4(c, 1.0);   // alpha=1 means "from map"
+  }
+`, { uPos: { value: null }, uColorMap: { value: null } });
+
+    // ---------- Pass 10: advect particle position along geodesic ----------
+    const advectMat = makeFsMat(`
+  uniform sampler2D uPos;
+  uniform sampler2D uVel;
+  uniform float uDt;
+
+  // rotate vector v around unit axis k by angle a (Rodrigues)
+  vec3 rot(vec3 v, vec3 k, float a){
+    float c = cos(a), s = sin(a);
+    return v*c + cross(k,v)*s + k*dot(k,v)*(1.0 - c);
+  }
+
+  void main(){
+    vec4 p = texture(uPos, vUv);
+    vec3 v = texture(uVel, vUv).xyz;
+    vec3 d = normalize(p.xyz);
+    // tangent component
+    v -= d * dot(v, d);
+    float speed = length(v);
+    if (speed < 1e-5){
+      fragColor = p;
+      return;
+    }
+    vec3 vhat = v / speed;
+    vec3 axis = normalize(cross(d, vhat));   // perpendicular to both p and v
+    float angle = speed * uDt;               // arc length on unit sphere
+    vec3 pNew = rot(d, axis, angle);
+    fragColor = vec4(normalize(pNew), p.a);
+  }
+`, { uPos: { value: null }, uVel: { value: null }, uDt: { value: DT } });
+
+    // =================== Display: render particles in 3D ===================
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+    camera.position.set(0, 0, 4.5);
+
+    // Drag-to-rotate. Auto-rotation pauses on drag-start and resumes on release.
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.rotateSpeed = 0.6;
+    controls.enablePan = false;
+    controls.minDistance = 1.6;
+    controls.maxDistance = 8.0;
+    controls.zoomSpeed = 0.6;
+
+    let userDragging = false;
+    controls.addEventListener('start', () => { userDragging = true; });
+    controls.addEventListener('end', () => { userDragging = false; });
+
+    // faint glow + dark sphere body
+    const sphereCore = new THREE.Mesh(
+      new THREE.SphereGeometry(0.985, 64, 32),
+      new THREE.MeshBasicMaterial({ color: 0x1a0500 })
+    );
+    scene.add(sphereCore);
+
+    const glowMat = new THREE.ShaderMaterial({
+      transparent: true, side: THREE.BackSide, depthWrite: false,
+      uniforms: { uColor: { value: new THREE.Color(0xffaa33) } },
+      vertexShader: `
+    varying vec3 vN; varying vec3 vP;
+    void main(){
+      vN = normalize(normalMatrix * normal);
+      vec4 mv = modelViewMatrix * vec4(position,1.0); vP = mv.xyz;
+      gl_Position = projectionMatrix * mv;
+    }`,
+      fragmentShader: `
+    varying vec3 vN; varying vec3 vP; uniform vec3 uColor;
+    void main(){
+      vec3 V = normalize(-vP);
+      float r = pow(1.0 - max(dot(V, vN), 0.0), 2.5);
+      gl_FragColor = vec4(uColor * r, r * 0.45);
+    }`,
+    });
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(1.32, 64, 32), glowMat);
+    scene.add(glow);
+
+    // Magnetic scaffold: balanced surface flux patches, then streamlines through
+    // the vector field induced by those patches. This is a PFSS-like visual toy,
+    // not a claim that magnetic monopoles exist.
+    const magneticFieldGroup = new THREE.Group();
+    scene.add(magneticFieldGroup);
+
+    let poleData = [];
+    let cmeEmitters = [];
+    let fieldLines = null;
+    let polePoints = null;
+    let fieldSeed = 17;
+
+    const fieldLineMat = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.62,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    const poleMat = new THREE.PointsMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.9,
+      size: 0.055,
+      sizeAttenuation: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+
+    function mulberry32(seed) {
+      return function rand() {
+        seed |= 0;
+        seed = seed + 0x6D2B79F5 | 0;
+        let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+        t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+        return ((t ^ t >>> 14) >>> 0) / 4294967296;
+      };
+    }
+
+    function randomUnit(rng) {
+      const z = 1 - 2 * rng();
+      const a = Math.PI * 2 * rng();
+      const r = Math.sqrt(Math.max(0, 1 - z * z));
+      return new THREE.Vector3(r * Math.cos(a), z, r * Math.sin(a));
+    }
+
+    function tangentBasis(n, rng) {
+      const helper = Math.abs(n.y) < 0.85 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+      const t1 = new THREE.Vector3().crossVectors(helper, n).normalize();
+      const t2 = new THREE.Vector3().crossVectors(n, t1).normalize();
+      const roll = rng ? rng() * Math.PI * 2 : 0;
+      const a = t1.clone().multiplyScalar(Math.cos(roll)).addScaledVector(t2, Math.sin(roll)).normalize();
+      const b = new THREE.Vector3().crossVectors(n, a).normalize();
+      return [a, b];
+    }
+
+    function surfaceOffset(center, tangent, angle) {
+      return center.clone()
+        .multiplyScalar(Math.cos(angle))
+        .addScaledVector(tangent, Math.sin(angle))
+        .normalize();
+    }
+
+    function sampleMagneticField(point) {
+      const b = new THREE.Vector3();
+      const delta = new THREE.Vector3();
+      for (const pole of poleData) {
+        delta.copy(point).sub(pole.pos);
+        const r2 = delta.lengthSq() + 0.010;
+        b.addScaledVector(delta, pole.charge / (r2 * Math.sqrt(r2)));
+      }
+      return b;
+    }
+
+    function lineColorAt(point) {
+      const h = THREE.MathUtils.clamp((point.length() - 1.0) / 1.2, 0, 1);
+      return new THREE.Color(0xffb35c).lerp(new THREE.Color(0x75d7ff), h);
+    }
+
+    function traceFieldLine(seed) {
+      const pts = [];
+      let p = seed.clone();
+      const step = 0.018;
+      const maxSteps = 260;
+
+      for (let i = 0; i < maxSteps; i++) {
+        pts.push(p.clone());
+
+        const b1 = sampleMagneticField(p);
+        if (b1.lengthSq() < 1e-8) break;
+
+        const mid = p.clone().addScaledVector(b1.normalize(), step * 0.5);
+        const b2 = sampleMagneticField(mid);
+        if (b2.lengthSq() < 1e-8) break;
+
+        p.addScaledVector(b2.normalize(), step);
+
+        const radius = p.length();
+        if (radius > 2.45) break;
+        if (radius < 1.012 && i > 10) {
+          p.normalize().multiplyScalar(1.012);
+          pts.push(p.clone());
+          break;
+        }
+      }
+
+      return pts;
+    }
+
+    function addFieldSegments(linePts, positions, colors) {
+      if (linePts.length < 8) return;
+      for (let i = 0; i < linePts.length - 1; i++) {
+        const a = linePts[i];
+        const b = linePts[i + 1];
+        const ca = lineColorAt(a);
+        const cb = lineColorAt(b);
+        positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+        colors.push(ca.r, ca.g, ca.b, cb.r, cb.g, cb.b);
+      }
+    }
+
+    function buildPoleMarkers() {
+      const pos = [];
+      const col = [];
+      const positive = new THREE.Color(0xff6f3c);
+      const negative = new THREE.Color(0x78d9ff);
+
+      for (const pole of poleData) {
+        const p = pole.pos.clone().multiplyScalar(1.025);
+        const c = pole.charge > 0 ? positive : negative;
+        pos.push(p.x, p.y, p.z);
+        col.push(c.r, c.g, c.b);
+      }
+
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geom.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+      return new THREE.Points(geom, poleMat);
+    }
+
+    function generateMagneticField(seed = fieldSeed) {
+      const rng = mulberry32(seed);
+
+      if (fieldLines) {
+        magneticFieldGroup.remove(fieldLines);
+        fieldLines.geometry.dispose();
+      }
+      if (polePoints) {
+        magneticFieldGroup.remove(polePoints);
+        polePoints.geometry.dispose();
+      }
+
+      poleData = [];
+      cmeEmitters = [];
+
+      // Global dipole keeps the corona coherent, local bipolar patches add loops.
+      poleData.push({ pos: new THREE.Vector3(0.0, 0.88, 0.18).normalize(), charge: 1.45 });
+      poleData.push({ pos: new THREE.Vector3(0.0, -0.88, -0.18).normalize(), charge: -1.45 });
+
+      const pairCount = 11;
+      for (let i = 0; i < pairCount; i++) {
+        const center = randomUnit(rng);
+        const [t1] = tangentBasis(center, rng);
+        const separation = 0.10 + rng() * 0.18;
+        const strength = 0.65 + rng() * 0.85;
+        const sign = rng() > 0.5 ? 1 : -1;
+
+        const posPole = surfaceOffset(center, t1, separation);
+        const negPole = surfaceOffset(center, t1, -separation);
+        poleData.push({ pos: posPole, charge: sign * strength });
+        poleData.push({ pos: negPole, charge: -sign * strength });
+        cmeEmitters.push({
+          center: posPole.clone().add(negPole).normalize(),
+          positive: sign > 0 ? posPole : negPole,
+          negative: sign > 0 ? negPole : posPole,
+          strength,
+          phase: rng() * Math.PI * 2,
+        });
+      }
+
+      const positions = [];
+      const colors = [];
+
+      for (const pole of poleData) {
+        if (pole.charge <= 0) continue;
+
+        const [t1, t2] = tangentBasis(pole.pos, rng);
+        const seedsPerPole = 10;
+        for (let i = 0; i < seedsPerPole; i++) {
+          const a = Math.PI * 2 * (i / seedsPerPole + rng() * 0.08);
+          const ring = 0.025 + rng() * 0.060;
+          const seedDir = pole.pos.clone()
+            .multiplyScalar(Math.cos(ring))
+            .addScaledVector(t1, Math.sin(ring) * Math.cos(a))
+            .addScaledVector(t2, Math.sin(ring) * Math.sin(a))
+            .normalize();
+          const seedPos = seedDir.multiplyScalar(1.022);
+          addFieldSegments(traceFieldLine(seedPos), positions, colors);
+        }
+      }
+
+      const lineGeom = new THREE.BufferGeometry();
+      lineGeom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      lineGeom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      fieldLines = new THREE.LineSegments(lineGeom, fieldLineMat);
+      fieldLines.frustumCulled = false;
+      magneticFieldGroup.add(fieldLines);
+
+      polePoints = buildPoleMarkers();
+      polePoints.frustumCulled = false;
+      magneticFieldGroup.add(polePoints);
+    }
+
+    generateMagneticField(fieldSeed);
+
+    // =================== 3D FLIP corona volume ===================
+    const FLUID_COUNT_STEPS = [1200, 2400, 4200, 6500, 9000, 12000];
+    const FLUID_MAX = FLUID_COUNT_STEPS[FLUID_COUNT_STEPS.length - 1];
+    const FLUID_GRID = 26;
+    const FLUID_MIN = -2.35;
+    const FLUID_MAX_WORLD = 2.35;
+    const FLUID_CELL = (FLUID_MAX_WORLD - FLUID_MIN) / FLUID_GRID;
+    const FLUID_CELLS = FLUID_GRID * FLUID_GRID * FLUID_GRID;
+    const FLUID_PRESSURE_ITER = 18;
+    const FLUID_FLIP_BLEND = 0.92;
+
+    const fluidPos = new Float32Array(FLUID_MAX * 3);
+    const fluidVel = new Float32Array(FLUID_MAX * 3);
+    const fluidAge = new Float32Array(FLUID_MAX);
+    const fluidLife = new Float32Array(FLUID_MAX);
+    const fluidAge01 = new Float32Array(FLUID_MAX);
+
+    const gMass = new Float32Array(FLUID_CELLS);
+    const gDiv = new Float32Array(FLUID_CELLS);
+    let gPressureA = new Float32Array(FLUID_CELLS);
+    let gPressureB = new Float32Array(FLUID_CELLS);
+    const gActive = new Uint8Array(FLUID_CELLS);
+    const CELL_AIR = 0, CELL_FLUID = 1, CELL_SOLID = 2;
+    const uFaceSize = (FLUID_GRID + 1) * FLUID_GRID * FLUID_GRID;
+    const vFaceSize = FLUID_GRID * (FLUID_GRID + 1) * FLUID_GRID;
+    const wFaceSize = FLUID_GRID * FLUID_GRID * (FLUID_GRID + 1);
+    const uFace = new Float32Array(uFaceSize);
+    const vFace = new Float32Array(vFaceSize);
+    const wFace = new Float32Array(wFaceSize);
+    const uOld = new Float32Array(uFaceSize);
+    const vOld = new Float32Array(vFaceSize);
+    const wOld = new Float32Array(wFaceSize);
+    const uWeight = new Float32Array(uFaceSize);
+    const vWeight = new Float32Array(vFaceSize);
+    const wWeight = new Float32Array(wFaceSize);
+    const cellType = new Uint8Array(FLUID_CELLS);
+
+    let fluidCount = 0;
+    let fluidCursor = 0;
+    let fluidVisible = true;
+    let fluidCountIdx = 2;
+    let fluidTargetCount = FLUID_COUNT_STEPS[fluidCountIdx];
+    let activeEmitterIndex = 0;
+    let gpuFlip = null;
+    let gpuFlipReady = false;
+    let gpuFlipNeedsUpload = true;
+
+    function gridIndex(x, y, z) {
+      return x + FLUID_GRID * (y + FLUID_GRID * z);
+    }
+
+    function inCell(i, j, k) {
+      return i >= 0 && i < FLUID_GRID && j >= 0 && j < FLUID_GRID && k >= 0 && k < FLUID_GRID;
+    }
+
+    function faceIndex(i, j, k, sx, sy) {
+      return i + sx * (j + sy * k);
+    }
+
+    function uIndex(i, j, k) {
+      return faceIndex(i, j, k, FLUID_GRID + 1, FLUID_GRID);
+    }
+
+    function vIndex(i, j, k) {
+      return faceIndex(i, j, k, FLUID_GRID, FLUID_GRID + 1);
+    }
+
+    function wIndex(i, j, k) {
+      return faceIndex(i, j, k, FLUID_GRID, FLUID_GRID);
+    }
+
+    function gridCenter(i, j, k, out) {
+      out.set(
+        FLUID_MIN + (i + 0.5) * FLUID_CELL,
+        FLUID_MIN + (j + 0.5) * FLUID_CELL,
+        FLUID_MIN + (k + 0.5) * FLUID_CELL
+      );
+      return out;
+    }
+
+    function sampleFaceField(field, sx, sy, sz, ox, oy, oz, x, y, z) {
+      let gx = (x - ox) / FLUID_CELL;
+      let gy = (y - oy) / FLUID_CELL;
+      let gz = (z - oz) / FLUID_CELL;
+      gx = THREE.MathUtils.clamp(gx, 0, sx - 1);
+      gy = THREE.MathUtils.clamp(gy, 0, sy - 1);
+      gz = THREE.MathUtils.clamp(gz, 0, sz - 1);
+
+      const ix = Math.min(Math.floor(gx), sx - 2);
+      const iy = Math.min(Math.floor(gy), sy - 2);
+      const iz = Math.min(Math.floor(gz), sz - 2);
+      const fx = gx - ix, fy = gy - iy, fz = gz - iz;
+      let value = 0;
+
+      for (let dz = 0; dz <= 1; dz++) {
+        const k = iz + dz;
+        const wz = dz ? fz : 1 - fz;
+        for (let dy = 0; dy <= 1; dy++) {
+          const j = iy + dy;
+          const wy = dy ? fy : 1 - fy;
+          for (let dx = 0; dx <= 1; dx++) {
+            const i = ix + dx;
+            const wx = dx ? fx : 1 - fx;
+            value += field[faceIndex(i, j, k, sx, sy)] * wx * wy * wz;
+          }
+        }
+      }
+
+      return value;
+    }
+
+    function sampleGridVelocity(x, y, z, useOld, out) {
+      const u = useOld ? uOld : uFace;
+      const v = useOld ? vOld : vFace;
+      const w = useOld ? wOld : wFace;
+      out.set(
+        sampleFaceField(u, FLUID_GRID + 1, FLUID_GRID, FLUID_GRID, FLUID_MIN, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN + FLUID_CELL * 0.5, x, y, z),
+        sampleFaceField(v, FLUID_GRID, FLUID_GRID + 1, FLUID_GRID, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN, FLUID_MIN + FLUID_CELL * 0.5, x, y, z),
+        sampleFaceField(w, FLUID_GRID, FLUID_GRID, FLUID_GRID + 1, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN, x, y, z)
+      );
+      return out;
+    }
+
+    function removeFluidParticle(i) {
+      const last = fluidCount - 1;
+      if (i !== last) {
+        const dst = i * 3;
+        const src = last * 3;
+        fluidPos[dst] = fluidPos[src];
+        fluidPos[dst + 1] = fluidPos[src + 1];
+        fluidPos[dst + 2] = fluidPos[src + 2];
+        fluidVel[dst] = fluidVel[src];
+        fluidVel[dst + 1] = fluidVel[src + 1];
+        fluidVel[dst + 2] = fluidVel[src + 2];
+        fluidAge[i] = fluidAge[last];
+        fluidLife[i] = fluidLife[last];
+        fluidAge01[i] = fluidAge01[last];
+      }
+      fluidCount = Math.max(0, fluidCount - 1);
+    }
+
+    function emitterAt(index) {
+      if (!cmeEmitters.length) {
+        return {
+          center: new THREE.Vector3(0, 1, 0),
+          positive: new THREE.Vector3(0.1, 0.99, 0),
+          negative: new THREE.Vector3(-0.1, 0.99, 0),
+          strength: 1,
+          phase: 0,
+        };
+      }
+      return cmeEmitters[index % cmeEmitters.length];
+    }
+
+    function spawnFluidParticle(emitter, burst = true) {
+      const n = emitter.center.clone().normalize();
+      const [t1, t2] = tangentBasis(n);
+      const ring = 0.075 * Math.sqrt(Math.random());
+      const a = Math.random() * Math.PI * 2;
+      const surface = n.clone()
+        .multiplyScalar(Math.cos(ring))
+        .addScaledVector(t1, Math.sin(ring) * Math.cos(a))
+        .addScaledVector(t2, Math.sin(ring) * Math.sin(a))
+        .normalize();
+
+      const along = emitter.negative.clone().sub(emitter.positive);
+      along.addScaledVector(n, -along.dot(n));
+      if (along.lengthSq() < 1e-5) along.copy(t1);
+      along.normalize();
+      const twist = new THREE.Vector3().crossVectors(n, along).normalize();
+      const b = sampleMagneticField(surface.clone().multiplyScalar(1.05));
+      const bDir = b.lengthSq() > 1e-7 ? b.normalize() : n.clone();
+
+      const i = fluidCount < FLUID_MAX ? fluidCount++ : (fluidCursor++ % FLUID_MAX);
+      const p = i * 3;
+      const lift = 1.15 + Math.random() * 0.95;
+      const shear = (Math.random() - 0.5) * 0.48;
+      const spin = (Math.random() - 0.5) * 0.92;
+      const puff = 0.018 * Math.random();
+
+      fluidPos[p] = surface.x * (1.026 + puff);
+      fluidPos[p + 1] = surface.y * (1.026 + puff);
+      fluidPos[p + 2] = surface.z * (1.026 + puff);
+      fluidVel[p] = n.x * lift + along.x * shear + twist.x * spin + bDir.x * 0.35;
+      fluidVel[p + 1] = n.y * lift + along.y * shear + twist.y * spin + bDir.y * 0.35;
+      fluidVel[p + 2] = n.z * lift + along.z * shear + twist.z * spin + bDir.z * 0.35;
+      fluidAge[i] = 0;
+      fluidLife[i] = 5.5 + Math.random() * 2.5;
+      fluidAge01[i] = 0;
+    }
+
+    function seedFluid3D(count, emitterIndex = activeEmitterIndex) {
+      const emitter = emitterAt(emitterIndex);
+      fluidCount = 0;
+      fluidCursor = 0;
+      for (let i = 0; i < count; i++) spawnFluidParticle(emitter, true);
+      fluidGeom.setDrawRange(0, fluidCount);
+      fluidGeom.attributes.position.needsUpdate = true;
+      fluidGeom.attributes.aAge.needsUpdate = true;
+      gpuFlipNeedsUpload = true;
+      if (gpuFlipReady && gpuFlip) gpuFlip.uploadFromCpu();
+    }
+
+    function resetFluid3D() {
+      activeEmitterIndex = cmeEmitters.length ? (activeEmitterIndex + 1) % cmeEmitters.length : 0;
+      if (FLIP_3D_ENABLED) seedFluid3D(fluidTargetCount, activeEmitterIndex);
+    }
+
+    function isSolidCell(i, j, k) {
+      return !inCell(i, j, k) || cellType[gridIndex(i, j, k)] === CELL_SOLID;
+    }
+
+    function isFluidCell(i, j, k) {
+      return inCell(i, j, k) && cellType[gridIndex(i, j, k)] === CELL_FLUID;
+    }
+
+    function uFaceBlocked(i, j, k) {
+      return i <= 0 || i >= FLUID_GRID || isSolidCell(i - 1, j, k) || isSolidCell(i, j, k);
+    }
+
+    function vFaceBlocked(i, j, k) {
+      return j <= 0 || j >= FLUID_GRID || isSolidCell(i, j - 1, k) || isSolidCell(i, j, k);
+    }
+
+    function wFaceBlocked(i, j, k) {
+      return k <= 0 || k >= FLUID_GRID || isSolidCell(i, j, k - 1) || isSolidCell(i, j, k);
+    }
+
+    function uFaceHasFluid(i, j, k) {
+      return isFluidCell(i - 1, j, k) || isFluidCell(i, j, k);
+    }
+
+    function vFaceHasFluid(i, j, k) {
+      return isFluidCell(i, j - 1, k) || isFluidCell(i, j, k);
+    }
+
+    function wFaceHasFluid(i, j, k) {
+      return isFluidCell(i, j, k - 1) || isFluidCell(i, j, k);
+    }
+
+    function classifyFluidCells() {
+      cellType.fill(CELL_AIR);
+      gActive.fill(0);
+      gMass.fill(0);
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        const z = FLUID_MIN + (k + 0.5) * FLUID_CELL;
+        for (let j = 0; j < FLUID_GRID; j++) {
+          const y = FLUID_MIN + (j + 0.5) * FLUID_CELL;
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const x = FLUID_MIN + (i + 0.5) * FLUID_CELL;
+            const gi = gridIndex(i, j, k);
+            if (x * x + y * y + z * z < 1.0) cellType[gi] = CELL_SOLID;
+          }
+        }
+      }
+    }
+
+    function splatFace(field, weight, sx, sy, sz, ox, oy, oz, x, y, z, value) {
+      const gx = (x - ox) / FLUID_CELL;
+      const gy = (y - oy) / FLUID_CELL;
+      const gz = (z - oz) / FLUID_CELL;
+      const ix = Math.floor(gx), iy = Math.floor(gy), iz = Math.floor(gz);
+      const fx = gx - ix, fy = gy - iy, fz = gz - iz;
+
+      for (let dz = 0; dz <= 1; dz++) {
+        const k = iz + dz;
+        if (k < 0 || k >= sz) continue;
+        const wz = dz ? fz : 1 - fz;
+        for (let dy = 0; dy <= 1; dy++) {
+          const j = iy + dy;
+          if (j < 0 || j >= sy) continue;
+          const wy = dy ? fy : 1 - fy;
+          for (let dx = 0; dx <= 1; dx++) {
+            const i = ix + dx;
+            if (i < 0 || i >= sx) continue;
+            const wx = dx ? fx : 1 - fx;
+            const w = wx * wy * wz;
+            const idx = faceIndex(i, j, k, sx, sy);
+            field[idx] += value * w;
+            weight[idx] += w;
+          }
+        }
+      }
+    }
+
+    function normalizeFaceVelocities(field, weight) {
+      for (let i = 0; i < field.length; i++) {
+        if (weight[i] > 1e-6) field[i] /= weight[i];
+        else field[i] = 0;
+      }
+    }
+
+    function enforceFaceBoundaries() {
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 0; i <= FLUID_GRID; i++) {
+            if (uFaceBlocked(i, j, k)) uFace[uIndex(i, j, k)] = 0;
+          }
+        }
+      }
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 0; j <= FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            if (vFaceBlocked(i, j, k)) vFace[vIndex(i, j, k)] = 0;
+          }
+        }
+      }
+
+      for (let k = 0; k <= FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            if (wFaceBlocked(i, j, k)) wFace[wIndex(i, j, k)] = 0;
+          }
+        }
+      }
+    }
+
+    function splatFluidToGrid() {
+      gMass.fill(0);
+      uFace.fill(0);
+      vFace.fill(0);
+      wFace.fill(0);
+      uWeight.fill(0);
+      vWeight.fill(0);
+      wWeight.fill(0);
+      classifyFluidCells();
+
+      for (let p = 0; p < fluidCount; p++) {
+        const pi = p * 3;
+        const x = fluidPos[pi];
+        const y = fluidPos[pi + 1];
+        const z = fluidPos[pi + 2];
+        const ci = Math.floor((x - FLUID_MIN) / FLUID_CELL);
+        const cj = Math.floor((y - FLUID_MIN) / FLUID_CELL);
+        const ck = Math.floor((z - FLUID_MIN) / FLUID_CELL);
+
+        if (inCell(ci, cj, ck)) {
+          const gi = gridIndex(ci, cj, ck);
+          if (cellType[gi] !== CELL_SOLID) {
+            cellType[gi] = CELL_FLUID;
+            gActive[gi] = 1;
+            gMass[gi] += 1;
+          }
+        }
+
+        splatFace(uFace, uWeight, FLUID_GRID + 1, FLUID_GRID, FLUID_GRID, FLUID_MIN, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN + FLUID_CELL * 0.5, x, y, z, fluidVel[pi]);
+        splatFace(vFace, vWeight, FLUID_GRID, FLUID_GRID + 1, FLUID_GRID, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN, FLUID_MIN + FLUID_CELL * 0.5, x, y, z, fluidVel[pi + 1]);
+        splatFace(wFace, wWeight, FLUID_GRID, FLUID_GRID, FLUID_GRID + 1, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN + FLUID_CELL * 0.5, FLUID_MIN, x, y, z, fluidVel[pi + 2]);
+      }
+
+      normalizeFaceVelocities(uFace, uWeight);
+      normalizeFaceVelocities(vFace, vWeight);
+      normalizeFaceVelocities(wFace, wWeight);
+      enforceFaceBoundaries();
+
+      uOld.set(uFace);
+      vOld.set(vFace);
+      wOld.set(wFace);
+    }
+
+    const fluidTmp = new THREE.Vector3();
+    const fluidForce = new THREE.Vector3();
+    const fluidB = new THREE.Vector3();
+
+    function fluidForceAt(x, y, z, out) {
+      fluidTmp.set(x, y, z);
+      const r = Math.max(fluidTmp.length(), 0.001);
+      const rx = x / r, ry = y / r, rz = z / r;
+      const gravity = -0.30 / (r * r + 0.18);
+
+      out.set(rx * gravity, ry * gravity, rz * gravity);
+      fluidB.copy(sampleMagneticField(fluidTmp));
+      const bLen = fluidB.length();
+      if (bLen > 1e-5) {
+        fluidB.multiplyScalar(1 / bLen);
+        const guide = Math.min(1.15, bLen * 0.020);
+        const outward = Math.max(0, fluidB.x * rx + fluidB.y * ry + fluidB.z * rz) * 0.16;
+        out.addScaledVector(fluidB, guide);
+        out.x += rx * outward;
+        out.y += ry * outward;
+        out.z += rz * outward;
+      }
+
+      return out;
+    }
+
+    function applyFluidForces(dt) {
+      for (let k = 0; k < FLUID_GRID; k++) {
+        const z = FLUID_MIN + (k + 0.5) * FLUID_CELL;
+        for (let j = 0; j < FLUID_GRID; j++) {
+          const y = FLUID_MIN + (j + 0.5) * FLUID_CELL;
+          for (let i = 0; i <= FLUID_GRID; i++) {
+            const idx = uIndex(i, j, k);
+            if (uFaceBlocked(i, j, k) || (uWeight[idx] <= 0 && !uFaceHasFluid(i, j, k))) continue;
+            const x = FLUID_MIN + i * FLUID_CELL;
+            fluidForceAt(x, y, z, fluidForce);
+            uFace[idx] = (uFace[idx] + fluidForce.x * dt) * 0.996;
+          }
+        }
+      }
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        const z = FLUID_MIN + (k + 0.5) * FLUID_CELL;
+        for (let j = 0; j <= FLUID_GRID; j++) {
+          const y = FLUID_MIN + j * FLUID_CELL;
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const idx = vIndex(i, j, k);
+            if (vFaceBlocked(i, j, k) || (vWeight[idx] <= 0 && !vFaceHasFluid(i, j, k))) continue;
+            const x = FLUID_MIN + (i + 0.5) * FLUID_CELL;
+            fluidForceAt(x, y, z, fluidForce);
+            vFace[idx] = (vFace[idx] + fluidForce.y * dt) * 0.996;
+          }
+        }
+      }
+
+      for (let k = 0; k <= FLUID_GRID; k++) {
+        const z = FLUID_MIN + k * FLUID_CELL;
+        for (let j = 0; j < FLUID_GRID; j++) {
+          const y = FLUID_MIN + (j + 0.5) * FLUID_CELL;
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const idx = wIndex(i, j, k);
+            if (wFaceBlocked(i, j, k) || (wWeight[idx] <= 0 && !wFaceHasFluid(i, j, k))) continue;
+            const x = FLUID_MIN + (i + 0.5) * FLUID_CELL;
+            fluidForceAt(x, y, z, fluidForce);
+            wFace[idx] = (wFace[idx] + fluidForce.z * dt) * 0.996;
+          }
+        }
+      }
+
+      enforceFaceBoundaries();
+    }
+
+    function pressureProjectFluid() {
+      gDiv.fill(0);
+      gPressureA.fill(0);
+      gPressureB.fill(0);
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const gi = gridIndex(i, j, k);
+            if (cellType[gi] !== CELL_FLUID) continue;
+
+            gDiv[gi] = (
+              uFace[uIndex(i + 1, j, k)] - uFace[uIndex(i, j, k)] +
+              vFace[vIndex(i, j + 1, k)] - vFace[vIndex(i, j, k)] +
+              wFace[wIndex(i, j, k + 1)] - wFace[wIndex(i, j, k)]
+            ) / FLUID_CELL;
+          }
+        }
+      }
+
+      function neighborPressure(i, j, k, pressure) {
+        if (!inCell(i, j, k)) return null;
+        const ni = gridIndex(i, j, k);
+        if (cellType[ni] === CELL_SOLID) return null;
+        return cellType[ni] === CELL_FLUID ? pressure[ni] : 0;
+      }
+
+      for (let iter = 0; iter < FLUID_PRESSURE_ITER; iter++) {
+        gPressureB.fill(0);
+        for (let k = 0; k < FLUID_GRID; k++) {
+          for (let j = 0; j < FLUID_GRID; j++) {
+            for (let i = 0; i < FLUID_GRID; i++) {
+              const gi = gridIndex(i, j, k);
+              if (cellType[gi] !== CELL_FLUID) continue;
+
+              let sum = 0;
+              let count = 0;
+              let pN = neighborPressure(i + 1, j, k, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i - 1, j, k, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i, j + 1, k, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i, j - 1, k, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i, j, k + 1, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              pN = neighborPressure(i, j, k - 1, gPressureA);
+              if (pN !== null) { sum += pN; count++; }
+              gPressureB[gi] = count > 0 ? (sum - gDiv[gi] * FLUID_CELL * FLUID_CELL) / count : 0;
+            }
+          }
+        }
+        [gPressureA, gPressureB] = [gPressureB, gPressureA];
+      }
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 1; i < FLUID_GRID; i++) {
+            const left = gridIndex(i - 1, j, k);
+            const right = gridIndex(i, j, k);
+            const leftType = cellType[left];
+            const rightType = cellType[right];
+            const idx = uIndex(i, j, k);
+            if (leftType === CELL_SOLID || rightType === CELL_SOLID) {
+              uFace[idx] = 0;
+              continue;
+            }
+            if (leftType !== CELL_FLUID && rightType !== CELL_FLUID) continue;
+            const pL = leftType === CELL_FLUID ? gPressureA[left] : 0;
+            const pR = rightType === CELL_FLUID ? gPressureA[right] : 0;
+            uFace[idx] -= (pR - pL) / FLUID_CELL;
+          }
+        }
+      }
+
+      for (let k = 0; k < FLUID_GRID; k++) {
+        for (let j = 1; j < FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const bottom = gridIndex(i, j - 1, k);
+            const top = gridIndex(i, j, k);
+            const bottomType = cellType[bottom];
+            const topType = cellType[top];
+            const idx = vIndex(i, j, k);
+            if (bottomType === CELL_SOLID || topType === CELL_SOLID) {
+              vFace[idx] = 0;
+              continue;
+            }
+            if (bottomType !== CELL_FLUID && topType !== CELL_FLUID) continue;
+            const pB = bottomType === CELL_FLUID ? gPressureA[bottom] : 0;
+            const pT = topType === CELL_FLUID ? gPressureA[top] : 0;
+            vFace[idx] -= (pT - pB) / FLUID_CELL;
+          }
+        }
+      }
+
+      for (let k = 1; k < FLUID_GRID; k++) {
+        for (let j = 0; j < FLUID_GRID; j++) {
+          for (let i = 0; i < FLUID_GRID; i++) {
+            const back = gridIndex(i, j, k - 1);
+            const front = gridIndex(i, j, k);
+            const backType = cellType[back];
+            const frontType = cellType[front];
+            const idx = wIndex(i, j, k);
+            if (backType === CELL_SOLID || frontType === CELL_SOLID) {
+              wFace[idx] = 0;
+              continue;
+            }
+            if (backType !== CELL_FLUID && frontType !== CELL_FLUID) continue;
+            const pBack = backType === CELL_FLUID ? gPressureA[back] : 0;
+            const pFront = frontType === CELL_FLUID ? gPressureA[front] : 0;
+            wFace[idx] -= (pFront - pBack) / FLUID_CELL;
+          }
+        }
+      }
+
+      enforceFaceBoundaries();
+    }
+
+    const sampleNewVel = new THREE.Vector3();
+    const sampleOldVel = new THREE.Vector3();
+    const radialTmp = new THREE.Vector3();
+
+    function updateFluidParticles(dt) {
+      for (let p = 0; p < fluidCount; p++) {
+        const pi = p * 3;
+        sampleGridVelocity(fluidPos[pi], fluidPos[pi + 1], fluidPos[pi + 2], false, sampleNewVel);
+        sampleGridVelocity(fluidPos[pi], fluidPos[pi + 1], fluidPos[pi + 2], true, sampleOldVel);
+
+        const vx = fluidVel[pi] + sampleNewVel.x - sampleOldVel.x;
+        const vy = fluidVel[pi + 1] + sampleNewVel.y - sampleOldVel.y;
+        const vz = fluidVel[pi + 2] + sampleNewVel.z - sampleOldVel.z;
+        fluidVel[pi] = vx * FLUID_FLIP_BLEND + sampleNewVel.x * (1 - FLUID_FLIP_BLEND);
+        fluidVel[pi + 1] = vy * FLUID_FLIP_BLEND + sampleNewVel.y * (1 - FLUID_FLIP_BLEND);
+        fluidVel[pi + 2] = vz * FLUID_FLIP_BLEND + sampleNewVel.z * (1 - FLUID_FLIP_BLEND);
+
+        fluidPos[pi] += fluidVel[pi] * dt;
+        fluidPos[pi + 1] += fluidVel[pi + 1] * dt;
+        fluidPos[pi + 2] += fluidVel[pi + 2] * dt;
+
+        radialTmp.set(fluidPos[pi], fluidPos[pi + 1], fluidPos[pi + 2]);
+        const r = radialTmp.length();
+        if (r < 1.018) {
+          radialTmp.multiplyScalar(1 / Math.max(r, 0.001));
+          fluidPos[pi] = radialTmp.x * 1.018;
+          fluidPos[pi + 1] = radialTmp.y * 1.018;
+          fluidPos[pi + 2] = radialTmp.z * 1.018;
+          const inward = Math.min(0, fluidVel[pi] * radialTmp.x + fluidVel[pi + 1] * radialTmp.y + fluidVel[pi + 2] * radialTmp.z);
+          fluidVel[pi] -= radialTmp.x * inward * 1.15;
+          fluidVel[pi + 1] -= radialTmp.y * inward * 1.15;
+          fluidVel[pi + 2] -= radialTmp.z * inward * 1.15;
+        }
+
+        fluidAge[p] += dt;
+        fluidAge01[p] = Math.min(1, fluidAge[p] / fluidLife[p]);
+        if (fluidAge[p] > fluidLife[p] || r > 2.75) {
+          removeFluidParticle(p);
+          p--;
+        }
+      }
+    }
+
+    let fluidGeom;
+    function stepFluid3D(dt) {
+      if (!FLIP_3D_ENABLED || !fluidVisible) return;
+
+      splatFluidToGrid();
+      applyFluidForces(dt);
+      pressureProjectFluid();
+      updateFluidParticles(dt);
+
+      fluidGeom.setDrawRange(0, fluidCount);
+      fluidGeom.attributes.position.needsUpdate = true;
+      fluidGeom.attributes.aAge.needsUpdate = true;
+    }
+
+    fluidGeom = new THREE.BufferGeometry();
+    fluidGeom.setAttribute('position', new THREE.BufferAttribute(fluidPos, 3).setUsage(THREE.DynamicDrawUsage));
+    fluidGeom.setAttribute('aAge', new THREE.BufferAttribute(fluidAge01, 1).setUsage(THREE.DynamicDrawUsage));
+    fluidGeom.setDrawRange(0, 0);
+
+    const fluidMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      uniforms: {
+        uPixelRatio: { value: renderer.getPixelRatio() },
+      },
+      vertexShader: `
+        attribute float aAge;
+        varying float vAge;
+        varying float vRadius;
+        uniform float uPixelRatio;
+        void main(){
+          vAge = aAge;
+          vRadius = length(position);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_Position = projectionMatrix * mv;
+          float size = mix(17.0, 7.0, smoothstep(0.15, 1.0, aAge)) * uPixelRatio;
+          gl_PointSize = clamp(size / max(-mv.z, 0.35), 2.6, 28.0);
+        }
+      `,
+      fragmentShader: `
+        precision highp float;
+        varying float vAge;
+        varying float vRadius;
+        void main(){
+          vec2 c = gl_PointCoord - 0.5;
+          float d = dot(c, c);
+          if (d > 0.25) discard;
+          float core = exp(-d * 9.0);
+          float fade = smoothstep(1.0, 0.08, vAge);
+          vec3 hot = vec3(1.55, 0.52, 0.10);
+          vec3 pale = vec3(1.2, 0.84, 0.42);
+          vec3 high = vec3(0.50, 0.82, 1.25);
+          float height = clamp((vRadius - 1.0) / 1.4, 0.0, 1.0);
+          vec3 col = mix(mix(hot, pale, smoothstep(0.0, 0.35, vAge)), high, height * 0.45);
+          gl_FragColor = vec4(col * core * fade, core * fade * 0.46);
+        }
+      `,
+    });
+    const fluidPoints = new THREE.Points(fluidGeom, fluidMat);
+    fluidPoints.frustumCulled = false;
+    scene.add(fluidPoints);
+    resetFluid3D();
+
+    // Particle render — read pos, vel, and color textures
+    const renderPtMat = new THREE.ShaderMaterial({
+      glslVersion: THREE.GLSL3,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      uniforms: {
+        uPos: { value: null }, uVel: { value: null }, uCol: { value: null },
+        uPtTex: { value: PT_TEX },
+        uPixelRatio: { value: renderer.getPixelRatio() },
+        uPtSize: { value: 1.4 },                  // pixels (0..3)
+      },
+      vertexShader: /* glsl */`
+    uniform sampler2D uPos;
+    uniform sampler2D uVel;
+    uniform sampler2D uCol;
+    uniform float uPtTex;
+    uniform float uPixelRatio;
+    uniform float uPtSize;
+    out float vSpeed;
+    out vec4 vCol;
+    void main(){
+      int id = gl_VertexID;
+      int x = id - (id/int(uPtTex)) * int(uPtTex);
+      int y = id / int(uPtTex);
+      vec2 puv = (vec2(float(x), float(y)) + 0.5) / uPtTex;
+
+      vec3 p = texture(uPos, puv).xyz;
+      vec3 v = texture(uVel, puv).xyz;
+      vSpeed = length(v);
+      vCol   = texture(uCol, puv);          // .a = 1 if from map, 0 if unset
+
+      // lift particles juuust above the surface so they don't z-fight
+      vec3 wp = normalize(p) * 1.005;
+      vec4 mv = modelViewMatrix * vec4(wp, 1.0);
+      gl_Position = projectionMatrix * mv;
+
+      // pure pixel size, no distance falloff
+      gl_PointSize = max(uPtSize * uPixelRatio, 0.0);
+    }
+  `,
+      fragmentShader: /* glsl */`
+    precision highp float;
+    in float vSpeed;
+    in vec4 vCol;
+    out vec4 fragColor;
+
+    void main(){
+      vec2 c = gl_PointCoord - 0.5;
+      float r = dot(c, c);
+      if (r > 0.25) discard;
+      float a = exp(-r * 14.0);
+
+      // speed-driven brightness term, kept either way
+      float t = clamp(vSpeed * 1.4, 0.0, 1.0);
+
+      vec3 col;
+      if (vCol.a > 0.5){
+        // particle has a baked-in color from the loaded map; modulate
+        // brightness gently with speed but DON'T change hue
+        col = vCol.rgb * (0.75 + 0.55 * t);
+      } else {
+        // fallback: solar cool (orange/red) -> solar warm (yellow/white)
+        vec3 cool = vec3(0.8, 0.15, 0.02);
+        vec3 warm = vec3(1.2, 0.9, 0.5);
+        col = mix(cool, warm, t);
+        col *= 0.65 + 0.55 * t;
+      }
+
+      fragColor = vec4(col * a, a * 0.85);
+    }
+  `,
+    });
+
+    let ptDispGeom, ptDisp;
+    function rebuildDisplayGeometry() {
+      if (ptDisp) { scene.remove(ptDisp); ptDispGeom.dispose(); }
+      if (!PARTICLES_ENABLED) {
+        ptDisp = null;
+        ptDispGeom = null;
+        return;
+      }
+      ptDispGeom = new THREE.BufferGeometry();
+      ptDispGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N_PARTICLES * 3), 3));
+      ptDispGeom.setDrawRange(0, N_PARTICLES);
+      ptDisp = new THREE.Points(ptDispGeom, renderPtMat);
+      ptDisp.frustumCulled = false;
+      scene.add(ptDisp);
+    }
+    rebuildDisplayGeometry();
+
+    // Stars
+    const stars = (() => {
+      const n = 360;
+      const pos = new Float32Array(n * 3);
+      for (let i = 0; i < n; i++) {
+        const r = 9 + Math.random() * 4, th = Math.random() * Math.PI * 2;
+        const ph = Math.acos(Math.random() * 2 - 1);
+        pos[i * 3 + 0] = r * Math.sin(ph) * Math.cos(th);
+        pos[i * 3 + 1] = r * Math.sin(ph) * Math.sin(th);
+        pos[i * 3 + 2] = r * Math.cos(ph);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      return new THREE.Points(g, new THREE.PointsMaterial({ color: 0xe6ecf2, size: 0.018, transparent: true, opacity: 0.7 }));
+    })();
+    scene.add(stars);
+
+    // =================== Sim driver ===================
+    function step(time) {
+      // 1) clear vel grid
+      blit(velRead, clearMat);
+
+      // 2) P2G — render particles into vel grid additively
+      p2gMat.uniforms.uPos.value = posRead.texture;
+      p2gMat.uniforms.uVel.value = velPRead.texture;
+      renderer.setRenderTarget(velRead);
+      // additive blending requires we don't auto-clear (we already cleared above)
+      const prevAuto = renderer.autoClear;
+      renderer.autoClear = false;
+      renderer.render(p2gScene, p2gCam);
+      renderer.autoClear = prevAuto;
+
+      // 3) normalize (vel = vel_acc / weight)
+      normalizeMat.uniforms.uVel.value = velRead.texture;
+      blit(velWrite, normalizeMat);
+      [velRead, velWrite] = [velWrite, velRead];
+
+      // 4) optional stir (procedural force OR force map)
+      if (stirring || inputMaps.force.loaded) {
+        stirMat.uniforms.uVel.value = velRead.texture;
+        stirMat.uniforms.uTime.value = time;
+        stirMat.uniforms.uForceMap.value = inputMaps.force.tex;
+        stirMat.uniforms.uHasForceMap.value = inputMaps.force.loaded ? 1.0 : 0.0;
+        blit(velWrite, stirMat);
+        [velRead, velWrite] = [velWrite, velRead];
+      }
+
+      // 5) save pre-projection velocity for FLIP
+      copyMat.uniforms.uSrc.value = velRead.texture;
+      blit(velPrev, copyMat);
+
+      // 6) divergence
+      divMat.uniforms.uVel.value = velRead.texture;
+      blit(divRT, divMat);
+
+      // 7) pressure jacobi
+      blit(prsRead, clearMat);
+      for (let i = 0; i < PRESSURE_ITER; i++) {
+        pressureMat.uniforms.uPressure.value = prsRead.texture;
+        pressureMat.uniforms.uDivergence.value = divRT.texture;
+        blit(prsWrite, pressureMat);
+        [prsRead, prsWrite] = [prsWrite, prsRead];
+      }
+
+      // 8) subtract gradient
+      projectMat.uniforms.uPressure.value = prsRead.texture;
+      projectMat.uniforms.uVel.value = velRead.texture;
+      blit(velWrite, projectMat);
+      [velRead, velWrite] = [velWrite, velRead];
+
+      // 9) G2P — update particle velocities (FLIP blend)
+      g2pUpdateVelMat.uniforms.uPos.value = posRead.texture;
+      g2pUpdateVelMat.uniforms.uVelOld.value = velPRead.texture;
+      g2pUpdateVelMat.uniforms.uGridNew.value = velRead.texture;
+      g2pUpdateVelMat.uniforms.uGridOld.value = velPrev.texture;
+      blit(velPWrite, g2pUpdateVelMat);
+      [velPRead, velPWrite] = [velPWrite, velPRead];
+
+      // 10) advect particles along geodesics
+      advectMat.uniforms.uPos.value = posRead.texture;
+      advectMat.uniforms.uVel.value = velPRead.texture;
+      blit(posWrite, advectMat);
+      [posRead, posWrite] = [posWrite, posRead];
+
+      // 11) optional density-driven respawn (position + matching color update)
+      if (inputMaps.density.loaded) {
+        // Capture pre-respawn position texture — both passes must use the SAME
+        // input position so their hash decisions agree.
+        const prePos = posRead.texture;
+
+        respawnMat.uniforms.uPos.value = prePos;
+        respawnMat.uniforms.uDensity.value = inputMaps.density.tex;
+        respawnMat.uniforms.uTime.value = time;
+        blit(posWrite, respawnMat);
+
+        // Color: only run if a color map is loaded — otherwise relocated particles
+        // keep their old color (which is fine; the speed-gradient fallback still
+        // looks reasonable).
+        if (inputMaps.color.loaded) {
+          respawnColorMat.uniforms.uPos.value = prePos;       // same as respawn
+          respawnColorMat.uniforms.uCol.value = colRead.texture;
+          respawnColorMat.uniforms.uDensity.value = inputMaps.density.tex;
+          respawnColorMat.uniforms.uColorMap.value = inputMaps.color.tex;
+          respawnColorMat.uniforms.uTime.value = time;
+          blit(colWrite, respawnColorMat);
+          [colRead, colWrite] = [colWrite, colRead];
+        }
+
+        [posRead, posWrite] = [posWrite, posRead];
+      }
+
+      renderer.setRenderTarget(null);
+    }
+
+    // =================== UI ===================
+    let rotate = true, stirring = true, fieldVisible = true;
+    let sunRotationY = 0;
+    const bRot = document.getElementById('b-rot');
+    const bStir = document.getElementById('b-stir');
+    const bField = document.getElementById('b-field');
+    const bFluid = document.getElementById('b-fluid');
+    const bEject = document.getElementById('b-eject');
+    const bReset = document.getElementById('b-reset');
+    bRot.onclick = () => { rotate = !rotate; bRot.classList.toggle('active', rotate); };
+    if (bStir) bStir.onclick = () => { stirring = !stirring; bStir.classList.toggle('active', stirring); };
+    bField.onclick = () => {
+      fieldVisible = !fieldVisible;
+      magneticFieldGroup.visible = fieldVisible;
+      bField.classList.toggle('active', fieldVisible);
+    };
+    bFluid.onclick = () => {
+      fluidVisible = !fluidVisible;
+      fluidPoints.visible = fluidVisible;
+      bFluid.classList.toggle('active', fluidVisible);
+    };
+    bEject.onclick = () => {
+      seedFluid3D(fluidTargetCount, activeEmitterIndex);
+      showToast(`${fluidTargetCount.toLocaleString()} particle CME`);
+    };
+    bReset.onclick = () => {
+      fieldSeed += 1;
+      generateMagneticField(fieldSeed);
+      magneticFieldGroup.visible = fieldVisible;
+      resetFluid3D();
+      fluidPoints.visible = fluidVisible;
+      if (PARTICLES_ENABLED) initParticles();
+    };
+
+    // --- toast helper ---
+    const toast = document.getElementById('toast');
+    let toastTimer = null;
+    function showToast(msg) {
+      toast.textContent = msg;
+      toast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+    }
+
+    // --- 3D FLIP burst particle count slider ---
+    const sFluidCount = document.getElementById('s-fluid-count');
+    const vFluidCount = document.getElementById('v-fluid-count');
+    function applyFluidCount(seedNow = false) {
+      if (!sFluidCount || !vFluidCount) return;
+      fluidCountIdx = parseInt(sFluidCount.value, 10);
+      fluidTargetCount = FLUID_COUNT_STEPS[fluidCountIdx];
+      vFluidCount.textContent = fluidTargetCount.toLocaleString();
+      if (seedNow) {
+        seedFluid3D(fluidTargetCount, activeEmitterIndex);
+        showToast(`${fluidTargetCount.toLocaleString()} particle burst`);
+      }
+    }
+    if (sFluidCount && vFluidCount) {
+      sFluidCount.addEventListener('input', () => applyFluidCount(false));
+      sFluidCount.addEventListener('change', () => applyFluidCount(true));
+      applyFluidCount(false);
+    }
+
+    // --- particle count slider ---
+    const sCount = document.getElementById('s-count');
+    const vCount = document.getElementById('v-count');
+    let lastGoodCountIdx = countIdx;
+    function applyCount() {
+      if (!sCount || !vCount) return;
+      const requestedIdx = parseInt(sCount.value);
+      const prev = { idx: countIdx, n: N_PARTICLES, tex: PT_TEX };
+      countIdx = requestedIdx;
+      N_PARTICLES = COUNT_STEPS[countIdx].n;
+      PT_TEX = COUNT_STEPS[countIdx].tex;
+      try {
+        allocParticleTargets();
+        p2gMat.uniforms.uPtTex.value = PT_TEX;
+        renderPtMat.uniforms.uPtTex.value = PT_TEX;
+        rebuildP2GGeometry();
+        rebuildDisplayGeometry();
+        initParticles();
+        vCount.textContent = N_PARTICLES.toLocaleString();
+        if (nnEl) nnEl.textContent = N_PARTICLES.toLocaleString();
+        lastGoodCountIdx = countIdx;
+        showToast(`${N_PARTICLES.toLocaleString()} particles`);
+      } catch (err) {
+        console.error('Allocation failed at N =', N_PARTICLES, err);
+        showToast(`Too many for this device — reverted`);
+        // revert
+        countIdx = lastGoodCountIdx;
+        N_PARTICLES = COUNT_STEPS[countIdx].n;
+        PT_TEX = COUNT_STEPS[countIdx].tex;
+        sCount.value = countIdx;
+        vCount.textContent = N_PARTICLES.toLocaleString();
+        allocParticleTargets();
+        p2gMat.uniforms.uPtTex.value = PT_TEX;
+        renderPtMat.uniforms.uPtTex.value = PT_TEX;
+        rebuildP2GGeometry();
+        rebuildDisplayGeometry();
+        initParticles();
+      }
+    }
+    if (sCount && vCount) {
+      sCount.addEventListener('input', () => {
+        vCount.textContent = COUNT_STEPS[parseInt(sCount.value)].n.toLocaleString();
+      });
+      sCount.addEventListener('change', applyCount);
+    }
+
+    // --- particle size slider ---
+    const sSize = document.getElementById('s-size');
+    const vSize = document.getElementById('v-size');
+    function applySize() {
+      if (!sSize || !vSize) return;
+      const s = parseFloat(sSize.value);
+      renderPtMat.uniforms.uPtSize.value = s;
+      vSize.textContent = s.toFixed(2);
+    }
+    if (sSize) sSize.addEventListener('input', applySize);
+    applySize();
+
+    // --- map upload buttons ---
+    function wireUpload(buttonId, fileId, kind) {
+      const btn = document.getElementById(buttonId);
+      const file = document.getElementById(fileId);
+      if (!btn || !file) return;
+      btn.onclick = () => file.click();
+      file.onchange = () => {
+        const f = file.files[0];
+        if (!f) return;
+        if (!f.type.startsWith('image/')) {
+          showToast(`Not an image: ${f.name}`);
+          return;
+        }
+        showToast(`Loading ${kind} map…`);
+
+        const reader = new FileReader();
+        reader.onerror = () => {
+          showToast(`Failed to read ${f.name}`);
+          console.error('FileReader error:', reader.error);
+        };
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => {
+            try {
+              const tex = new THREE.Texture(img);
+              tex.wrapS = THREE.RepeatWrapping;
+              tex.wrapT = THREE.ClampToEdgeWrapping;
+              tex.minFilter = THREE.LinearFilter;
+              tex.magFilter = THREE.LinearFilter;
+              tex.generateMipmaps = false;
+              tex.flipY = true;
+              tex.colorSpace = THREE.SRGBColorSpace || THREE.LinearSRGBColorSpace;
+              tex.needsUpdate = true;
+
+              if (inputMaps[kind].tex) inputMaps[kind].tex.dispose();
+              inputMaps[kind].tex = tex;
+              inputMaps[kind].loaded = true;
+
+              if (kind === 'color') {
+                // bake the map into per-particle colors RIGHT NOW —
+                // every particle samples the map at its current position
+                // and keeps that color until/unless it is respawned
+                applyColorMapToParticles();
+              }
+
+              btn.classList.add('loaded');
+              btn.textContent = '✓ ' + kind[0].toUpperCase() + kind.slice(1);
+              showToast(`Loaded ${kind} map (${img.width}×${img.height})`);
+            } catch (err) {
+              showToast(`Texture error: ${err.message}`);
+              console.error('Texture creation failed:', err);
+            }
+          };
+          img.onerror = (err) => {
+            showToast(`Decode failed: ${f.name}`);
+            console.error('Image decode failed:', err);
+          };
+          img.src = ev.target.result;       // data URL
+        };
+        reader.readAsDataURL(f);
+        // reset the input so the same file can be re-selected later
+        file.value = '';
+      };
+    }
+    wireUpload('b-color', 'f-color', 'color');
+    wireUpload('b-force', 'f-force', 'force');
+    wireUpload('b-density', 'f-density', 'density');
+
+    // =================== Resize ===================
+    function resize() {
+      const main = document.querySelector('main');
+      const w = main.clientWidth, h = main.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      fluidMat.uniforms.uPixelRatio.value = renderer.getPixelRatio();
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // =================== Loop ===================
+    if (PARTICLES_ENABLED) initParticles();
+
+    const fpsEl = document.getElementById('fps');
+    const ttEl = document.getElementById('tt');
+    const ppEl = document.getElementById('pp');
+    const nnEl = document.getElementById('nn');
+    if (nnEl) nnEl.textContent = N_PARTICLES.toLocaleString();
+    if (ppEl) ppEl.textContent = fluidCount.toLocaleString();
+    let last = performance.now(), accum = 0, frames = 0, simTime = 0;
+
+    function tick(now) {
+      const dt = Math.min((now - last) / 1000, 0.05);
+      last = now;
+      simTime += dt;
+
+      if (PARTICLES_ENABLED) step(simTime);
+      stepFluid3D(dt);
+
+      if (PARTICLES_ENABLED) {
+        renderPtMat.uniforms.uPos.value = posRead.texture;
+        renderPtMat.uniforms.uVel.value = velPRead.texture;
+        renderPtMat.uniforms.uCol.value = colRead.texture;
+      }
+
+      if (rotate && !userDragging) {
+        sunRotationY += dt * 0.12;
+      }
+      if (PARTICLES_ENABLED && ptDisp) ptDisp.rotation.y = sunRotationY;
+      sphereCore.rotation.y = sunRotationY;
+      glow.rotation.y = sunRotationY;
+      magneticFieldGroup.rotation.y = sunRotationY;
+      fluidPoints.rotation.y = sunRotationY;
+      fieldLineMat.opacity = fieldVisible ? 0.54 + 0.08 * Math.sin(simTime * 0.8) * Math.sin(simTime * 0.8) : 0.0;
+      stars.rotation.y += dt * 0.005;
+
+      controls.update();
+      renderer.render(scene, camera);
+
+      frames++; accum += dt;
+      if (accum > 0.5) {
+        fpsEl.textContent = Math.round(frames / accum);
+        ttEl.textContent = simTime.toFixed(1);
+        if (ppEl) ppEl.textContent = fluidCount.toLocaleString();
+        frames = 0; accum = 0;
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  </script>
+</body>
+
+</html>

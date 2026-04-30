@@ -1,0 +1,1178 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>The Fractal Flame - Realtime 3D IFS v002</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap"
+    rel="stylesheet">
+  <style>
+
+    :root {
+      --bg: #070809;
+      --ink: #e6ecf2;
+      --dim: #5a6470;
+      --accent: #7fc7ff;
+      --warm: #ffb474;
+      --line: rgba(230, 236, 242, 0.10);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0 }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      overflow: hidden;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(127,199,255,0.06), transparent 55%),
+        radial-gradient(ellipse at 70% 80%, rgba(255,180,116,0.04), transparent 55%),
+        var(--bg);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.35 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      opacity: .4;
+      mix-blend-mode: overlay;
+    }
+
+    header {
+      padding: 22px 32px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--line);
+      z-index: 2;
+    }
+
+    header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 26px;
+      letter-spacing: 0.02em;
+    }
+
+    header h1 .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-style: normal;
+      font-size: 10px;
+      color: var(--dim);
+      margin-right: 14px;
+      letter-spacing: 0.3em;
+    }
+
+    header .meta {
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      text-align: right;
+    }
+
+    header .meta b {
+      color: var(--accent);
+      font-weight: 400;
+    }
+
+    main {
+      position: relative;
+      overflow: hidden;
+    }
+
+    #stage {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #stage:active {
+      cursor: grabbing;
+    }
+
+    .scanline {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: .22;
+      background: repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(230, 236, 242, 0.045) 4px);
+    }
+
+    .corner {
+      position: absolute;
+      font-size: 9px;
+      color: var(--dim);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 3;
+      line-height: 1.7;
+    }
+
+    .corner.tl { top: 18px; left: 32px; }
+    .corner.tr { top: 18px; right: 32px; text-align: right; }
+    .corner.bl { bottom: 18px; left: 32px; }
+    .corner.br { bottom: 18px; right: 32px; text-align: right; }
+    .corner b { color: var(--accent); font-weight: 400; }
+
+    .ornament {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Cormorant Garamond', serif;
+      color: var(--dim);
+      font-size: 11px;
+      letter-spacing: 0.35em;
+      z-index: 3;
+      pointer-events: none;
+      font-style: italic;
+    }
+
+    .ornament.top { top: 14px; }
+    .ornament.bot { bottom: 14px; }
+
+    footer {
+      padding: 14px 32px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    .tagline {
+      max-width: 42vw;
+      line-height: 1.7;
+    }
+
+    footer .controls {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    footer button,
+    .toggle {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: all .25s ease;
+    }
+
+    footer button:hover,
+    .toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    footer button.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(127, 199, 255, 0.06);
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .toggle input {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 9px;
+      height: 9px;
+      border: 1px solid var(--dim);
+      border-radius: 50%;
+      background: transparent;
+    }
+
+    .toggle input:checked {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    footer .sep {
+      width: 1px;
+      height: 18px;
+      background: var(--line);
+      margin: 0 4px;
+    }
+
+    footer .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: var(--dim);
+    }
+
+    footer .slider-group .val {
+      color: var(--accent);
+      min-width: 54px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    footer input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100px;
+      height: 1px;
+      background: var(--line);
+      outline: none;
+      cursor: pointer;
+    }
+
+    footer input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    footer input[type=range]::-moz-range-thumb {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    #readout {
+      position: absolute;
+      right: 32px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--dim);
+      writing-mode: vertical-rl;
+      z-index: 3;
+      pointer-events: none;
+      text-align: right;
+      line-height: 2;
+    }
+
+    #readout span {
+      color: var(--accent);
+    }
+
+    #status {
+      position: absolute;
+      left: 32px;
+      top: 50%;
+      transform: translateY(-50%) rotate(180deg);
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: var(--dim);
+      writing-mode: vertical-rl;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .crosshair {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1px;
+      height: 1px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .crosshair::before, .crosshair::after {
+      content: "";
+      position: absolute;
+      background: var(--line);
+    }
+
+    .crosshair::before {
+      width: 22px;
+      height: 1px;
+      left: -11px;
+      top: 0;
+    }
+
+    .crosshair::after {
+      width: 1px;
+      height: 22px;
+      left: 0;
+      top: -11px;
+    }
+
+    .fallback {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: center;
+      padding: 32px;
+      background: #070809;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.8;
+      text-align: center;
+    }
+
+    .fallback.show {
+      display: grid;
+    }
+
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>
+      <span class="num">№ 04 — V002</span>
+      The Fractal Flame <span style="color:var(--dim);font-size:14px;font-style:normal"> · 3D IFS</span>
+    </h1>
+    <div class="meta">WebGL2 float texture simulation<br><b>256k-16M GPU particles</b> / realtime depth splatting</div>
+  </header>
+
+  <main id="viewport">
+    <canvas id="stage"></canvas>
+    <div class="scanline"></div>
+    <div class="fallback" id="fallback"></div>
+
+    <div class="ornament top">the chaos game lifted into a volumetric attractor</div>
+    <div class="corner tl">state texture<br><b>RGBA32F</b><br>x y z color</div>
+    <div class="corner tr">camera orbit<br><b>perspective</b><br>depth aware density</div>
+    <div class="corner bl">variations <b>9 type</b><br>ping pong pass<br>shader IFS</div>
+    <div class="corner br">projection<br><b>additive splats</b><br>living attractor</div>
+    <div class="crosshair"></div>
+    <div id="status">SIM <span id="sim-state">RUNNING</span></div>
+    <div id="readout">fps <span id="fps">0</span> / particles <span id="nn">262,144</span> / iter <span id="it">0</span>
+    </div>
+    <div class="ornament bot">field density / nonlinear recursion / color memory</div>
+  </main>
+
+  <footer>
+    <div class="tagline">A recursive 3D transformation field rendered directly from GPU state.</div>
+    <div class="controls">
+      <div class="slider-group">
+        <label for="s-particles">Particles</label>
+        <input id="s-particles" type="range" min="262144" max="16777216" step="262144" value="262144" />
+        <span id="v-particles" class="val">256k</span>
+      </div>
+      <div class="slider-group">
+        <label for="s-exposure">Exposure</label>
+        <input id="s-exposure" type="range" min="-20" max="20" step="0.1" value="0" />
+        <span id="v-exposure" class="val">0.0 EV</span>
+      </div>
+      <div class="slider-group">
+        <label for="s-size">Size</label>
+        <input id="s-size" type="range" min="0.6" max="3.2" step="0.05" value="1.55" />
+        <span id="v-size" class="val">1.55</span>
+      </div>
+      <div class="slider-group">
+        <label for="s-speed">Spin</label>
+        <input id="s-speed" type="range" min="0" max="1.2" step="0.01" value="0.22" />
+        <span id="v-speed" class="val">0.22</span>
+      </div>
+      <div class="sep"></div>
+      <label class="toggle"><input id="c-xray" type="checkbox" />X-Ray</label>
+      <label class="toggle"><input id="c-pause" type="checkbox" />Pause</label>
+      <div class="sep"></div>
+      <button id="b-random" type="button">Randomize</button>
+      <button id="b-view" type="button">Reset View</button>
+    </div>
+  </footer>
+
+  <script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js"
+  }
+}
+</script>
+
+  <script type="module">
+    import * as THREE from "three";
+
+    const MIN_PT_TEX = 512;
+    const MAX_PT_TEX = 4096;
+    const MIN_PARTICLES = MIN_PT_TEX * MIN_PT_TEX;
+    const MAX_PARTICLES = MAX_PT_TEX * MAX_PT_TEX;
+    const STEPS_PER_FRAME = 3;
+    const XFORM_COUNT = 6;
+    let simSize = MIN_PT_TEX;
+    let simCapacity = MIN_PARTICLES;
+
+    const viewport = document.getElementById("viewport");
+    const canvas = document.getElementById("stage");
+    const fallback = document.getElementById("fallback");
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: false,
+      alpha: false,
+      powerPreference: "high-performance"
+    });
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    renderer.setClearColor(0x050607, 1);
+
+    const gl = renderer.getContext();
+    if (!(gl instanceof WebGL2RenderingContext)) {
+      fallback.textContent = "WebGL2 is required for the realtime 3D flame.";
+      fallback.classList.add("show");
+      throw new Error("WebGL2 required");
+    }
+
+    if (!gl.getExtension("EXT_color_buffer_float")) {
+      fallback.textContent = "This GPU does not expose EXT_color_buffer_float, which is required for the simulation texture.";
+      fallback.classList.add("show");
+      throw new Error("EXT_color_buffer_float required");
+    }
+
+    const state = {
+      paused: false,
+      xray: false,
+      exposureEv: 0,
+      pointSize: 1.55,
+      spin: 0.22,
+      activeParticles: MIN_PARTICLES,
+      frame: 0,
+      totalIterations: 0,
+      seed: Math.random() * 1000,
+      yaw: -0.68,
+      pitch: 0.34,
+      radius: 7.0,
+      targetYaw: -0.68,
+      targetPitch: 0.34,
+      targetRadius: 7.0
+    };
+
+    function makeTarget(size) {
+      const rt = new THREE.WebGLRenderTarget(size, size, {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        format: THREE.RGBAFormat,
+        type: THREE.FloatType,
+        depthBuffer: false,
+        stencilBuffer: false,
+        generateMipmaps: false
+      });
+      rt.texture.name = "flame-state";
+      return rt;
+    }
+
+    let posA = makeTarget(simSize);
+    let posB = makeTarget(simSize);
+    let posRead = posA;
+    let posWrite = posB;
+
+    const quadVertex = `
+in vec3 position;
+in vec2 uv;
+out vec2 vUv;
+
+void main(){
+  vUv = uv;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
+
+    const updateFragment = `
+precision highp float;
+
+in vec2 vUv;
+uniform sampler2D uState;
+uniform vec4 uXforms[24];
+uniform float uTime;
+uniform float uFrame;
+uniform float uSeed;
+out vec4 outState;
+
+float hash21(vec2 p){
+  p = fract(p * vec2(234.34, 435.345));
+  p += dot(p, p + 34.23);
+  return fract(p.x * p.y);
+}
+
+vec3 hash32(vec2 p){
+  vec3 q = vec3(
+    dot(p, vec2(127.1, 311.7)),
+    dot(p, vec2(269.5, 183.3)),
+    dot(p, vec2(419.2, 371.9))
+  );
+  return fract(sin(q) * 43758.5453123);
+}
+
+vec3 seedPoint(vec2 uv, float salt){
+  vec3 h = hash32(uv + vec2(salt, salt * 0.37));
+  return (h - 0.5) * vec3(4.4, 4.4, 3.6);
+}
+
+vec3 variation(vec3 p, int type){
+  float r2 = max(dot(p, p), 0.00012);
+  float r = sqrt(r2);
+  float a = atan(p.y, p.x);
+
+  if (type == 0) return p;
+  if (type == 1) return sin(p * 1.18);
+  if (type == 2) return p / r2;
+  if (type == 3) {
+    float s = sin(r2);
+    float c = cos(r2);
+    return vec3(p.x * s - p.y * c, p.x * c + p.y * s, p.z * 0.82 + sin(r + p.z) * 0.18);
+  }
+  if (type == 4) {
+    return vec3((p.x - p.y) * (p.x + p.y) / r, 2.0 * p.x * p.y / r, p.z * 0.7 + sin(a + p.z) * 0.3);
+  }
+  if (type == 5) return 4.0 * p / (r2 + 4.0);
+  if (type == 6) {
+    float re = 1.0 + 0.48 * p.x + 0.18 * (p.x * p.x - p.y * p.y);
+    float im = 0.48 * p.y + 0.36 * p.x * p.y;
+    float den = max(re * re + im * im, 0.02);
+    return vec3((p.x * re + p.y * im) / den, (p.y * re - p.x * im) / den, p.z + 0.22 * sin(p.x + p.y));
+  }
+  if (type == 7) return vec3(sin(p.x * 1.35), p.y * 0.72 + sin(p.z) * 0.18, cos(p.z * 1.35));
+  return vec3(p.x + 0.25 * sin(p.y * 2.2), p.y + 0.25 * sin(p.z * 1.8), p.z + 0.25 * sin(p.x * 2.0));
+}
+
+void main(){
+  vec4 s = texture(uState, vUv);
+  vec3 p = s.xyz;
+  float colorMemory = s.w;
+
+  float choice = hash21(vUv * 4096.0 + vec2(uSeed, uFrame * 0.071) + p.xy * 0.137);
+  int idx = clamp(int(floor(choice * float(${XFORM_COUNT}))), 0, ${XFORM_COUNT - 1});
+
+  vec4 r0 = uXforms[idx * 4 + 0];
+  vec4 r1 = uXforms[idx * 4 + 1];
+  vec4 r2 = uXforms[idx * 4 + 2];
+  vec4 r3 = uXforms[idx * 4 + 3];
+
+  vec3 q = vec3(
+    dot(r0.xyz, p) + r0.w,
+    dot(r1.xyz, p) + r1.w,
+    dot(r2.xyz, p) + r2.w
+  );
+
+  int varType = int(r3.x + 0.5);
+  q = mix(q, variation(q, varType), clamp(r3.z, 0.0, 1.0));
+
+  float phase = r3.w;
+  q += 0.018 * vec3(
+    sin(uTime * 0.31 + phase + q.y),
+    cos(uTime * 0.27 + phase * 1.7 + q.z),
+    sin(uTime * 0.23 + phase * 0.7 + q.x)
+  );
+
+  float bound = length(q);
+  bool bad = any(isnan(q)) || any(isinf(q)) || bound > 8.5;
+  if (bad) {
+    q = seedPoint(vUv, uSeed + uFrame * 0.001);
+    colorMemory = hash21(vUv + vec2(uSeed, uFrame));
+  } else {
+    colorMemory = mix(colorMemory, r3.y, 0.34);
+  }
+
+  outState = vec4(q, colorMemory);
+}
+`;
+
+    const initFragment = `
+precision highp float;
+
+in vec2 vUv;
+uniform float uSeed;
+out vec4 outState;
+
+float hash21(vec2 p){
+  p = fract(p * vec2(234.34, 435.345));
+  p += dot(p, p + 34.23);
+  return fract(p.x * p.y);
+}
+
+vec3 hash32(vec2 p){
+  vec3 q = vec3(
+    dot(p, vec2(127.1, 311.7)),
+    dot(p, vec2(269.5, 183.3)),
+    dot(p, vec2(419.2, 371.9))
+  );
+  return fract(sin(q) * 43758.5453123);
+}
+
+void main(){
+  vec3 h = hash32(vUv + vec2(uSeed, uSeed * 0.37));
+  vec3 p = (h - 0.5) * vec3(4.4, 4.4, 3.6);
+  outState = vec4(p, hash21(vUv + vec2(uSeed * 0.19, uSeed * 0.71)));
+}
+`;
+
+    const pointVertex = `
+precision highp float;
+
+uniform sampler2D uState;
+uniform float uTexSize;
+uniform float uPointSize;
+uniform float uTime;
+uniform float uExposure;
+uniform mat4 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+out vec3 vColor;
+out float vAlpha;
+out float vDepth;
+
+vec3 palette(float t){
+  t = fract(t);
+  vec3 a = vec3(0.11, 0.38, 0.95);
+  vec3 b = vec3(0.05, 0.94, 0.78);
+  vec3 c = vec3(1.00, 0.32, 0.42);
+  vec3 d = vec3(1.00, 0.78, 0.32);
+  vec3 ab = mix(a, b, smoothstep(0.0, 0.35, t));
+  vec3 cd = mix(c, d, smoothstep(0.55, 1.0, t));
+  return mix(ab, cd, smoothstep(0.28, 0.82, t));
+}
+
+void main(){
+  int id = gl_VertexID;
+  int tex = int(uTexSize);
+  ivec2 px = ivec2(id % tex, id / tex);
+  vec4 s = texelFetch(uState, px, 0);
+
+  vec3 p = s.xyz * 1.16;
+  vec4 mv = uModelViewMatrix * vec4(p, 1.0);
+  float depth = max(0.08, -mv.z);
+
+  gl_Position = uProjectionMatrix * mv;
+  gl_PointSize = clamp(uPointSize * 92.0 / depth, 0.65, 7.2);
+
+  float shell = smoothstep(7.6, 0.8, length(s.xyz));
+  float pulse = 0.82 + 0.18 * sin(uTime * 0.85 + s.z * 2.6 + s.x);
+  vColor = palette(s.w + s.z * 0.055 + uTime * 0.018) * uExposure;
+  vAlpha = shell * pulse * 0.42;
+  vDepth = depth;
+}
+`;
+
+    const pointFragment = `
+precision highp float;
+
+in vec3 vColor;
+in float vAlpha;
+in float vDepth;
+uniform bool uXray;
+out vec4 outColor;
+
+void main(){
+  vec2 d = gl_PointCoord - 0.5;
+  float r = length(d);
+  float core = smoothstep(0.48, 0.08, r);
+  float depthFade = uXray ? 1.0 : smoothstep(16.0, 2.0, vDepth);
+  float alpha = core * vAlpha * depthFade;
+  outColor = vec4(vColor, alpha);
+}
+`;
+
+    const lineVertex = `
+precision highp float;
+
+in vec3 position;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+void main(){
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+    const lineFragment = `
+precision highp float;
+
+uniform vec3 uColor;
+uniform float uAlpha;
+out vec4 outColor;
+
+void main(){
+  outColor = vec4(uColor, uAlpha);
+}
+`;
+
+    const updateUniforms = {
+      uState: { value: null },
+      uXforms: { value: new Float32Array(XFORM_COUNT * 4 * 4) },
+      uTime: { value: 0 },
+      uFrame: { value: 0 },
+      uSeed: { value: state.seed }
+    };
+
+    const updateMat = new THREE.RawShaderMaterial({
+      uniforms: updateUniforms,
+      vertexShader: quadVertex,
+      fragmentShader: updateFragment,
+      glslVersion: THREE.GLSL3
+    });
+
+    const initUniforms = {
+      uSeed: { value: state.seed }
+    };
+
+    const initMat = new THREE.RawShaderMaterial({
+      uniforms: initUniforms,
+      vertexShader: quadVertex,
+      fragmentShader: initFragment,
+      glslVersion: THREE.GLSL3
+    });
+
+    const simScene = new THREE.Scene();
+    const simCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const simQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), initMat);
+    simScene.add(simQuad);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(44, 1, 0.02, 60);
+
+    function compileParticleShader(type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, `#version 300 es\n${source}`);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const log = gl.getShaderInfoLog(shader) || "Unknown shader compile error";
+        gl.deleteShader(shader);
+        throw new Error(log);
+      }
+      return shader;
+    }
+
+    function createParticleProgram() {
+      const program = gl.createProgram();
+      const vert = compileParticleShader(gl.VERTEX_SHADER, pointVertex);
+      const frag = compileParticleShader(gl.FRAGMENT_SHADER, pointFragment);
+      gl.attachShader(program, vert);
+      gl.attachShader(program, frag);
+      gl.linkProgram(program);
+      gl.deleteShader(vert);
+      gl.deleteShader(frag);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        const log = gl.getProgramInfoLog(program) || "Unknown particle program link error";
+        gl.deleteProgram(program);
+        throw new Error(log);
+      }
+      return {
+        program,
+        vao: gl.createVertexArray(),
+        uniforms: {
+          uState: gl.getUniformLocation(program, "uState"),
+          uTexSize: gl.getUniformLocation(program, "uTexSize"),
+          uPointSize: gl.getUniformLocation(program, "uPointSize"),
+          uTime: gl.getUniformLocation(program, "uTime"),
+          uExposure: gl.getUniformLocation(program, "uExposure"),
+          uModelViewMatrix: gl.getUniformLocation(program, "uModelViewMatrix"),
+          uProjectionMatrix: gl.getUniformLocation(program, "uProjectionMatrix"),
+          uXray: gl.getUniformLocation(program, "uXray")
+        }
+      };
+    }
+
+    const particlePass = createParticleProgram();
+
+    function makeGuide() {
+      const vertices = [];
+      const rings = 96;
+      const radius = 3.1;
+      for (let plane = 0; plane < 3; plane++) {
+        for (let i = 0; i < rings; i++) {
+          const a = (i / rings) * Math.PI * 2;
+          const b = ((i + 1) / rings) * Math.PI * 2;
+          const p0 = [Math.cos(a) * radius, Math.sin(a) * radius, 0];
+          const p1 = [Math.cos(b) * radius, Math.sin(b) * radius, 0];
+          if (plane === 0) vertices.push(...p0, ...p1);
+          if (plane === 1) vertices.push(p0[0], 0, p0[1], p1[0], 0, p1[1]);
+          if (plane === 2) vertices.push(0, p0[0], p0[1], 0, p1[0], p1[1]);
+        }
+      }
+      vertices.push(-3.8, 0, 0, 3.8, 0, 0, 0, -3.8, 0, 0, 3.8, 0, 0, 0, -3.8, 0, 0, 3.8);
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(vertices), 3));
+      const mat = new THREE.RawShaderMaterial({
+        uniforms: { uColor: { value: new THREE.Color(0x8fb7c6) }, uAlpha: { value: 0.075 } },
+        vertexShader: lineVertex,
+        fragmentShader: lineFragment,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        glslVersion: THREE.GLSL3
+      });
+      return new THREE.LineSegments(geom, mat);
+    }
+
+    const guide = makeGuide();
+    scene.add(guide);
+
+    function rand(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function writeTransform(index, matrix, translation, variation, color, mixAmount, phase) {
+      const e = matrix.elements;
+      const arr = updateUniforms.uXforms.value;
+      const base = index * 16;
+
+      arr[base + 0] = e[0];
+      arr[base + 1] = e[4];
+      arr[base + 2] = e[8];
+      arr[base + 3] = translation.x;
+
+      arr[base + 4] = e[1];
+      arr[base + 5] = e[5];
+      arr[base + 6] = e[9];
+      arr[base + 7] = translation.y;
+
+      arr[base + 8] = e[2];
+      arr[base + 9] = e[6];
+      arr[base + 10] = e[10];
+      arr[base + 11] = translation.z;
+
+      arr[base + 12] = variation;
+      arr[base + 13] = color;
+      arr[base + 14] = mixAmount;
+      arr[base + 15] = phase;
+    }
+
+    function randomizeTransforms() {
+      const variations = [];
+      while (variations.length < 4) {
+        const v = Math.floor(rand(0, 9));
+        if (!variations.includes(v)) variations.push(v);
+      }
+
+      for (let i = 0; i < XFORM_COUNT; i++) {
+        const euler = new THREE.Euler(rand(-2.4, 2.4), rand(-2.4, 2.4), rand(-Math.PI, Math.PI), "XYZ");
+        const rot = new THREE.Matrix4().makeRotationFromEuler(euler);
+        const scale = new THREE.Matrix4().makeScale(rand(0.34, 0.68), rand(0.34, 0.68), rand(0.34, 0.68));
+        const matrix = new THREE.Matrix4().multiplyMatrices(rot, scale);
+        const translation = new THREE.Vector3(rand(-1.15, 1.15), rand(-1.15, 1.15), rand(-1.05, 1.05));
+        const variation = variations[i % variations.length];
+        const color = (i / XFORM_COUNT + rand(-0.12, 0.12) + 1) % 1;
+        const mixAmount = rand(0.32, 0.78);
+        const phase = rand(0, Math.PI * 2);
+        writeTransform(i, matrix, translation, variation, color, mixAmount, phase);
+      }
+
+      updateUniforms.uSeed.value = state.seed;
+    }
+
+    function textureSizeForParticles(count) {
+      const edge = Math.ceil(Math.sqrt(THREE.MathUtils.clamp(count, MIN_PARTICLES, MAX_PARTICLES)));
+      return THREE.MathUtils.clamp(THREE.MathUtils.ceilPowerOfTwo(edge), MIN_PT_TEX, MAX_PT_TEX);
+    }
+
+    function resizeSimulation(size) {
+      if (size === simSize) return false;
+
+      posA.dispose();
+      posB.dispose();
+      simSize = size;
+      simCapacity = simSize * simSize;
+      posA = makeTarget(simSize);
+      posB = makeTarget(simSize);
+      posRead = posA;
+      posWrite = posB;
+      return true;
+    }
+
+    function initParticles() {
+      initUniforms.uSeed.value = state.seed;
+      simQuad.material = initMat;
+      renderer.setRenderTarget(posRead);
+      renderer.clear();
+      renderer.render(simScene, simCam);
+      renderer.setRenderTarget(posWrite);
+      renderer.clear();
+      renderer.render(simScene, simCam);
+      renderer.setRenderTarget(null);
+
+      simQuad.material = updateMat;
+      state.frame = 0;
+      state.totalIterations = 0;
+    }
+
+    function resetFlame() {
+      state.seed = Math.random() * 1000;
+      randomizeTransforms();
+      initParticles();
+      for (let i = 0; i < 18; i++) stepSimulation(0.016 * i);
+    }
+
+    function stepSimulation(time) {
+      updateUniforms.uState.value = posRead.texture;
+      updateUniforms.uTime.value = time;
+      updateUniforms.uFrame.value = state.frame;
+
+      simQuad.material = updateMat;
+      renderer.setRenderTarget(posWrite);
+      renderer.render(simScene, simCam);
+      renderer.setRenderTarget(null);
+
+      const swap = posRead;
+      posRead = posWrite;
+      posWrite = swap;
+
+      state.frame += 1;
+      state.totalIterations += state.activeParticles;
+    }
+
+    function updateCamera(dt) {
+      if (!state.paused) state.targetYaw += state.spin * dt * 0.22;
+
+      state.yaw = THREE.MathUtils.lerp(state.yaw, state.targetYaw, 0.12);
+      state.pitch = THREE.MathUtils.lerp(state.pitch, state.targetPitch, 0.12);
+      state.radius = THREE.MathUtils.lerp(state.radius, state.targetRadius, 0.12);
+
+      const cp = Math.cos(state.pitch);
+      camera.position.set(
+        Math.sin(state.yaw) * cp * state.radius,
+        Math.sin(state.pitch) * state.radius,
+        Math.cos(state.yaw) * cp * state.radius
+      );
+      camera.lookAt(0, 0, 0);
+    }
+
+    const fpsEl = document.getElementById("fps");
+    const iterEl = document.getElementById("it");
+    const simStateEl = document.getElementById("sim-state");
+
+    let lastTick = performance.now();
+    let fpsTick = performance.now();
+    let frames = 0;
+
+    function exposureMultiplier() {
+      return Math.pow(2, state.exposureEv);
+    }
+
+    function renderParticlesRaw(time) {
+      const textureProps = renderer.properties.get(posRead.texture);
+      const webglTexture = textureProps && textureProps.__webglTexture;
+      if (!webglTexture) return;
+
+      renderer.resetState();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.useProgram(particlePass.program);
+      gl.bindVertexArray(particlePass.vao);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, webglTexture);
+      gl.uniform1i(particlePass.uniforms.uState, 0);
+      gl.uniform1f(particlePass.uniforms.uTexSize, simSize);
+      gl.uniform1f(particlePass.uniforms.uPointSize, state.pointSize);
+      gl.uniform1f(particlePass.uniforms.uTime, time);
+      gl.uniform1f(particlePass.uniforms.uExposure, exposureMultiplier());
+      gl.uniform1i(particlePass.uniforms.uXray, state.xray ? 1 : 0);
+      gl.uniformMatrix4fv(particlePass.uniforms.uModelViewMatrix, false, camera.matrixWorldInverse.elements);
+      gl.uniformMatrix4fv(particlePass.uniforms.uProjectionMatrix, false, camera.projectionMatrix.elements);
+
+      gl.enable(gl.BLEND);
+      gl.blendEquation(gl.FUNC_ADD);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+      gl.depthMask(false);
+      if (state.xray) gl.disable(gl.DEPTH_TEST);
+      else gl.enable(gl.DEPTH_TEST);
+
+      gl.drawArrays(gl.POINTS, 0, Math.min(state.activeParticles, simCapacity));
+
+      gl.bindVertexArray(null);
+      gl.depthMask(true);
+      renderer.resetState();
+    }
+
+    function simulationSteps() {
+      if (state.activeParticles >= 4194304) return 1;
+      if (state.activeParticles >= 1048576) return 2;
+      return STEPS_PER_FRAME;
+    }
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+
+      const dt = Math.min(0.05, (now - lastTick) * 0.001 || 0.016);
+      const t = now * 0.001;
+      lastTick = now;
+
+      if (!state.paused) {
+        const steps = simulationSteps();
+        for (let i = 0; i < steps; i++) stepSimulation(t + i * 0.0007);
+      }
+
+      updateCamera(dt);
+      guide.rotation.y = t * 0.025;
+      guide.rotation.x = Math.sin(t * 0.13) * 0.035;
+
+      renderer.render(scene, camera);
+      renderParticlesRaw(t);
+
+      frames++;
+      if (now - fpsTick > 1000) {
+        fpsEl.textContent = Math.round(frames * 1000 / (now - fpsTick)).toString();
+        frames = 0;
+        fpsTick = now;
+        iterEl.textContent = state.totalIterations.toLocaleString();
+      }
+    }
+
+    function resize() {
+      const rect = viewport.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(rect.width));
+      const h = Math.max(1, Math.floor(rect.height));
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+
+    const drag = {
+      active: false,
+      x: 0,
+      y: 0,
+      yaw: 0,
+      pitch: 0
+    };
+
+    canvas.addEventListener("pointerdown", (event) => {
+      drag.active = true;
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+      drag.yaw = state.targetYaw;
+      drag.pitch = state.targetPitch;
+      canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!drag.active) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      state.targetYaw = drag.yaw - dx * 0.006;
+      state.targetPitch = THREE.MathUtils.clamp(drag.pitch - dy * 0.0045, -1.22, 1.22);
+    });
+
+    canvas.addEventListener("pointerup", (event) => {
+      drag.active = false;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointercancel", () => {
+      drag.active = false;
+    });
+
+    canvas.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const scale = Math.exp(event.deltaY * 0.0012);
+      state.targetRadius = THREE.MathUtils.clamp(state.targetRadius * scale, 3.2, 14.0);
+    }, { passive: false });
+
+    const particleSlider = document.getElementById("s-particles");
+    const exposureSlider = document.getElementById("s-exposure");
+    const sizeSlider = document.getElementById("s-size");
+    const speedSlider = document.getElementById("s-speed");
+    const particleValue = document.getElementById("v-particles");
+    const exposureValue = document.getElementById("v-exposure");
+    const sizeValue = document.getElementById("v-size");
+    const speedValue = document.getElementById("v-speed");
+    const pauseToggle = document.getElementById("c-pause");
+    const xrayToggle = document.getElementById("c-xray");
+    const particleReadout = document.getElementById("nn");
+
+    function formatParticleCount(count) {
+      if (count >= 1048576) return `${(count / 1048576).toFixed(count >= 10485760 ? 1 : 2)}M`;
+      return `${Math.round(count / 1024)}k`;
+    }
+
+    function setActiveParticles(count) {
+      const next = THREE.MathUtils.clamp(Math.round(count), MIN_PARTICLES, MAX_PARTICLES);
+      state.activeParticles = next;
+      const neededSize = textureSizeForParticles(next);
+      if (resizeSimulation(neededSize)) initParticles();
+      particleValue.textContent = formatParticleCount(next);
+      particleReadout.textContent = next.toLocaleString();
+    }
+
+    particleSlider.addEventListener("input", () => {
+      setActiveParticles(parseInt(particleSlider.value, 10));
+    });
+
+    exposureSlider.addEventListener("input", () => {
+      state.exposureEv = parseFloat(exposureSlider.value);
+      exposureValue.textContent = `${state.exposureEv.toFixed(1)} EV`;
+    });
+
+    sizeSlider.addEventListener("input", () => {
+      state.pointSize = parseFloat(sizeSlider.value);
+      sizeValue.textContent = state.pointSize.toFixed(2);
+    });
+
+    speedSlider.addEventListener("input", () => {
+      state.spin = parseFloat(speedSlider.value);
+      speedValue.textContent = state.spin.toFixed(2);
+    });
+
+    pauseToggle.addEventListener("change", () => {
+      state.paused = pauseToggle.checked;
+      simStateEl.textContent = state.paused ? "PAUSED" : "RUNNING";
+    });
+
+    xrayToggle.addEventListener("change", () => {
+      state.xray = xrayToggle.checked;
+    });
+
+    document.getElementById("b-random").addEventListener("click", resetFlame);
+    document.getElementById("b-view").addEventListener("click", () => {
+      state.targetYaw = -0.68;
+      state.targetPitch = 0.34;
+      state.targetRadius = 7.0;
+    });
+
+    window.addEventListener("resize", resize);
+
+    setActiveParticles(parseInt(particleSlider.value, 10));
+    randomizeTransforms();
+    initParticles();
+    resize();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+
+</html>
