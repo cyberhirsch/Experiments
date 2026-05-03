@@ -376,7 +376,7 @@
     <div class="corner tl">event horizon<br><b id="horizon-label">0.52 rs</b><br>shadow capture</div>
     <div class="corner tr">geodesic<br><b>220 rk4 steps</b><br>Schwarzschild</div>
     <div class="corner bl">disk plane<br>blackbody falloff<br><b>doppler boost</b></div>
-    <div class="corner br">accumulation<br>jittered paths<br><b id="sample-label">1 sample</b></div>
+    <div class="corner br">2x ssaa<br>motion aware<br><b id="sample-label">1 sample</b></div>
 
     <div class="crosshair"></div>
     <div id="status">WEBGPU STARTING</div>
@@ -430,8 +430,12 @@
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
     const GEODESIC_STEPS = 220;
+    const SUPERSAMPLES = 2;
     const RENDER_SCALE = 0.72;
     const PIXEL_RATIO_CAP = 1.0;
+    const STILL_HISTORY_ALPHA = 0.12;
+    const MOTION_HISTORY_ALPHA = 1.0;
+    const CAMERA_MOTION_EPSILON = 1e-8;
 
     const canvas = document.getElementById('stage');
     const statusEl = document.getElementById('status');
@@ -557,7 +561,7 @@
       struct Uniforms {
         u0: vec4<f32>,       // resolution.xy, time, frame
         camera: vec4<f32>,
-        target: vec4<f32>,
+        look_at: vec4<f32>,
         right: vec4<f32>,
         up: vec4<f32>,
         forward: vec4<f32>,
@@ -572,6 +576,7 @@
       const PI: f32 = 3.14159265359;
       const TWO_PI: f32 = 6.28318530718;
       const STEPS: i32 = ${GEODESIC_STEPS};
+      const SAMPLES_PER_PIXEL: i32 = ${SUPERSAMPLES};
 
       fn hash21(p: vec2<f32>) -> f32 {
         return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453123);
@@ -662,20 +667,20 @@
         bg = bg + vec3<f32>(0.105, 0.045, 0.020) * smoothstep(0.54, 0.95, cloud_b) * 0.35;
 
         if (uni.toggles.y > 0.5) {
-          let density = 0.78;
-          let grid = sphere_uv * vec2<f32>(155.0, 78.0);
+          let density = 0.52;
+          let grid = sphere_uv * vec2<f32>(190.0, 95.0);
           let cell = floor(grid);
           let f = fract(grid);
           let h = hash21(cell);
-          let exists = stepf(1.0 - density * 0.22, h);
+          let exists = stepf(1.0 - density * 0.18, h);
           let star_pos = hash22(cell + vec2<f32>(19.7, 71.3));
           let d = length(f - star_pos);
-          let sz = mix(0.006, 0.019, hash21(cell + vec2<f32>(3.1, 6.3)));
+          let sz = mix(0.0035, 0.010, hash21(cell + vec2<f32>(3.1, 6.3)));
           let core = smoothstep(sz, 0.0, d);
-          let glow = smoothstep(sz * 5.0, 0.0, d) * 0.22;
+          let glow = smoothstep(sz * 2.5, 0.0, d) * 0.09;
           let twinkle = 0.82 + 0.18 * sin(uni.u0.z * (1.0 + h * 3.0) + h * 24.0);
           let star_color = mix(vec3<f32>(0.68, 0.80, 1.0), vec3<f32>(1.0, 0.92, 0.72), hash21(cell + vec2<f32>(9.9, 2.7)));
-          bg = bg + star_color * (core + glow) * exists * twinkle * 1.35;
+          bg = bg + star_color * (core + glow) * exists * twinkle;
         }
 
         return bg;
@@ -697,23 +702,36 @@
         let broad_flow = vec2<f32>(hit.x * bc - hit.z * bs, hit.x * bs + hit.z * bc);
         let fine_flow = vec2<f32>(hit.x * fc - hit.z * fs, hit.x * fs + hit.z * fc);
 
+        let disk_angle = atan2_safe(hit.z, hit.x);
+        let angle_noise = fbm(vec3<f32>(
+          cos(disk_angle) * 1.7,
+          sin(disk_angle) * 1.7,
+          log(r + 0.45) * 2.0 + uni.u0.z * 0.012
+        ));
         let broad_pos = vec3<f32>(
-          log(r + 0.35) * 1.65,
-          broad_flow.x * 1.35,
-          broad_flow.y * 1.35 + uni.u0.z * 0.025
+          log(r + 0.35) * (1.35 + angle_noise * 0.45),
+          broad_flow.x * 1.08,
+          broad_flow.y * 1.08 + uni.u0.z * 0.021
         );
         let filament_pos = vec3<f32>(
-          log(r + 0.35) * 5.4,
-          fine_flow.x * 4.2,
-          fine_flow.y * 4.2 + uni.u0.z * 0.06
+          log(r + 0.35) * (3.35 + angle_noise * 1.1),
+          fine_flow.x * 2.8,
+          fine_flow.y * 2.8 + uni.u0.z * 0.044
         );
         let broad_turbulence = fbm(broad_pos);
-        let filament_turbulence = fbm(filament_pos);
-        let radial_phase = r * 2.15 - uni.u0.z * 0.22 + broad_turbulence * 1.35;
-        let broad_bands = smoothstep(0.14, 0.92, 0.5 + 0.5 * sin(radial_phase));
-        var dust = mix(0.42, 1.0, broad_turbulence) * mix(0.68, 1.18, filament_turbulence);
-        dust = dust * mix(0.82, 1.08, broad_bands);
-        let opacity = edge * smoothstep(0.24, 0.92, dust) * in_band;
+        let filament_turbulence = mix(
+          fbm(filament_pos),
+          fbm(filament_pos * 0.47 + vec3<f32>(9.3, 17.1, 5.7)),
+          0.36
+        );
+        let broad_bands = smoothstep(0.18, 0.84, fbm(vec3<f32>(
+          log(r + 0.35) * 2.25 + broad_turbulence * 0.8,
+          broad_flow.x * 0.72,
+          broad_flow.y * 0.72 + uni.u0.z * 0.017
+        )));
+        var dust = mix(0.48, 1.0, broad_turbulence) * mix(0.76, 1.12, filament_turbulence);
+        dust = dust * mix(0.90, 1.04, broad_bands);
+        let opacity = edge * smoothstep(0.20, 0.90, dust) * in_band;
 
         let heat = pow(1.0 - norm_r, 0.74);
         var color = blackbody_disk(heat);
@@ -737,7 +755,7 @@
         return y + (h / 6.0) * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
       }
 
-      fn trace_geodesic(ro: vec3<f32>, rd0: vec3<f32>, jitter_seed: vec2<f32>) -> vec3<f32> {
+      fn trace_geodesic(ro: vec3<f32>, rd0: vec3<f32>) -> vec3<f32> {
         let horizon = uni.params.x;
         let schwarz_m = max(horizon * 0.5 * uni.params.y, 0.0001);
         let far_r = 72.0;
@@ -815,8 +833,39 @@
 
         let photon = exp(-abs(min_r - horizon * 1.55) * 8.5) * smoothstep(0.18, 1.4, uni.params.y);
         color = color + vec3<f32>(0.33, 0.58, 0.92) * photon * 0.075 * remaining;
-        let grain = hash21(jitter_seed + vec2<f32>(uni.u0.w * 13.1, uni.u0.z * 2.7)) - 0.5;
-        return max(color + grain * 0.002, vec3<f32>(0.0));
+        return max(color, vec3<f32>(0.0));
+      }
+
+      fn sample_offset(sample_index: i32, pixel: vec2<u32>) -> vec2<f32> {
+        var base = vec2<f32>(-0.27, 0.19);
+        if (sample_index == 1) {
+          base = vec2<f32>(0.29, -0.23);
+        } else if (sample_index == 2) {
+          base = vec2<f32>(-0.12, -0.35);
+        } else if (sample_index == 3) {
+          base = vec2<f32>(0.36, 0.31);
+        }
+
+        let temporal_amount = 1.0 - step(0.999, uni.toggles.w);
+        let random = hash22(
+          vec2<f32>(pixel) +
+          vec2<f32>(
+            f32(sample_index) * 41.17 + uni.u0.w * 17.31,
+            f32(sample_index) * 113.7 + uni.u0.w * 29.73
+          )
+        ) - vec2<f32>(0.5);
+        return clamp(mix(base, random, temporal_amount * 0.62), vec2<f32>(-0.48), vec2<f32>(0.48));
+      }
+
+      fn ray_for_pixel(pixel: vec2<u32>, res: vec2<f32>, offset: vec2<f32>) -> vec3<f32> {
+        var uv = (vec2<f32>(pixel) + vec2<f32>(0.5) + offset) / res;
+        uv = uv * 2.0 - vec2<f32>(1.0);
+        uv.x = uv.x * res.x / max(res.y, 1.0);
+        return normalize(
+          uni.forward.xyz +
+          uni.right.xyz * uv.x * uni.params.w +
+          uni.up.xyz * uv.y * uni.params.w
+        );
       }
 
       @compute @workgroup_size(8, 8, 1)
@@ -828,18 +877,13 @@
 
         let pixel = vec2<i32>(gid.xy);
         let res = vec2<f32>(f32(dims.x), f32(dims.y));
-        let jitter = hash22(vec2<f32>(gid.xy) + vec2<f32>(uni.u0.w * 19.37, uni.u0.w * 7.91)) - vec2<f32>(0.5);
-        var uv = (vec2<f32>(gid.xy) + vec2<f32>(0.5) + jitter * 0.82) / res;
-        uv = uv * 2.0 - vec2<f32>(1.0);
-        uv.x = uv.x * res.x / max(res.y, 1.0);
+        var sample_color = vec3<f32>(0.0);
+        for (var sample_index = 0; sample_index < SAMPLES_PER_PIXEL; sample_index = sample_index + 1) {
+          let rd = ray_for_pixel(gid.xy, res, sample_offset(sample_index, gid.xy));
+          sample_color = sample_color + trace_geodesic(uni.camera.xyz, rd);
+        }
+        sample_color = sample_color / f32(SAMPLES_PER_PIXEL);
 
-        let rd = normalize(
-          uni.forward.xyz +
-          uni.right.xyz * uv.x * uni.params.w +
-          uni.up.xyz * uv.y * uni.params.w
-        );
-
-        let sample_color = trace_geodesic(uni.camera.xyz, rd, vec2<f32>(gid.xy));
         var accum = sample_color;
         if (uni.u0.w > 0.5) {
           let previous = textureLoad(prevAccum, pixel, 0).rgb;
@@ -853,7 +897,7 @@
       struct Uniforms {
         u0: vec4<f32>,
         camera: vec4<f32>,
-        target: vec4<f32>,
+        look_at: vec4<f32>,
         right: vec4<f32>,
         up: vec4<f32>,
         forward: vec4<f32>,
@@ -898,14 +942,13 @@
       }
 
       @fragment
-      fn fs(in: VertexOut, @builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
+      fn fs(in: VertexOut) -> @location(0) vec4<f32> {
         var color = textureSampleLevel(accumTex, accumSampler, in.uv, 0.0).rgb;
         color = color * uni.toggles.z;
         let highlight = max(max(color.r, color.g), color.b);
         color = color + color * smoothstep(0.75, 2.4, highlight) * 0.16;
         color = aces_tone(color);
-        let grain = hash21(fragCoord.xy + vec2<f32>(floor(uni.u0.z * 24.0), uni.u0.w)) - 0.5;
-        color = max(color + grain * 0.004, vec3<f32>(0.0));
+        color = max(color, vec3<f32>(0.0));
         color = pow(color, vec3<f32>(0.454545));
         return vec4<f32>(color, 1.0);
       }
@@ -935,6 +978,10 @@
     const tmpRight = new THREE.Vector3();
     const tmpUp = new THREE.Vector3();
     const worldUp = new THREE.Vector3(0, 1, 0);
+    const prevCameraPosition = new THREE.Vector3();
+    const prevTargetPosition = new THREE.Vector3();
+    let hasCameraSnapshot = false;
+    let historyAlpha = MOTION_HISTORY_ALPHA;
 
     async function checkedShaderModule(label, code) {
       const module = device.createShaderModule({ label, code });
@@ -1115,7 +1162,7 @@
       uniformData.set([tmpUp.x, tmpUp.y, tmpUp.z, 0], 16);
       uniformData.set([tmpForward.x, tmpForward.y, tmpForward.z, 0], 20);
       uniformData.set([state.mass, state.lensing, state.diskBrightness, fovScale], 24);
-      uniformData.set([state.diskEnabled ? 1 : 0, state.starsEnabled ? 1 : 0, 1.06, 0.12], 28);
+      uniformData.set([state.diskEnabled ? 1 : 0, state.starsEnabled ? 1 : 0, 1.06, historyAlpha], 28);
       device.queue.writeBuffer(uniformBuffer, 0, uniformData);
     }
 
@@ -1134,6 +1181,19 @@
       }
 
       controls.update();
+      const cameraMoved = !hasCameraSnapshot
+        || orbitCamera.position.distanceToSquared(prevCameraPosition) > CAMERA_MOTION_EPSILON
+        || controls.target.distanceToSquared(prevTargetPosition) > CAMERA_MOTION_EPSILON
+        || userDragging;
+
+      historyAlpha = cameraMoved ? MOTION_HISTORY_ALPHA : STILL_HISTORY_ALPHA;
+      if (cameraMoved) {
+        frameIndex = 0;
+        prevCameraPosition.copy(orbitCamera.position);
+        prevTargetPosition.copy(controls.target);
+        hasCameraSnapshot = true;
+      }
+
       updateUniforms();
 
       const writeIndex = 1 - textureIndex;
