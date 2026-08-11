@@ -48,12 +48,13 @@ Procedural tree generator with roots that grow around imported objects, exportin
 - **Key Features:** Three species (oak/spruce/banyan), per-species vigor economy, thigmotropism (contact branching), root wrap around obstacles, procedural bark/root/twig textures, WebGL2 viewport, OBJ import.
 - **Exports:** UsdPreviewSurface + UsdUVTexture materials, 64-byte-aligned USDZ archive, embeddable obstacles.
 
-### [№ 14 — Orogeny (S² Stream Power)](14_Orogeny/Orogeny_v002.html)
+### [№ 14 — Orogeny (S² Stream Power)](14_Orogeny/Orogeny_v003.html)
 Seamless planetary erosion — a whole planet held in erosional equilibrium.
 - **Scope:** Tectonic uplift, fluvial incision, sediment transport, impacts and deposition on a closed sphere.
 - **Key Features:** Equiangular cubed sphere with 1-texel ghost-cell halos, measured arc-length metric, Lagrangian droplets with a P2G/G2P grant cycle, drifting Euler-pole plates with subduction, local Airy isostasy, mass-conserving impacts, talus, lithification, raymarched shell.
 - **Method:** 6 × 512² crust-column array with the surface derived by isostasy; mass audit closes to 0.02% over 10,000 steps and 0.0003% per crater; isostatic rebound retains 90.7% of relief against 84.2% for rigid crust.
 - **Verification:** Built-in flat, isotropy and mass tests — cube corners perturb a diffusing feature by ≤0.12% of its amplitude.
+- **Versions:** [v001](14_Orogeny/Orogeny_v001.html) droplet erosion · [v002](14_Orogeny/Orogeny_v002.html) plates &amp; impacts · [v003](14_Orogeny/Orogeny_v003.html) crust, drift &amp; subduction.
 
 ---
 
