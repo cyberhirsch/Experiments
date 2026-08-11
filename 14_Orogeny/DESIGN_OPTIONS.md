@@ -267,6 +267,68 @@ falls back to the last good size rather than black-screening.
 - *Resolution floor:* ~18 km cells at 6 × 512² and ~8 cells needed to read as a crater put
   the smallest honest impact at ~150 km. Basin-scale, not a cratered surface.
 
+## 14. Crust column and isostasy ✅ v003
+
+- **Terrain texture widened to (h, sed, tc, type); surface derived** ✅ — `h = uIsoK·tc`.
+  Crustal thickness is primary and conserved; the surface is where the column floats.
+  *Measured:* relief retained after 4,000 steps of pure erosion 84.2 % (rigid) → 88.3 %
+  (default 0.35) → 90.7 % (true Airy 0.152).
+- ⬜ *Bare damping factor on erosion* — one line, gets the rebound, but cannot express
+  "continents are high because the crust is thick" and leaves subduction fake.
+- ⬜ *Separate thickness texture* instead of widening the terrain texture — fewer bytes,
+  more bindings, more sync.
+- ⬜ *True Earth proportions, exaggerate only in the renderer* — honest units, but every
+  erosion constant needs re-deriving.
+- ⬜ *Flexural isostasy* — elastic plate spreading each load over a flexural wavelength
+  instead of the local column. The physically better model.
+- ⬜ *Separate sediment density* — sediment is lighter than crust and should float higher
+  per unit thickness; both are treated alike today.
+
+## 15. Advecting plates ✅ v003
+
+- **Plate id as a field, backtraced by the TOTAL accumulated angle** ✅ against the
+  immutable t=0 field, nearest sampling. Exact at any drift rate, and the label field
+  never diffuses. *Measured:* 5.45 % of cells changed plate over 6,000 steps.
+- ❌ **Incremental stepping against the previous frame** — never moved *at all*. At the
+  default rate one rebuild backtraces 0.16 of a cell; nearest rounds it to the same cell,
+  forever. A silent no-op that looked like a working feature.
+- ⬜ *Raise the drift rate until incremental stepping clears a cell per rebuild* — works,
+  but couples plate speed to grid resolution.
+- **Uplift rebuilt from the field every 50 steps** ✅, margin distance from a local scan
+  for a differing id — no jump-flood, no blur, one pass.
+- ⬜ *Plate topology* — splitting, merging, vanishing. Geometry moves, topology does not,
+  so an ocean can never fully close.
+- ⬜ *ω from the current field rather than the t=0 field* — a cell that has changed hands
+  is currently carried by its old plate.
+- ⬜ *Mantle convection driving ω* instead of a fixed random draw.
+
+## 16. Subduction ✅ v003
+
+- **Type-driven rules on the advected field** ✅ — ocean–continent consumes the oceanic
+  side and raises an arc inboard; ocean–ocean gives an island arc; continent–continent
+  collides; divergent margins rift and create oceanic crust. *Measured:* mean oceanic
+  thickness 1.5e-4 → −3.8e-4 over 6,000 steps.
+- **The invariant changes, deliberately** ✅ — crust is created at ridges and destroyed at
+  trenches, so crustal volume is genuinely not conserved and forcing a zero-mean source
+  term would be wrong. The budget is reported instead: −0.42 % over 6,000 steps,
+  consumption slightly outrunning creation, consistent with 3.8 % convergent against
+  3.2 % divergent margins. Subduction off restores strict conservation.
+- ⬜ *Crust age driving buoyancy* — the real mechanism (oceanic lithosphere goes
+  negatively buoyant past ~20–30 Myr), and it would let the older plate subduct at
+  ocean–ocean margins instead of type deciding.
+- ⬜ *Plate-area bookkeeping against 4πR²* — nothing enforces that destruction matches
+  creation.
+- ⬜ *Slab dip setting the arc offset* from convergence rate, rather than a slider.
+
+## 17. Test isolation ✅ v003
+
+- ❌ The flat test started failing once drifting plates had been used: it writes a uniform
+  uplift field, then the plate rebuild overwrote it mid-run. **The failure was real and my
+  first diagnosis — a stale page load — was wrong.** Tests now pin `P.source` for their
+  duration and restore it after.
+- ⬜ *A rebound regression test* in the panel alongside flat/isotropy/mass. The
+  84.2 → 90.7 % measurement is a one-off, not a guard.
+
 ## 13. Panel layout ✅ v002
 
 - **Four panels on a pointer-transparent CSS grid** ✅ — container never eats a drag, each

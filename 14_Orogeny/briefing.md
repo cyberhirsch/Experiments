@@ -6,10 +6,10 @@ Tectonic uplift raises relief, rivers cut it back down, sediment fills the basin
 builds deltas at sea level. Because uplift and erosion balance, the simulation has no
 end state: it runs indefinitely rather than decaying to a smooth sphere.
 
-*Status: **v002 built** — still in `Orogeny_v001.html`, single file, WebGL2, no
-dependencies. v001 was droplet erosion on a noise uplift field; v002 adds the four-panel
-instrument layout, Euler-pole plate tectonics and mass-conserving impacts. See
-[ROADMAP.md](ROADMAP.md).*
+*Status: **v003 built** — `Orogeny_v002.html`, single file, WebGL2, no dependencies.
+v001 was droplet erosion on a noise uplift field; v002 added the four-panel layout,
+Euler-pole plates and impacts; v003 adds the crust column with local Airy isostasy,
+advecting plates and subduction. See [ROADMAP.md](ROADMAP.md).*
 
 ---
 
@@ -36,6 +36,39 @@ took the drift per crater from −0.156 % to −0.0003 %.
 
 Both are logged with their measurements in [ROADMAP.md](ROADMAP.md) and
 [DESIGN_OPTIONS.md](DESIGN_OPTIONS.md).
+
+---
+
+## v003 additions
+
+**The surface stopped being the primary variable.** The terrain texture is now
+`(h, sed, tc, type)` and `h = uIsoK·tc` — crustal thickness is what is conserved, the
+surface is wherever that column floats. Tectonics thickens the column; erosion removes
+mass and only `uIsoK` of it reaches the surface. That asymmetry is isostatic rebound, and
+it is why mountain ranges persist. Measured with uplift off over 4,000 steps of pure
+erosion, relief retained goes **84.2 % rigid → 88.3 % at the default → 90.7 % at true
+Airy (0.152)**.
+
+**Plates drift.** The plate id is a field now, carried by its own plate's rotation, with
+uplift rebuilt from it every 50 steps. 5.45 % of cells changed plate over 6,000 steps.
+The first implementation stepped incrementally and never moved at all — one rebuild
+backtraces 0.16 of a cell and nearest sampling rounds that away, forever. Backtracing by
+the *total accumulated angle* against the immutable t=0 field is exact at any rate and
+never diffuses the labels.
+
+**Subduction consumes.** Oceanic crust thins where it meets a continent (mean oceanic
+thickness 1.5e-4 → −3.8e-4 over 6,000 steps) and new crust appears at ridges.
+
+**This changes the invariant, deliberately.** Crust created at ridges and destroyed at
+trenches means crustal volume is genuinely not conserved, so the mass audit reports the
+budget rather than forcing it to zero: **−0.42 %** over 6,000 steps, consumption slightly
+outrunning creation — the expected regime given margins run 3.8 % convergent against
+3.2 % divergent. Turning subduction off restores v002's strict conservation.
+
+*Gotcha worth keeping:* the flat test began failing after the drifting-plate mode ran,
+because the test writes a uniform uplift field and the plate rebuild then overwrote it
+mid-run. The test now pins the source for its duration. My first instinct was to blame a
+stale page load; re-testing showed a real ordering bug.
 
 ---
 

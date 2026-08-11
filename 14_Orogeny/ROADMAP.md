@@ -69,27 +69,94 @@ rims are steep enough to drive the talus and grant clamps hard. A loss, not a so
 
 ---
 
-## v003 — crust and real tectonics
+## v003 — crust and real tectonics ✅
 
-**4. Crust column** ⬜ — *the gating piece*
-Per-cell thickness, density and age. Elevation from **local isostasy** rather than the
-current global mean-zero subtraction, which conserves volume correctly but is a stand-in,
-not the physics: a plateau should be high because the crust beneath it is doubled.
+**4. Crust column** ✅ — *the gating piece*
+The terrain texture became `(h, sed, tc, type)` and the **surface h is now derived**:
+`h = uIsoK · tc`. Crustal thickness `tc` is the primary, conserved quantity; the surface
+is wherever that column floats.
 
-Everything below is blocked on this.
+`uIsoK` is the fraction of a thickness change that reaches the surface. True Airy is
+`1 − ρc/ρm ≈ 0.152`: erode a kilometre off a range and it rebounds 850 m. Tectonics
+thickens the column, erosion removes mass from it and only `uIsoK` of that shows — the
+asymmetry between those two is the entire point.
 
-**5. Advecting plates** 🔒 — *uplift rung 3*
-Plate id carried with the crust, boundaries migrating, plates splitting and merging.
-A moving-boundary problem on a sphere.
+*Measured*, uplift off, 4,000 steps of pure erosion, relief retained:
+**84.2 % rigid (K=1) → 88.3 % at the K=0.35 default → 90.7 % at true Airy.** Isostatic
+rebound preserves relief, in the right direction and by a measurable amount.
 
-**6. Subduction** 🔒
-Needs 4 for the density inversion that drives it (oceanic lithosphere goes negatively
-buoyant past ~20–30 Myr — slab pull, not ridge push, does the work) and 5 to consume
-crust. Then the rules follow: ocean–continent gives a trench and an inboard arc,
-ocean–ocean sends the older plate down, continent–continent collides and thickens.
+Surface relief holds equilibrium unchanged (~0.017 over 8,000 steps) and crust-volume
+drift settles at −0.23 %.
 
-Constraint that makes this hard: total plate area is fixed at 4πR², so destruction at
-trenches must match creation at ridges or plates overlap and open gaps.
+*Chosen over:* (a) a bare damping factor on erosion — one line, captures the rebound, but
+cannot express "continents are high because the crust is thick" and leaves subduction
+fake; (b) a separate R32F thickness texture instead of widening the terrain texture —
+fewer bytes, more bindings and more passes to keep in sync; (c) running at true Earth
+proportions and exaggerating only in the renderer — honest units, but every erosion
+constant would need re-deriving. **Still open:** flexural isostasy (an elastic plate
+spreads the load over a flexural wavelength instead of responding locally), viscous
+relaxation with a real time constant, and separate sediment density — a sediment layer is
+lighter than crust and should float higher per unit thickness, which this model ignores.
+
+**5. Advecting plates** ✅ — *uplift rung 3*
+Plate id is now a **field**, seeded from the Voronoi and carried by its own plate's
+rotation, so margins migrate. Uplift is rebuilt from that field every 50 steps — margins
+move far slower than the framerate, the same amortisation № 11 uses for its connectivity
+sweep. Margin distance comes from a local scan for a differing id, so no jump-flood or
+blur pass was needed.
+
+*Gotcha:* the first version stepped the field incrementally against the previous frame,
+and **never moved at all**. At the default rate one rebuild backtraces 0.16 of a cell,
+which nearest sampling rounds to the same cell, forever. Replaced with an exact backtrace
+by the **total accumulated angle** against the immutable t=0 field: correct at any rate,
+and resampling the original each time means the label field never diffuses. Nearest, not
+linear, because an id is a label — blending 3 and 8 into 5.5 invents a plate.
+
+*Measured:* 5.45 % of cells changed plate over 6,000 steps at the default drift rate.
+
+*Chosen over:* raising the drift rate until incremental stepping clears a cell per
+rebuild — works, but couples plate speed to grid resolution. **Still open:** plates
+splitting, merging and vanishing (topology is fixed here, only geometry moves); ω taken
+from the initial field, so a cell that changed hands is carried by its old plate; and
+mantle convection actually driving ω instead of it being a fixed random draw.
+
+**6. Subduction** ✅
+With crust type as an advected field, the rules follow: ocean–continent consumes the
+oceanic side and raises an arc inboard, ocean–ocean gives an island arc,
+continent–continent collides and thickens, divergent margins rift and create new oceanic
+crust.
+
+*Measured:* mean oceanic crust thickness goes 1.5e-4 → −3.8e-4 over 6,000 steps — the
+oceanic plates are being consumed.
+
+**The invariant changes here, and that is correct.** Crust is created at ridges and
+destroyed at trenches, so crustal volume is genuinely no longer conserved; forcing the
+source term to zero mean would be wrong. The budget is reported instead of imposed:
+**−0.42 %** over 6,000 steps, i.e. consumption slightly outruns creation, which is the
+expected regime given margins run 3.8 % convergent against 3.2 % divergent. Switch
+subduction off and the strict conservation of v002 returns.
+
+**Still open:** true plate-area bookkeeping (total plate area is fixed at 4πR², and
+nothing here enforces that destruction matches creation); slab dip setting the arc
+offset from convergence rate rather than a slider; crust *age*, so oceanic lithosphere
+becomes negatively buoyant past ~20–30 Myr and decides for itself which side subducts,
+instead of type deciding it.
+
+---
+
+## Deferred from v003 — worth doing next
+
+- **Plate topology**: splitting, merging, vanishing. Geometry moves today; topology does
+  not, so an ocean can never fully close.
+- **Crust age** as a field, driving buoyancy. Replaces the binary ocean/continent type
+  with the real mechanism and lets the older plate subduct at ocean–ocean margins.
+- **Plate-area bookkeeping** against 4πR².
+- **Flexural isostasy** — an elastic plate spreading each load over a flexural wavelength,
+  rather than the purely local Airy column used now.
+- **Separate sediment density** — sediment is lighter than crust and should float higher
+  per unit thickness. Currently both are treated alike.
+- **A rebound verification test** in the panel, alongside flat/isotropy/mass: the
+  84.2 → 90.7 % measurement is currently a one-off, not a regression guard.
 
 ---
 
@@ -132,8 +199,11 @@ boundaries.
 
 ## Known limitations carried forward
 
-- **Mean-zero uplift is not isostasy.** It conserves volume globally; real isostasy is
-  local. Item 4 fixes this and gates items 5 and 6.
+- **Isostasy is local Airy, not flexural**, and runs at a compromise `uIsoK` rather than
+  the true 0.152, because the true value collapses this model's exaggerated relief.
+- **With subduction on, crustal volume is not conserved** — by design; crust exchanges
+  with the mantle. The budget is reported, not imposed. Turn subduction off for the
+  strict-conservation regime.
 - **Erosive throughput is bounded by droplet coverage**, not erodibility. The uplift rate
   is scaled by coverage to compensate; item 9 would change this relationship.
 - **The flat test is necessary, not sufficient** — on a uniform field a wrong metric
