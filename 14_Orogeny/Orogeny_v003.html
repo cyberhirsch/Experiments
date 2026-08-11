@@ -143,6 +143,7 @@
   <!-- ── LEFT · tectonics and impacts ───────────────────────────────── -->
   <div id="left" class="panel">
     <h2>Tectonics</h2>
+    <div class="chk"><input id="onTect" type="checkbox" checked><label for="onTect">Tectonics active</label></div>
     <div class="grp">Uplift</div>
     <div class="row"><label>Source</label>
       <select id="source">
@@ -185,6 +186,7 @@
       rebounds 850 m, which is why ranges persist.</div>
 
     <div class="grp">Impacts</div>
+    <div class="chk"><input id="onImp" type="checkbox" checked><label for="onImp">Impacts active</label></div>
     <div class="row"><label>Bombardment <b id="vImp">0.00</b></label>
       <input id="imp" type="range" min="0" max="1" step="0.01" value="0"></div>
     <div class="row"><label>Min radius <b id="vIMin">0.030</b></label>
@@ -200,6 +202,7 @@
   <!-- ── RIGHT · erosion and fluids ─────────────────────────────────── -->
   <div id="right" class="panel">
     <h2>Erosion</h2>
+    <div class="chk"><input id="onEro" type="checkbox" checked><label for="onEro">Erosion active</label></div>
     <div class="grp">Water</div>
     <div class="row"><label>Rain rate <b id="vRain">1.00</b></label>
       <input id="rain" type="range" min="0" max="3" step="0.02" value="1"></div>
@@ -305,6 +308,7 @@ const P = {
   source:0, plateN:22, bwidth:0.045, contFrac:0.42, arcOff:0.055,
   bombard:0.0, impMin:0.030, impMax:0.090,
   isoK:0.35, drift:0.5, subduct:1,
+  tectonics:1, impacts:1, erosion:1,
   steps:300, pixScale:0.85
 };
 
@@ -1677,7 +1681,7 @@ function substep(dt){
 
   // 0 — advected plates: drift the id field and rebuild the source term from it.
   // Amortised, because margins migrate far slower than the framerate.
-  if (P.source === 2){
+  if (P.source === 2 && P.tectonics){
     plateAngle += P.drift*DRIFT_SCALE*dt;
     if (frameNo % PLATE_EVERY === 0){ advectPlates(); upliftFromField(); }
   }
@@ -1689,16 +1693,23 @@ function substep(dt){
   gl.uniform1i(U(pStep,'uU'), unit(2, Uf));
   gl.uniform1i(U(pStep,'uA'), unit(3, MA));
   gl.uniform1f(U(pStep,'uDt'), dt);
-  gl.uniform1f(U(pStep,'uUplift'), P.uplift*UPLIFT_SCALE);
+  // The master switches gate their own terms here rather than in the shader, so
+  // pass 1 always runs and the ping-pong bookkeeping never changes shape.
+  gl.uniform1f(U(pStep,'uUplift'), P.uplift*UPLIFT_SCALE*P.tectonics);
   gl.uniform1f(U(pStep,'uUMean'), UMEAN);
-  gl.uniform1f(U(pStep,'uLith'), 0.02);
+  gl.uniform1f(U(pStep,'uLith'), P.erosion ? 0.02 : 0.0);
   gl.uniform1f(U(pStep,'uSedMax'), 0.0015);
   // the dx² normaliser lives in the coefficient, so 0…1 stays inside the
   // explicit-diffusion stability limit at every resolution
-  gl.uniform1f(U(pStep,'uCreep'), P.creep*0.05*Math.pow(1.5708/N, 2));
+  gl.uniform1f(U(pStep,'uCreep'), P.creep*0.05*Math.pow(1.5708/N, 2)*P.erosion);
   gl.viewport(0,0,NT,NT);
   for(let f=0; f<6; f++){ bindLayer(fb, T[1-cur], f); gl.uniform1i(U(pStep,'uFace'), f); drawQuad(); }
   cur = 1-cur;
+
+  // Erosion off: stop here. Pass 1 has already applied uplift (and nothing else,
+  // since creep and lithification were gated to zero), so the ping-pong is in a
+  // consistent state and the droplet/talus passes simply do not run.
+  if (!P.erosion){ frameNo++; simTime += dt; return; }
 
   // 2 — droplets :  DP/DV[cur] → DP/DV[1-cur], deltas → DE
   gl.useProgram(pDrop); setGrid(pDrop);
@@ -2027,11 +2038,14 @@ document.getElementById('tMass').onclick = () => {
 
 document.getElementById('tFlat').onclick = () => {
   // uniform shell + uniform uplift + no droplets: any six-fold pattern is a metric bug
-  const keep = { init:P.initMode, rain:P.rain, source:P.source };
+  const keep = { init:P.initMode, rain:P.rain, source:P.source,
+                 tect:P.tectonics, ero:P.erosion, imp:P.impacts };
   P.initMode = 1; P.rain = 0;
   // Drifting plates rebuild the uplift field mid-run, which would overwrite the
   // uniform source term this test depends on. Pin the source for the duration.
-  P.source = 0;
+  // The master switches are pinned too: the test needs uplift and the creep and
+  // talus passes actually running, and a stray impact would wreck it.
+  P.source = 0; P.tectonics = 1; P.erosion = 1; P.impacts = 0;
   buildUplift(true);                      // uniform source term
   UMEAN = 0;                              // ...and don't subtract it, or the test drives nothing
   buildTerrain(); seedDroplets();
@@ -2052,6 +2066,7 @@ document.getElementById('tFlat').onclick = () => {
      + (ok ? `<span class="ok">uniform — no face pattern</span>`
            : `<span class="bad">NON-UNIFORM — metric bug</span>`));
   P.initMode = keep.init; P.rain = keep.rain; P.source = keep.source;
+  P.tectonics = keep.tect; P.erosion = keep.ero; P.impacts = keep.imp;
   buildSource();
 };
 
@@ -2063,8 +2078,10 @@ document.getElementById('tIso').onclick = () => {
      diffusion the bump must stay axisymmetric, and the corner must behave
      exactly like the face centre — which is only true if the metric weights,
      the halo and the corner ghost cells are all right. */
-  const keep = { init:P.initMode, rain:P.rain, creep:P.creep, up:P.uplift, source:P.source };
+  const keep = { init:P.initMode, rain:P.rain, creep:P.creep, up:P.uplift, source:P.source,
+                 ero:P.erosion, imp:P.impacts };
   P.initMode = 2; P.rain = 0; P.creep = 1.0; P.uplift = 0; P.source = 0;
+  P.erosion = 1; P.impacts = 0;      // creep is the thing under test; no stray craters
   buildTerrain(); seedDroplets();
   gl.disable(gl.BLEND);
   const K = 400;
@@ -2108,7 +2125,7 @@ document.getElementById('tIso').onclick = () => {
        : `<span class="bad">anisotropy ${(worst*100).toFixed(1)} % of peak</span>`;
   note(txt);
   P.initMode = keep.init; P.rain = keep.rain; P.creep = keep.creep; P.uplift = keep.up;
-  P.source = keep.source;
+  P.source = keep.source; P.erosion = keep.ero; P.impacts = keep.imp;
 };
 
 /* ═══════════════════════════ UI ═══════════════════════════ */
@@ -2142,6 +2159,16 @@ slider('imin','vIMin','impMin',1,v=>v.toFixed(3));
 slider('imax','vIMax','impMax',1,v=>v.toFixed(3));
 $('strike').onclick = () => { const s = strike(); note(`<b>impact</b>  radius ${s.radius.toFixed(3)} rad `
   + `(${(s.radius*6371).toFixed(0)} km)\ndepth ${s.depth.toFixed(4)}`); };
+
+// master switches. Each gates its own subsystem; the rest keeps running, so you
+// can watch tectonics build relief with erosion off, or let erosion strip a
+// planet that is no longer being pushed up.
+function toggle(id, key, after){
+  $(id).onchange = e => { P[key] = e.target.checked ? 1 : 0; if (after) after(); };
+}
+toggle('onTect', 'tectonics');
+toggle('onImp',  'impacts', () => { $('strike').disabled = !P.impacts; });
+toggle('onEro',  'erosion');
 
 slider('pn','vPN','plateN',1,v=>v.toFixed(0));
 slider('bw','vBW','bwidth',1,v=>v.toFixed(3));
@@ -2194,7 +2221,7 @@ function frame(){
   if (!paused && P.dt > 0){
     substep(P.dt);
     // bombardment: expected strikes per step, so the slider reads as a rate
-    if (P.bombard > 0 && Math.random() < P.bombard*0.004) strike();
+    if (P.impacts && P.bombard > 0 && Math.random() < P.bombard*0.004) strike();
   }
   render();
 
