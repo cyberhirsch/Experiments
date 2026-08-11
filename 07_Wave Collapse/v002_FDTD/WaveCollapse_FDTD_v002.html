@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wave Collapse - FDTD</title>
+<style>
+html,body{height:100%;margin:0;overflow:hidden;background:#070809;color:#e6ecf2;font:12px JetBrains Mono,Consolas,monospace}
+body{display:grid;grid-template-rows:auto 1fr auto;background:radial-gradient(ellipse at 45% 45%,rgba(199,165,255,.1),transparent 52%),#070809}
+header,footer{padding:18px 28px;border-color:rgba(230,236,242,.12);z-index:2}header{border-bottom:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;align-items:baseline}footer{border-top:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+h1{font:italic 28px Cormorant Garamond,Georgia,serif;font-weight:300;margin:0}.meta,.dim{color:#5a6470}.hot{color:#c7a5ff}
+main{position:relative}canvas{position:absolute;inset:0;width:100%;height:100%;display:block}.read{position:absolute;right:28px;top:20px;text-align:right;color:#5a6470;line-height:1.8;text-transform:uppercase}.read b{color:#c7a5ff;font-weight:400}.left{position:absolute;left:28px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;color:#5a6470;text-transform:uppercase}.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap}input{width:118px;accent-color:#c7a5ff}label{color:#5a6470}button{background:transparent;border:1px solid rgba(230,236,242,.14);color:#5a6470;padding:7px 12px;text-transform:uppercase;cursor:pointer}button.active,button:hover{color:#c7a5ff;border-color:#c7a5ff}
+</style>
+</head>
+<body>
+<header><h1>No. 07 - FDTD</h1><div class="meta">finite-difference Schrodinger / complex boundaries / <span class="hot">absorbing edge</span></div></header>
+<main><canvas id="stage"></canvas><div class="left" id="status">GRID ACTIVE</div><div class="read">grid <b>192^2</b><br>norm <b id="norm">1.000</b><br>right <b id="leak">0.000</b><br>fps <b id="fps">0</b><br>step <b id="step">0</b></div></main>
+<footer><div class="dim">Explicit complex-grid integration through a shaped potential barrier</div><div class="controls"><label>Barrier <input id="barrier" type="range" min="0" max="4" step=".05" value="1.8"></label><label>Open <input id="gap" type="range" min="8" max="42" step="1" value="21"></label><button id="phase" class="active">Phase</button><button id="run" class="active">Run</button><button id="reset">Reset</button></div></footer>
+<script>
+const W=192,H=192,S=W*H,canvas=document.getElementById('stage'),ctx=canvas.getContext('2d'),re=new Float32Array(S),im=new Float32Array(S),nr=new Float32Array(S),ni=new Float32Array(S),pot=new Float32Array(S),img=ctx.createImageData(W,H);
+let running=true,phaseView=true,step=0,last=performance.now(),frames=0,acc=0;const $=id=>document.getElementById(id),id=(x,y)=>y*W+x;
+function buildPotential(){pot.fill(0);const bx=Math.floor(W*.54),gap=+$('gap').value,bar=+$('barrier').value;for(let y=0;y<H;y++)for(let dx=-2;dx<=2;dx++){const slit=Math.abs(y-H*.36)<gap/2||Math.abs(y-H*.64)<gap/2;if(!slit)pot[id(bx+dx,y)]=bar}for(let y=0;y<H;y++)for(let x=0;x<W;x++){const edge=Math.max(0,Math.max(12-x,x-W+13,12-y,y-H+13));pot[id(x,y)]+=edge*edge*.035}}
+function init(){re.fill(0);im.fill(0);buildPotential();let n=0;for(let y=0;y<H;y++)for(let x=0;x<W;x++){const dx=x-W*.22,dy=y-H*.5,a=Math.exp(-(dx*dx+dy*dy)/(2*15*15)),ph=dx*.44,i=id(x,y);re[i]=Math.cos(ph)*a;im[i]=Math.sin(ph)*a;n+=a*a}const inv=1/Math.sqrt(n);for(let i=0;i<S;i++){re[i]*=inv;im[i]*=inv}step=0}
+function tick(){const dt=.035,c=.11;let norm=0,leak=0;for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){const i=id(x,y),lapR=re[i-1]+re[i+1]+re[i-W]+re[i+W]-4*re[i],lapI=im[i-1]+im[i+1]+im[i-W]+im[i+W]-4*im[i];nr[i]=re[i]+dt*(-.5*lapI*c+pot[i]*im[i]);ni[i]=im[i]+dt*( .5*lapR*c-pot[i]*re[i])}for(let i=0;i<S;i++){re[i]=nr[i];im[i]=ni[i];const d=re[i]*re[i]+im[i]*im[i];norm+=d;if(i%W>W*.58)leak+=d}const inv=1/Math.sqrt(norm);for(let i=0;i<S;i++){re[i]*=inv;im[i]*=inv}$('norm').textContent=norm.toFixed(3);$('leak').textContent=leak.toFixed(3);step++}
+function draw(){let p=0;for(let i=0;i<S;i++){const d=re[i]*re[i]+im[i]*im[i],a=Math.atan2(im[i],re[i]),wall=pot[i]>1?80:0;let r,g,b;if(phaseView){r=(.5+.5*Math.cos(a))*255*d*1800+wall;g=(.5+.5*Math.cos(a+2.1))*255*d*1800+wall*.7;b=(.5+.5*Math.cos(a+4.2))*255*d*1800+wall*1.4}else{r=20+d*200000;g=35+d*260000;b=70+d*330000+wall}img.data[p++]=Math.min(255,r);img.data[p++]=Math.min(255,g);img.data[p++]=Math.min(255,b);img.data[p++]=255}ctx.imageSmoothingEnabled=false;ctx.putImageData(img,0,0);ctx.drawImage(canvas,0,0,W,H,0,0,canvas.width,canvas.height)}
+function resize(){const d=Math.min(devicePixelRatio||1,2),w=canvas.clientWidth*d,h=canvas.clientHeight*d;if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}}
+function frame(t){resize();if(running)for(let i=0;i<3;i++)tick();draw();frames++;acc+=(t-last)/1000;last=t;if(acc>.5){$('fps').textContent=Math.round(frames/acc);$('step').textContent=step;frames=0;acc=0}requestAnimationFrame(frame)}
+$('phase').onclick=()=>{phaseView=!phaseView;$('phase').classList.toggle('active',phaseView)};$('run').onclick=()=>{running=!running;$('run').classList.toggle('active',running);$('status').textContent=running?'GRID ACTIVE':'GRID PAUSED'};$('reset').onclick=init;$('barrier').oninput=buildPotential;$('gap').oninput=buildPotential;
+init();requestAnimationFrame(frame);
+</script>
+</body>
+</html>

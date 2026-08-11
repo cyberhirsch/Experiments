@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wave Collapse - SSFM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070809;
+    --ink:#e6ecf2;
+    --dim:#5a6470;
+    --accent:#7fc7ff;
+    --violet:#c7a5ff;
+    --line:rgba(230,236,242,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{
+    height:100%;
+    overflow:hidden;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'JetBrains Mono',monospace;
+  }
+  body{
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    background:
+      radial-gradient(ellipse at 32% 42%, rgba(127,199,255,0.075), transparent 46%),
+      radial-gradient(ellipse at 76% 58%, rgba(199,165,255,0.045), transparent 54%),
+      var(--bg);
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:100;
+    pointer-events:none;
+    opacity:.28;
+    mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.93' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.30 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  header{
+    padding:22px 32px 8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    border-bottom:1px solid var(--line);
+    z-index:2;
+  }
+  header h1{
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-weight:300;
+    font-size:26px;
+    letter-spacing:0;
+  }
+  header h1 .num{
+    font-family:'JetBrains Mono',monospace;
+    font-style:normal;
+    font-size:10px;
+    color:var(--dim);
+    margin-right:14px;
+    letter-spacing:0;
+  }
+  header .meta{
+    font-size:10px;
+    color:var(--dim);
+    letter-spacing:0;
+    text-transform:uppercase;
+  }
+  header .meta b{color:var(--accent);font-weight:400}
+  main{position:relative;overflow:hidden}
+  #stage{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+  }
+  .corner{
+    position:absolute;
+    z-index:3;
+    pointer-events:none;
+    font-size:9px;
+    color:var(--dim);
+    letter-spacing:0;
+    text-transform:uppercase;
+    line-height:1.7;
+  }
+  .corner.tl{top:18px;left:32px}
+  .corner.tr{top:18px;right:32px;text-align:right}
+  .corner.bl{bottom:18px;left:32px}
+  .corner.br{bottom:18px;right:32px;text-align:right}
+  .corner b{color:var(--accent);font-weight:400}
+  .corner .phase{color:var(--violet)}
+  .ornament{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:3;
+    pointer-events:none;
+    color:var(--dim);
+    font-family:'Cormorant Garamond',serif;
+    font-size:11px;
+    font-style:italic;
+    letter-spacing:0;
+  }
+  .ornament.top{top:14px}
+  .ornament.bot{bottom:14px}
+  .crosshair{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:1px;
+    height:1px;
+    z-index:2;
+    pointer-events:none;
+  }
+  .crosshair::before,.crosshair::after{content:"";position:absolute;background:var(--line)}
+  .crosshair::before{width:22px;height:1px;left:-11px;top:0}
+  .crosshair::after{width:1px;height:22px;left:0;top:-11px}
+  #status{
+    position:absolute;
+    left:32px;
+    top:50%;
+    transform:translateY(-50%) rotate(180deg);
+    writing-mode:vertical-rl;
+    z-index:3;
+    pointer-events:none;
+    color:var(--dim);
+    font-size:9px;
+    letter-spacing:0;
+  }
+  #readout{
+    position:absolute;
+    right:32px;
+    top:50%;
+    transform:translateY(-50%);
+    writing-mode:vertical-rl;
+    z-index:3;
+    pointer-events:none;
+    color:var(--dim);
+    font-size:9px;
+    letter-spacing:0;
+    line-height:2;
+    text-align:right;
+  }
+  #readout span{color:var(--accent)}
+  footer{
+    padding:14px 32px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:18px;
+    z-index:2;
+    color:var(--dim);
+    font-size:10px;
+    letter-spacing:0;
+    text-transform:uppercase;
+  }
+  footer .controls{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .slider-group{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:9px;
+    color:var(--dim);
+    letter-spacing:0;
+  }
+  input[type=range]{
+    -webkit-appearance:none;
+    appearance:none;
+    width:116px;
+    height:1px;
+    background:var(--line);
+    outline:none;
+    cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    appearance:none;
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    border:none;
+    background:var(--accent);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    border:none;
+    background:var(--accent);
+  }
+  .val{
+    min-width:58px;
+    color:var(--accent);
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  button{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--dim);
+    font:inherit;
+    font-size:9px;
+    letter-spacing:0;
+    padding:7px 12px;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:border-color .25s,color .25s,background .25s;
+  }
+  button:hover,button.active{
+    border-color:var(--accent);
+    color:var(--accent);
+    background:rgba(127,199,255,0.065);
+  }
+  .sep{width:1px;height:18px;background:var(--line)}
+  #toast{
+    position:absolute;
+    left:50%;
+    bottom:64px;
+    transform:translateX(-50%);
+    z-index:50;
+    pointer-events:none;
+    padding:8px 16px;
+    background:rgba(7,8,9,0.88);
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-size:10px;
+    letter-spacing:0;
+    text-transform:uppercase;
+    opacity:0;
+    transition:opacity .3s;
+  }
+  #toast.show{opacity:1}
+  @media (max-width: 820px){
+    header{display:block;padding:20px 20px 8px}
+    header .meta{margin-top:8px}
+    footer{display:block;padding:14px 20px}
+    footer > div:first-child{margin-bottom:12px}
+    footer .controls{justify-content:flex-start}
+    .corner.tl,.corner.bl{left:20px}
+    .corner.tr,.corner.br{right:20px}
+    #status{left:20px}
+    #readout{right:20px}
+    .ornament{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="num">No. 07 - VOL. I</span>Wave Collapse <span style="color:var(--dim);font-size:14px;font-style:normal"> - SSFM</span></h1>
+  <div class="meta">WebGPU FFT / split-step Fourier / <b>double slit barrier</b></div>
+</header>
+
+<main>
+  <div class="ornament top">- position phase - spectral kinetic drift - inverse transform -</div>
+  <div class="corner tl">state<br><b>psi = re + i im</b><br>grid <b id="grid-label">256^2</b></div>
+  <div class="corner tr">norm <b id="norm-label">1.000</b><br>right side <b id="leak-label">0.000</b><br>barrier <b id="barrier-label">28.0</b></div>
+  <div class="corner bl">solver<br><b>stockham fft</b><br><span class="phase">phase tint</span></div>
+  <div class="corner br">packet k <b id="k-label">32.0</b><br>slit width <b id="slit-label">0.13</b><br>webgpu v001</div>
+  <div class="crosshair"></div>
+  <div id="status">GPU INITIALIZING</div>
+  <div id="readout">fps <span id="fps">0</span> / t <span id="tt">0.0</span>s / step <span id="steps">0</span></div>
+  <canvas id="stage"></canvas>
+  <div class="ornament bot">- - -</div>
+</main>
+
+<footer>
+  <div>Periodic quantum packet through a double-slit potential field</div>
+  <div class="controls">
+    <div class="slider-group"><label>K</label><input id="s-k" type="range" min="8" max="58" step="1" value="32"><span id="v-k" class="val">32</span></div>
+    <div class="sep"></div>
+    <div class="slider-group"><label>Barrier</label><input id="s-barrier" type="range" min="0" max="60" step="0.5" value="28"><span id="v-barrier" class="val">28.0</span></div>
+    <div class="sep"></div>
+    <div class="slider-group"><label>Slit</label><input id="s-slit" type="range" min="0.05" max="0.23" step="0.01" value="0.13"><span id="v-slit" class="val">0.13</span></div>
+    <div class="sep"></div>
+    <button id="b-phase" class="active">Phase</button>
+    <button id="b-run" class="active">Run</button>
+    <button id="b-reset">Reset</button>
+  </div>
+</footer>
+<div id="toast"></div>
+
+<script type="module">
+const N = 256;
+const LOG_N = 8;
+const FIELD_SIZE = N * N;
+const WORKGROUP = 256;
+const DT = 0.018;
+const K_SCALE = 0.00062;
+
+const canvas = document.getElementById('stage');
+const statusEl = document.getElementById('status');
+const fpsEl = document.getElementById('fps');
+const timeEl = document.getElementById('tt');
+const stepEl = document.getElementById('steps');
+const normLabel = document.getElementById('norm-label');
+const leakLabel = document.getElementById('leak-label');
+const barrierLabel = document.getElementById('barrier-label');
+const kLabel = document.getElementById('k-label');
+const slitLabel = document.getElementById('slit-label');
+const toast = document.getElementById('toast');
+
+const controls = {
+  k: document.getElementById('s-k'),
+  kVal: document.getElementById('v-k'),
+  barrier: document.getElementById('s-barrier'),
+  barrierVal: document.getElementById('v-barrier'),
+  slit: document.getElementById('s-slit'),
+  slitVal: document.getElementById('v-slit'),
+  phase: document.getElementById('b-phase'),
+  run: document.getElementById('b-run'),
+  reset: document.getElementById('b-reset'),
+};
+
+const params = {
+  packetK: 32,
+  barrier: 28,
+  slitWidth: 0.13,
+  slitGap: 0.34,
+  phase: true,
+  running: true,
+};
+
+let device, context, format;
+let potentialPipeline, permutePipeline, stagePipeline, kineticPipeline, renderPipeline;
+let fieldBuffers = [];
+let renderUniformBuffer, readbackBuffer;
+let passPlan = [];
+let renderBindGroups = [];
+let currentBuffer = 0;
+let simTime = 0;
+let stepCount = 0;
+let lastFrame = performance.now();
+let fpsFrames = 0;
+let fpsAccum = 0;
+let statsTimer = 0;
+let readbackPending = false;
+let toastTimer = null;
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1400);
+}
+
+function syncUi() {
+  controls.k.value = String(params.packetK);
+  controls.kVal.textContent = params.packetK.toFixed(0);
+  controls.barrier.value = params.barrier.toFixed(1);
+  controls.barrierVal.textContent = params.barrier.toFixed(1);
+  controls.slit.value = params.slitWidth.toFixed(2);
+  controls.slitVal.textContent = params.slitWidth.toFixed(2);
+  controls.phase.classList.toggle('active', params.phase);
+  controls.run.classList.toggle('active', params.running);
+  barrierLabel.textContent = params.barrier.toFixed(1);
+  kLabel.textContent = params.packetK.toFixed(0);
+  slitLabel.textContent = params.slitWidth.toFixed(2);
+  statusEl.textContent = params.running ? 'SSFM ACTIVE' : 'SSFM PAUSED';
+}
+
+controls.k.addEventListener('input', () => {
+  params.packetK = Number(controls.k.value);
+  syncUi();
+});
+controls.barrier.addEventListener('input', () => {
+  params.barrier = Number(controls.barrier.value);
+  syncUi();
+});
+controls.slit.addEventListener('input', () => {
+  params.slitWidth = Number(controls.slit.value);
+  syncUi();
+});
+controls.phase.onclick = () => {
+  params.phase = !params.phase;
+  syncUi();
+  showToast(params.phase ? 'Phase tint enabled' : 'Density view enabled');
+};
+controls.run.onclick = () => {
+  params.running = !params.running;
+  syncUi();
+  showToast(params.running ? 'Evolution resumed' : 'Evolution paused');
+};
+
+const commonParams = `
+struct Params {
+  n: f32,
+  logN: f32,
+  dt: f32,
+  time: f32,
+  barrier: f32,
+  kScale: f32,
+  slitGap: f32,
+  slitWidth: f32,
+  axis: f32,
+  stage: f32,
+  inverse: f32,
+  scale: f32,
+  phaseView: f32,
+  exposure: f32,
+  packetK: f32,
+  pad0: f32,
+};
+
+fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
+  return vec2<f32>(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
+}
+
+fn cphase(angle: f32) -> vec2<f32> {
+  return vec2<f32>(cos(angle), sin(angle));
+}
+
+fn potentialAt(x: u32, y: u32, params: Params) -> f32 {
+  let n = u32(params.n);
+  let uv = (vec2<f32>(f32(x), f32(y)) + 0.5) / f32(n);
+  let p = uv * 2.0 - 1.0;
+  let wall = select(0.0, 1.0, abs(p.x - 0.08) < 0.026);
+  let slitA = abs(p.y - params.slitGap * 0.5) < params.slitWidth * 0.5;
+  let slitB = abs(p.y + params.slitGap * 0.5) < params.slitWidth * 0.5;
+  let opening = select(0.0, 1.0, slitA || slitB);
+  let lattice = 0.9 * sin((p.x + 0.4) * 7.0) * sin(p.y * 5.0);
+  return params.barrier * wall * (1.0 - opening) + lattice;
+}
+`;
+
+const potentialShader = `
+${commonParams}
+@group(0) @binding(0) var<storage, read> srcField: array<vec2<f32>>;
+@group(0) @binding(1) var<storage, read_write> dstField: array<vec2<f32>>;
+@group(0) @binding(2) var<uniform> params: Params;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let n = u32(params.n);
+  let id = gid.x;
+  if (id >= n * n) {
+    return;
+  }
+  let x = id % n;
+  let y = id / n;
+  let v = potentialAt(x, y, params);
+  let phase = cphase(-v * params.dt);
+  dstField[id] = cmul(srcField[id], phase);
+}
+`;
+
+const permuteShader = `
+${commonParams}
+@group(0) @binding(0) var<storage, read> srcField: array<vec2<f32>>;
+@group(0) @binding(1) var<storage, read_write> dstField: array<vec2<f32>>;
+@group(0) @binding(2) var<uniform> params: Params;
+
+fn bitReverse(v: u32, bits: u32) -> u32 {
+  var x = v;
+  var r = 0u;
+  for (var i = 0u; i < bits; i = i + 1u) {
+    r = (r << 1u) | (x & 1u);
+    x = x >> 1u;
+  }
+  return r;
+}
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let n = u32(params.n);
+  let id = gid.x;
+  if (id >= n * n) {
+    return;
+  }
+  let x = id % n;
+  let y = id / n;
+  let bits = u32(params.logN);
+  if (params.axis < 0.5) {
+    let xr = bitReverse(x, bits);
+    dstField[y * n + xr] = srcField[id];
+  } else {
+    let yr = bitReverse(y, bits);
+    dstField[yr * n + x] = srcField[id];
+  }
+}
+`;
+
+const stageShader = `
+${commonParams}
+@group(0) @binding(0) var<storage, read> srcField: array<vec2<f32>>;
+@group(0) @binding(1) var<storage, read_write> dstField: array<vec2<f32>>;
+@group(0) @binding(2) var<uniform> params: Params;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let n = u32(params.n);
+  let pairCount = (n * n) / 2u;
+  let id = gid.x;
+  if (id >= pairCount) {
+    return;
+  }
+
+  let half = 1u << u32(params.stage);
+  let block = half * 2u;
+  let pairsPerLine = n / 2u;
+  let line = id / pairsPerLine;
+  let pair = id % pairsPerLine;
+  let j = pair % half;
+  let blockIndex = pair / half;
+  let a0 = blockIndex * block + j;
+  let a1 = a0 + half;
+
+  var i0: u32;
+  var i1: u32;
+  if (params.axis < 0.5) {
+    i0 = line * n + a0;
+    i1 = line * n + a1;
+  } else {
+    i0 = a0 * n + line;
+    i1 = a1 * n + line;
+  }
+
+  let sign = select(-1.0, 1.0, params.inverse > 0.5);
+  let angle = sign * 6.28318530718 * f32(j) / f32(block);
+  let tw = cphase(angle);
+  let a = srcField[i0];
+  let b = cmul(srcField[i1], tw);
+  dstField[i0] = (a + b) * params.scale;
+  dstField[i1] = (a - b) * params.scale;
+}
+`;
+
+const kineticShader = `
+${commonParams}
+@group(0) @binding(0) var<storage, read> srcField: array<vec2<f32>>;
+@group(0) @binding(1) var<storage, read_write> dstField: array<vec2<f32>>;
+@group(0) @binding(2) var<uniform> params: Params;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+  let n = u32(params.n);
+  let id = gid.x;
+  if (id >= n * n) {
+    return;
+  }
+  let x = id % n;
+  let y = id / n;
+  var kx = f32(x);
+  var ky = f32(y);
+  if (x > n / 2u) {
+    kx = f32(i32(x) - i32(n));
+  }
+  if (y > n / 2u) {
+    ky = f32(i32(y) - i32(n));
+  }
+  let k2 = kx * kx + ky * ky;
+  let phase = cphase(-0.5 * k2 * params.kScale * params.dt);
+  dstField[id] = cmul(srcField[id], phase);
+}
+`;
+
+const renderShader = `
+${commonParams}
+struct VsOut {
+  @builtin(position) position: vec4<f32>,
+  @location(0) uv: vec2<f32>,
+};
+
+@group(0) @binding(0) var<storage, read> field: array<vec2<f32>>;
+@group(0) @binding(1) var<uniform> params: Params;
+
+fn phaseColor(a: f32) -> vec3<f32> {
+  return 0.52 + 0.48 * cos(a + vec3<f32>(0.0, 2.0943951, 4.1887902));
+}
+
+fn barrierMask(uv: vec2<f32>, params: Params) -> f32 {
+  let p = uv * 2.0 - 1.0;
+  let wall = select(0.0, 1.0, abs(p.x - 0.08) < 0.026);
+  let slitA = abs(p.y - params.slitGap * 0.5) < params.slitWidth * 0.5;
+  let slitB = abs(p.y + params.slitGap * 0.5) < params.slitWidth * 0.5;
+  let opening = select(0.0, 1.0, slitA || slitB);
+  return wall * (1.0 - opening);
+}
+
+@vertex
+fn vs(@builtin(vertex_index) vertexIndex: u32) -> VsOut {
+  var pos = array<vec2<f32>, 3>(
+    vec2<f32>(-1.0, -3.0),
+    vec2<f32>( 3.0,  1.0),
+    vec2<f32>(-1.0,  1.0)
+  );
+  let p = pos[vertexIndex];
+  var out: VsOut;
+  out.position = vec4<f32>(p, 0.0, 1.0);
+  out.uv = p * 0.5 + 0.5;
+  return out;
+}
+
+@fragment
+fn fs(in: VsOut) -> @location(0) vec4<f32> {
+  let n = u32(params.n);
+  let uv = clamp(in.uv, vec2<f32>(0.0), vec2<f32>(0.99999));
+  let x = min(u32(uv.x * f32(n)), n - 1u);
+  let y = min(u32(uv.y * f32(n)), n - 1u);
+  let psi = field[y * n + x];
+  let density = dot(psi, psi);
+  let phase = atan2(psi.y, psi.x);
+  let hue = phaseColor(phase);
+  let amp = smoothstep(0.0, 0.00018, density);
+  var color = mix(vec3<f32>(0.004, 0.006, 0.011), hue, amp);
+  color += vec3<f32>(0.25, 0.65, 1.0) * smoothstep(0.00016, 0.0012, density) * 0.55;
+  if (params.phaseView < 0.5) {
+    color = vec3<f32>(0.006, 0.010, 0.018) + vec3<f32>(0.28, 0.68, 1.0) * smoothstep(0.0, 0.0007, density);
+  }
+  let barrier = barrierMask(uv, params);
+  color += vec3<f32>(0.55, 0.42, 1.0) * barrier * 0.42;
+  let grid = pow(abs(sin((uv.x - 0.54) * 180.0)), 14.0) * barrier;
+  color += vec3<f32>(0.65, 0.80, 1.0) * grid * 0.22;
+  return vec4<f32>(pow(max(color, vec3<f32>(0.0)), vec3<f32>(0.86)), 1.0);
+}
+`;
+
+function makeInitialField() {
+  const data = new Float32Array(FIELD_SIZE * 2);
+  const cx = -0.58;
+  const cy = 0.0;
+  const sigma = 0.115;
+  let norm = 0;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const nx = (x + 0.5) / N * 2 - 1;
+      const ny = (y + 0.5) / N * 2 - 1;
+      const dx = nx - cx;
+      const dy = ny - cy;
+      const envelope = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
+      const phase = params.packetK * nx;
+      const i = (y * N + x) * 2;
+      data[i] = Math.cos(phase) * envelope;
+      data[i + 1] = Math.sin(phase) * envelope;
+      norm += envelope * envelope;
+    }
+  }
+  const invNorm = 1 / Math.sqrt(norm);
+  for (let i = 0; i < data.length; i++) data[i] *= invNorm;
+  return data;
+}
+
+function createBufferFromData(data, usage) {
+  const buffer = device.createBuffer({
+    size: Math.ceil(data.byteLength / 4) * 4,
+    usage,
+    mappedAtCreation: true,
+  });
+  new Float32Array(buffer.getMappedRange()).set(data);
+  buffer.unmap();
+  return buffer;
+}
+
+function createBuffer(size, usage) {
+  return device.createBuffer({ size, usage });
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+  const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+    context.configure({ device, format, alphaMode:'opaque' });
+  }
+}
+
+function paramsArray(pass) {
+  const values = new Float32Array(16);
+  values[0] = N;
+  values[1] = LOG_N;
+  values[2] = pass.dtScale * DT;
+  values[3] = simTime;
+  values[4] = params.barrier;
+  values[5] = K_SCALE;
+  values[6] = params.slitGap;
+  values[7] = params.slitWidth;
+  values[8] = pass.axis || 0;
+  values[9] = pass.stage || 0;
+  values[10] = pass.inverse ? 1 : 0;
+  values[11] = pass.scale || 1;
+  values[12] = params.phase ? 1 : 0;
+  values[13] = 1.0;
+  values[14] = params.packetK;
+  return values;
+}
+
+function makeComputePass(pipeline, kind, axis, stage, inverse, scale, dtScale, workItems) {
+  const uniform = createBuffer(64, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+  const layout = pipeline.getBindGroupLayout(0);
+  const groups = [
+    device.createBindGroup({
+      layout,
+      entries: [
+        { binding:0, resource:{ buffer:fieldBuffers[0] } },
+        { binding:1, resource:{ buffer:fieldBuffers[1] } },
+        { binding:2, resource:{ buffer:uniform } },
+      ],
+    }),
+    device.createBindGroup({
+      layout,
+      entries: [
+        { binding:0, resource:{ buffer:fieldBuffers[1] } },
+        { binding:1, resource:{ buffer:fieldBuffers[0] } },
+        { binding:2, resource:{ buffer:uniform } },
+      ],
+    }),
+  ];
+  return { pipeline, kind, axis, stage, inverse, scale, dtScale, workItems, uniform, groups };
+}
+
+function buildPassPlan() {
+  passPlan = [];
+  const cells = FIELD_SIZE;
+  const pairs = FIELD_SIZE / 2;
+  const add = (...args) => passPlan.push(makeComputePass(...args));
+
+  add(potentialPipeline, 'potential-a', 0, 0, false, 1, 0.5, cells);
+
+  add(permutePipeline, 'fft-row-permute', 0, 0, false, 1, 0, cells);
+  for (let s = 0; s < LOG_N; s++) add(stagePipeline, 'fft-row-stage', 0, s, false, 1, 0, pairs);
+  add(permutePipeline, 'fft-col-permute', 1, 0, false, 1, 0, cells);
+  for (let s = 0; s < LOG_N; s++) add(stagePipeline, 'fft-col-stage', 1, s, false, 1, 0, pairs);
+
+  add(kineticPipeline, 'kinetic', 0, 0, false, 1, 1.0, cells);
+
+  add(permutePipeline, 'ifft-row-permute', 0, 0, true, 1, 0, cells);
+  for (let s = 0; s < LOG_N; s++) add(stagePipeline, 'ifft-row-stage', 0, s, true, s === LOG_N - 1 ? 1 / N : 1, 0, pairs);
+  add(permutePipeline, 'ifft-col-permute', 1, 0, true, 1, 0, cells);
+  for (let s = 0; s < LOG_N; s++) add(stagePipeline, 'ifft-col-stage', 1, s, true, s === LOG_N - 1 ? 1 / N : 1, 0, pairs);
+
+  add(potentialPipeline, 'potential-b', 0, 0, false, 1, 0.5, cells);
+}
+
+function buildRenderGroups() {
+  const layout = renderPipeline.getBindGroupLayout(0);
+  renderBindGroups = [
+    device.createBindGroup({
+      layout,
+      entries: [
+        { binding:0, resource:{ buffer:fieldBuffers[0] } },
+        { binding:1, resource:{ buffer:renderUniformBuffer } },
+      ],
+    }),
+    device.createBindGroup({
+      layout,
+      entries: [
+        { binding:0, resource:{ buffer:fieldBuffers[1] } },
+        { binding:1, resource:{ buffer:renderUniformBuffer } },
+      ],
+    }),
+  ];
+}
+
+function resetField() {
+  const data = makeInitialField();
+  const byteSize = data.byteLength;
+  for (const buffer of fieldBuffers) buffer.destroy();
+  if (readbackBuffer) readbackBuffer.destroy();
+  fieldBuffers = [
+    createBufferFromData(data, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST),
+    createBufferFromData(data, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST),
+  ];
+  readbackBuffer = createBuffer(byteSize, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST);
+  currentBuffer = 0;
+  simTime = 0;
+  stepCount = 0;
+  buildPassPlan();
+  buildRenderGroups();
+  showToast('Packet initialized');
+}
+
+controls.reset.onclick = () => resetField();
+
+function encodeSsfmStep(encoder) {
+  for (const passInfo of passPlan) {
+    device.queue.writeBuffer(passInfo.uniform, 0, paramsArray(passInfo));
+    const pass = encoder.beginComputePass();
+    pass.setPipeline(passInfo.pipeline);
+    pass.setBindGroup(0, passInfo.groups[currentBuffer]);
+    pass.dispatchWorkgroups(Math.ceil(passInfo.workItems / WORKGROUP));
+    pass.end();
+    currentBuffer = 1 - currentBuffer;
+  }
+}
+
+function encodeRender(encoder) {
+  const uniforms = paramsArray({ dtScale:0, axis:0, stage:0, inverse:false, scale:1 });
+  uniforms[12] = params.phase ? 1 : 0;
+  device.queue.writeBuffer(renderUniformBuffer, 0, uniforms);
+  const pass = encoder.beginRenderPass({
+    colorAttachments: [{
+      view: context.getCurrentTexture().createView(),
+      clearValue: { r:0.005, g:0.006, b:0.009, a:1 },
+      loadOp: 'clear',
+      storeOp: 'store',
+    }],
+  });
+  pass.setPipeline(renderPipeline);
+  pass.setBindGroup(0, renderBindGroups[currentBuffer]);
+  pass.draw(3, 1);
+  pass.end();
+}
+
+function scheduleStats() {
+  if (readbackPending || !readbackBuffer) return;
+  readbackPending = true;
+  const encoder = device.createCommandEncoder();
+  encoder.copyBufferToBuffer(fieldBuffers[currentBuffer], 0, readbackBuffer, 0, FIELD_SIZE * 8);
+  device.queue.submit([encoder.finish()]);
+  readbackBuffer.mapAsync(GPUMapMode.READ).then(() => {
+    const data = new Float32Array(readbackBuffer.getMappedRange().slice(0));
+    readbackBuffer.unmap();
+    let norm = 0;
+    let leak = 0;
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        const i = (y * N + x) * 2;
+        const d = data[i] * data[i] + data[i + 1] * data[i + 1];
+        norm += d;
+        if (x > Math.floor(N * 0.58)) leak += d;
+      }
+    }
+    normLabel.textContent = norm.toFixed(3);
+    leakLabel.textContent = leak.toFixed(3);
+    readbackPending = false;
+  }).catch(() => {
+    readbackPending = false;
+  });
+}
+
+function frame(now) {
+  resize();
+  const dt = Math.min((now - lastFrame) / 1000, 0.05);
+  lastFrame = now;
+  const encoder = device.createCommandEncoder();
+  if (params.running) {
+    encodeSsfmStep(encoder);
+    simTime += DT;
+    stepCount++;
+  }
+  encodeRender(encoder);
+  device.queue.submit([encoder.finish()]);
+
+  fpsAccum += dt;
+  fpsFrames++;
+  if (fpsAccum > 0.45) {
+    fpsEl.textContent = String(Math.round(fpsFrames / fpsAccum));
+    timeEl.textContent = simTime.toFixed(1);
+    stepEl.textContent = String(stepCount);
+    fpsAccum = 0;
+    fpsFrames = 0;
+  }
+  statsTimer += dt;
+  if (statsTimer > 0.9) {
+    scheduleStats();
+    statsTimer = 0;
+  }
+  requestAnimationFrame(frame);
+}
+
+async function init() {
+  if (!navigator.gpu) throw new Error('WebGPU is not available in this browser.');
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference:'high-performance' });
+  if (!adapter) throw new Error('No WebGPU adapter was found.');
+  device = await adapter.requestDevice();
+  device.addEventListener('uncapturederror', event => {
+    statusEl.textContent = 'WEBGPU ERROR';
+    console.error(event.error);
+  });
+
+  context = canvas.getContext('webgpu');
+  format = navigator.gpu.getPreferredCanvasFormat();
+  context.configure({ device, format, alphaMode:'opaque' });
+
+  potentialPipeline = device.createComputePipeline({ layout:'auto', compute:{ module:device.createShaderModule({ code:potentialShader }), entryPoint:'main' } });
+  permutePipeline = device.createComputePipeline({ layout:'auto', compute:{ module:device.createShaderModule({ code:permuteShader }), entryPoint:'main' } });
+  stagePipeline = device.createComputePipeline({ layout:'auto', compute:{ module:device.createShaderModule({ code:stageShader }), entryPoint:'main' } });
+  kineticPipeline = device.createComputePipeline({ layout:'auto', compute:{ module:device.createShaderModule({ code:kineticShader }), entryPoint:'main' } });
+  renderPipeline = device.createRenderPipeline({
+    layout:'auto',
+    vertex:{ module:device.createShaderModule({ code:renderShader }), entryPoint:'vs' },
+    fragment:{ module:device.createShaderModule({ code:renderShader }), entryPoint:'fs', targets:[{ format }] },
+    primitive:{ topology:'triangle-list' },
+  });
+  renderUniformBuffer = createBuffer(64, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+
+  resetField();
+  syncUi();
+  resize();
+  requestAnimationFrame(frame);
+}
+
+syncUi();
+init().catch(error => {
+  statusEl.textContent = 'WEBGPU UNAVAILABLE';
+  showToast(error.message || 'WebGPU initialization failed');
+  console.error(error);
+});
+</script>
+</body>
+</html>

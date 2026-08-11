@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Superfluid - Gross-Pitaevskii</title>
+<style>
+html,body{height:100%;margin:0;overflow:hidden;background:#070809;color:#e6ecf2;font:12px JetBrains Mono,Consolas,monospace}
+body{display:grid;grid-template-rows:auto 1fr auto;background:radial-gradient(ellipse at 50% 48%,rgba(127,199,255,.12),transparent 52%),#070809}
+header,footer{padding:18px 28px;border-color:rgba(230,236,242,.12);z-index:2}
+header{border-bottom:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;align-items:baseline}
+footer{border-top:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+h1{font:italic 28px Cormorant Garamond,Georgia,serif;font-weight:300;margin:0}.meta,.dim{color:#5a6470}.hot{color:#7fc7ff}
+main{position:relative}canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.read{position:absolute;right:28px;top:20px;text-align:right;color:#5a6470;line-height:1.8;text-transform:uppercase}.read b{color:#7fc7ff;font-weight:400}
+.left{position:absolute;left:28px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;color:#5a6470;text-transform:uppercase}
+.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap}label{color:#5a6470}input{width:120px;accent-color:#7fc7ff}button{background:transparent;border:1px solid rgba(230,236,242,.14);color:#5a6470;padding:7px 12px;text-transform:uppercase;cursor:pointer}button.active,button:hover{color:#7fc7ff;border-color:#7fc7ff}
+</style>
+</head>
+<body>
+<header><h1>No. 05 - Gross-Pitaevskii</h1><div class="meta">CPU pseudo-spectral split-step / norm preserving / <span class="hot">phase interference</span></div></header>
+<main>
+  <canvas id="stage"></canvas>
+  <div class="left" id="status">GPE ACTIVE</div>
+  <div class="read">grid <b>128^2</b><br>norm <b id="norm">1.000</b><br>energy <b id="energy">0.000</b><br>fps <b id="fps">0</b><br>step <b id="step">0</b></div>
+</main>
+<footer>
+  <div class="dim">Nonlinear Schrodinger evolution in a harmonic trap</div>
+  <div class="controls">
+    <label>G <input id="nonlin" type="range" min="0" max="90" step="1" value="42"></label>
+    <label>Trap <input id="trap" type="range" min="0" max="60" step="1" value="22"></label>
+    <button id="phase" class="active">Phase</button><button id="run" class="active">Run</button><button id="reset">Reset</button>
+  </div>
+</footer>
+<script>
+const N=128,S=N*N,DT=.006,TAU=Math.PI*2;
+const canvas=document.getElementById('stage'),ctx=canvas.getContext('2d');
+const re=new Float64Array(S),im=new Float64Array(S),tmpR=new Float64Array(S),tmpI=new Float64Array(S),pot=new Float64Array(S),img=ctx.createImageData(N,N);
+let running=true,phaseView=true,step=0,last=performance.now(),frames=0,acc=0;
+const $=id=>document.getElementById(id);
+function init(){
+  let norm=0;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const X=(x/N*2-1),Y=(y/N*2-1),r2=X*X+Y*Y;
+    const a=Math.exp(-r2*11)*(1+.18*Math.cos(12*Math.atan2(Y,X)));
+    const ph=4*Math.atan2(Y-.12,X+.08)-3*Math.atan2(Y+.16,X-.16);
+    const i=y*N+x;re[i]=Math.cos(ph)*a;im[i]=Math.sin(ph)*a;norm+=a*a;
+  }
+  norm=1/Math.sqrt(norm);for(let i=0;i<S;i++){re[i]*=norm;im[i]*=norm}
+  step=0;buildPotential();
+}
+function buildPotential(){const trap=+$('trap').value;for(let y=0;y<N;y++)for(let x=0;x<N;x++){const X=x/N*2-1,Y=y/N*2-1;pot[y*N+x]=trap*(X*X+Y*Y)*.5}}
+function fft1(r,i,off,stride,n,inv){for(let a=1,b=0;a<n;a++){let bit=n>>1;for(;b&bit;bit>>=1)b^=bit;b^=bit;if(a<b){const ia=off+a*stride,ib=off+b*stride;[r[ia],r[ib]]=[r[ib],r[ia]];[i[ia],i[ib]]=[i[ib],i[ia]]}}for(let len=2;len<=n;len<<=1){const ang=(inv?TAU:-TAU)/len,wr0=Math.cos(ang),wi0=Math.sin(ang);for(let a=0;a<n;a+=len){let wr=1,wi=0;for(let b=0;b<len/2;b++){const ia=off+(a+b)*stride,ib=off+(a+b+len/2)*stride;const tr=r[ib]*wr-i[ib]*wi,ti=r[ib]*wi+i[ib]*wr;r[ib]=r[ia]-tr;i[ib]=i[ia]-ti;r[ia]+=tr;i[ia]+=ti;const nw=wr*wr0-wi*wi0;wi=wr*wi0+wi*wr0;wr=nw}}}if(inv){for(let a=0;a<n;a++){const ia=off+a*stride;r[ia]/=n;i[ia]/=n}}}
+function fft2(r,i,inv){for(let y=0;y<N;y++)fft1(r,i,y*N,1,N,inv);for(let x=0;x<N;x++)fft1(r,i,x,N,N,inv)}
+function potentialHalf(){const g=+$('nonlin').value;for(let i=0;i<S;i++){const d=re[i]*re[i]+im[i]*im[i],a=-(pot[i]+g*d)*DT*.5,c=Math.cos(a),s=Math.sin(a),rr=re[i]*c-im[i]*s;im[i]=re[i]*s+im[i]*c;re[i]=rr}}
+function kinetic(){tmpR.set(re);tmpI.set(im);fft2(tmpR,tmpI,false);for(let y=0;y<N;y++)for(let x=0;x<N;x++){const kx=x<N/2?x:x-N,ky=y<N/2?y:y-N,k2=kx*kx+ky*ky,a=-.5*k2*.0022*DT,c=Math.cos(a),s=Math.sin(a),id=y*N+x,rr=tmpR[id]*c-tmpI[id]*s;tmpI[id]=tmpR[id]*s+tmpI[id]*c;tmpR[id]=rr}fft2(tmpR,tmpI,true);re.set(tmpR);im.set(tmpI)}
+function normalize(){let n=0,e=0;for(let i=0;i<S;i++){const d=re[i]*re[i]+im[i]*im[i];n+=d;e+=d*pot[i]}const inv=1/Math.sqrt(n);for(let i=0;i<S;i++){re[i]*=inv;im[i]*=inv}$('norm').textContent=n.toFixed(3);$('energy').textContent=e.toFixed(3)}
+function draw(){let p=0;for(let i=0;i<S;i++){const d=re[i]*re[i]+im[i]*im[i],a=Math.atan2(im[i],re[i]);let r,g,b;if(phaseView){r=(.5+.5*Math.cos(a))*255*d*900;g=(.5+.5*Math.cos(a+2.1))*255*d*900;b=(.5+.5*Math.cos(a+4.2))*255*d*900}else{r=30+d*90000;g=80+d*120000;b=120+d*140000}img.data[p++]=Math.min(255,r);img.data[p++]=Math.min(255,g);img.data[p++]=Math.min(255,b);img.data[p++]=255}ctx.imageSmoothingEnabled=false;ctx.putImageData(img,0,0);ctx.drawImage(canvas,0,0,N,N,0,0,canvas.width,canvas.height)}
+function resize(){const d=Math.min(devicePixelRatio||1,2),w=Math.max(1,canvas.clientWidth*d),h=Math.max(1,canvas.clientHeight*d);if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}}
+function frame(t){resize();if(running){potentialHalf();kinetic();potentialHalf();normalize();step++}draw();frames++;acc+=(t-last)/1000;last=t;if(acc>.5){$('fps').textContent=Math.round(frames/acc);$('step').textContent=step;frames=0;acc=0}requestAnimationFrame(frame)}
+$('phase').onclick=()=>{phaseView=!phaseView;$('phase').classList.toggle('active',phaseView)};$('run').onclick=()=>{running=!running;$('run').classList.toggle('active',running);$('status').textContent=running?'GPE ACTIVE':'GPE PAUSED'};$('reset').onclick=init;$('trap').oninput=buildPotential;
+init();requestAnimationFrame(frame);
+</script>
+</body>
+</html>

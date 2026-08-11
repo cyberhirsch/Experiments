@@ -1,0 +1,1499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Audio Visualizer - 3D Timbre Space</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070809;
+    --ink:#e6ecf2;
+    --dim:#5a6470;
+    --accent:#7fc7ff;
+    --warm:#ffb474;
+    --line:rgba(230,236,242,0.10);
+    --field:#101820;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{
+    height:100%;
+    background:var(--bg);
+    color:var(--ink);
+    overflow:hidden;
+    font-family:'JetBrains Mono',monospace;
+  }
+  body{
+    display:grid;
+    grid-template-rows:auto minmax(0,1fr) auto;
+    background:
+      radial-gradient(ellipse at 28% 18%,rgba(127,199,255,0.07),transparent 54%),
+      radial-gradient(ellipse at 76% 82%,rgba(255,180,116,0.04),transparent 58%),
+      var(--bg);
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:100;
+    pointer-events:none;
+    opacity:.28;
+    mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.33 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  header{
+    padding:22px 32px 8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    border-bottom:1px solid var(--line);
+    z-index:2;
+  }
+  header h1{
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-weight:300;
+    font-size:26px;
+    letter-spacing:0;
+  }
+  header h1 .num{
+    font-family:'JetBrains Mono',monospace;
+    font-style:normal;
+    font-size:10px;
+    color:var(--dim);
+    margin-right:14px;
+    letter-spacing:0;
+  }
+  header h1 .method{
+    color:var(--dim);
+    font-size:14px;
+    font-style:normal;
+  }
+  header .meta{
+    font-size:10px;
+    color:var(--dim);
+    letter-spacing:0;
+    text-transform:uppercase;
+  }
+  header .meta b{color:var(--accent);font-weight:400}
+  main{
+    position:relative;
+    min-height:0;
+    overflow:hidden;
+  }
+  #stage{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+    cursor:crosshair;
+    touch-action:none;
+  }
+  #side-status{
+    position:absolute;
+    left:9px;
+    top:50%;
+    transform:translateY(-50%) rotate(180deg);
+    writing-mode:vertical-rl;
+    font-size:8px;
+    color:var(--dim);
+    letter-spacing:0;
+    z-index:3;
+    pointer-events:none;
+  }
+  #toast{
+    position:absolute;
+    left:50%;
+    bottom:18px;
+    transform:translateX(-50%);
+    background:rgba(7,8,9,.90);
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-size:9px;
+    letter-spacing:0;
+    text-transform:uppercase;
+    padding:8px 14px;
+    opacity:0;
+    transition:opacity .25s;
+    pointer-events:none;
+    z-index:10;
+  }
+  #toast.show{opacity:1}
+  footer{
+    padding:14px 32px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:18px;
+    font-size:10px;
+    color:var(--dim);
+    letter-spacing:0;
+    text-transform:uppercase;
+    z-index:2;
+  }
+  footer .controls{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .control-group{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:9px;
+    color:var(--dim);
+  }
+  .val{
+    min-width:36px;
+    color:var(--accent);
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  .sep{
+    width:1px;
+    height:18px;
+    background:var(--line);
+  }
+  input[type=range]{
+    width:86px;
+    accent-color:var(--accent);
+  }
+  select,button{
+    background:rgba(7,8,9,.74);
+    border:1px solid var(--line);
+    color:var(--dim);
+    font:inherit;
+    font-size:9px;
+    letter-spacing:0;
+    padding:7px 9px;
+    text-transform:uppercase;
+    outline:none;
+  }
+  select{min-width:90px;cursor:pointer}
+  button{
+    cursor:pointer;
+    transition:border-color .25s,color .25s,background .25s;
+  }
+  button:hover,button.active,select:hover{
+    border-color:var(--accent);
+    color:var(--accent);
+    background:rgba(127,199,255,.06);
+  }
+  #file-input{display:none}
+  @media (max-width:900px){
+    header{padding:18px 20px 7px;display:block}
+    header .meta{margin-top:7px}
+    footer{display:block;padding:11px 20px}
+    footer>div:first-child{margin-bottom:9px}
+    footer .controls{justify-content:flex-start;gap:8px}
+    .sep{display:none}
+    input[type=range]{width:72px}
+  }
+  @media (max-width:560px){
+    header h1{font-size:22px}
+    header .meta{font-size:8px}
+    footer>div:first-child{display:none}
+    .control-group label{display:none}
+    .val{min-width:30px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="num">No. 12 - VOL. I</span>Audio Visualizer <span class="method"> - Timbre Space</span></h1>
+  <div class="meta">2048 sample STFT / <b id="source-meta">procedural birdsong</b> / <span id="fps-meta">0 fps</span></div>
+</header>
+
+<main>
+  <canvas id="stage" aria-label="Live three-dimensional timbre analysis with spectral descriptor plots"></canvas>
+  <div id="side-status">LISTENING FOR FIRST VERSE</div>
+  <div id="toast"></div>
+</main>
+
+<footer>
+  <div>Frequency color / amplitude radius / persistent verse networks</div>
+  <div class="controls">
+    <div class="control-group">
+      <label for="source">Source</label>
+      <select id="source">
+        <option value="demo" selected>Demo</option>
+        <option value="mic">Microphone</option>
+        <option value="file">Audio file</option>
+      </select>
+    </div>
+    <div class="sep"></div>
+    <div class="control-group">
+      <label for="point-size">Point</label>
+      <input id="point-size" type="range" min="0.7" max="4.5" step="0.1" value="2.2">
+      <span id="point-value" class="val">2.2</span>
+    </div>
+    <div class="control-group">
+      <label for="persistence">Life</label>
+      <input id="persistence" type="range" min="15" max="120" step="5" value="45">
+      <span id="persistence-value" class="val">45s</span>
+    </div>
+    <div class="control-group">
+      <label for="exposure">Gain</label>
+      <input id="exposure" type="range" min="0.6" max="2.4" step="0.05" value="1.2">
+      <span id="exposure-value" class="val">1.20</span>
+    </div>
+    <div class="sep"></div>
+    <button id="spin" class="active" type="button">Spin</button>
+    <button id="labels" class="active" type="button">Labels</button>
+    <button id="pause" type="button">Pause</button>
+    <button id="upload" type="button">File</button>
+    <button id="reset" type="button">Reset</button>
+  </div>
+</footer>
+<input id="file-input" type="file" accept="audio/*">
+
+<script>
+(() => {
+  'use strict';
+
+  const FFT_SIZE = 2048;
+  const BIN_COUNT = FFT_SIZE / 2;
+  const SAMPLE_RATE = 44100;
+  const PROCESS_INTERVAL = 44;
+  const RIDGES_PER_FRAME = 18;
+  const MAX_POINTS = 24000;
+  const MAX_HISTORY = 360;
+  const LINE_LIFETIME = 5.8;
+  const LINE_FADE_BUCKETS = 7;
+  const TAU = Math.PI * 2;
+
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  const sourceSelect = document.getElementById('source');
+  const fileInput = document.getElementById('file-input');
+  const sourceMeta = document.getElementById('source-meta');
+  const fpsMeta = document.getElementById('fps-meta');
+  const sideStatus = document.getElementById('side-status');
+  const toast = document.getElementById('toast');
+
+  const controls = {
+    pointSize:document.getElementById('point-size'),
+    pointValue:document.getElementById('point-value'),
+    persistence:document.getElementById('persistence'),
+    persistenceValue:document.getElementById('persistence-value'),
+    exposure:document.getElementById('exposure'),
+    exposureValue:document.getElementById('exposure-value'),
+    spin:document.getElementById('spin'),
+    labels:document.getElementById('labels'),
+    pause:document.getElementById('pause'),
+    upload:document.getElementById('upload'),
+    reset:document.getElementById('reset'),
+  };
+
+  const params = {
+    pointSize:2.2,
+    persistence:45,
+    exposure:1.2,
+    spin:true,
+    labels:true,
+    running:true,
+  };
+
+  const fftReal = new Float32Array(FFT_SIZE);
+  const fftImag = new Float32Array(FFT_SIZE);
+  const magnitude = new Float32Array(BIN_COUNT);
+  const previousMagnitude = new Float32Array(BIN_COUNT);
+  const timeData = new Float32Array(FFT_SIZE);
+  const hann = new Float32Array(FFT_SIZE);
+  for (let i=0;i<FFT_SIZE;i++) hann[i]=.5*(1-Math.cos(TAU*i/(FFT_SIZE-1)));
+
+  let dpr = 1;
+  let width = 1;
+  let height = 1;
+  let audioContext = null;
+  let analyser = null;
+  let sourceNode = null;
+  let micStream = null;
+  let sourceMode = 'demo';
+  let sampleOffset = 0;
+  let points = [];
+  let history = [];
+  let selectedPoint = null;
+  let latestPoint = null;
+  let startTime = performance.now() / 1000;
+  let lastProcess = 0;
+  let lastFrame = performance.now();
+  let fpsClock = lastFrame;
+  let fpsFrames = 0;
+  let toastTimer = 0;
+  let pointer = {x:-1000,y:-1000,down:false,lastX:0,lastY:0};
+  let view = {yaw:-.63,pitch:-.30,zoom:1};
+  let axisStats = createAxisStats();
+  let phraseState = createPhraseState();
+  let verses = [];
+  let ridgeTracks = new Map();
+
+  const colors = {
+    bg:'#070809',
+    ink:'#e6ecf2',
+    dim:'#5a6470',
+    accent:'#7fc7ff',
+    warm:'#ffb474',
+    line:'rgba(230,236,242,.10)',
+    lineStrong:'rgba(230,236,242,.18)',
+    panel:'rgba(10,13,16,.52)',
+  };
+
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+  function lerp(a,b,t){return a+(b-a)*t}
+  function smoothstep(a,b,v){
+    const t=clamp((v-a)/(b-a),0,1);
+    return t*t*(3-2*t);
+  }
+  function mapLogFrequency(hz){
+    return clamp(Math.log2(Math.max(80,hz)/80)/Math.log2(12000/80),0,1);
+  }
+  function createAxisStats(){
+    return {
+      centroid:{mean:0,variance:.0016,ready:false},
+      spread:{mean:0,variance:.0016,ready:false},
+      activity:{mean:0,variance:.0016,ready:false},
+    };
+  }
+  function centeredAxis(key,value){
+    const stat=axisStats[key];
+    if(!stat.ready){
+      stat.mean=value;
+      stat.ready=true;
+      return 0;
+    }
+    const delta=value-stat.mean;
+    const sigma=Math.sqrt(Math.max(stat.variance,.00012));
+    const position=Math.tanh(delta/sigma*.55)*.76;
+    const response=.014;
+    stat.mean+=delta*response;
+    stat.variance=lerp(stat.variance,delta*delta,response);
+    return position;
+  }
+  function createPhraseState(){
+    return {
+      active:false,
+      nextId:1,
+      loudFrames:0,
+      quietFrames:0,
+      noiseFloor:.008,
+      signalPresent:false,
+      current:null,
+    };
+  }
+  function makeVerseAnchor(id){
+    const goldenAngle=2.399963229728653;
+    const angle=id*goldenAngle;
+    const layer=(id-1)%7;
+    const radius=.10+layer*.035;
+    const y=(((id*.61803398875)%1)-.5)*.42;
+    return {
+      x:Math.cos(angle)*radius,
+      y,
+      z:Math.sin(angle)*radius,
+      direction:{
+        x:Math.cos(angle+.8)*.018,
+        y:(layer%2?1:-1)*.012,
+        z:Math.sin(angle+.8)*.018,
+      },
+    };
+  }
+  function beginVerse(now){
+    const id=phraseState.nextId++;
+    const placement=makeVerseAnchor(id);
+    const verse={
+      id,
+      start:now,
+      end:null,
+      anchor:{x:placement.x,y:placement.y,z:placement.z},
+      base:{x:placement.x,y:placement.y,z:placement.z},
+      direction:placement.direction,
+    };
+    phraseState.active=true;
+    phraseState.current=verse;
+    phraseState.quietFrames=0;
+    ridgeTracks.clear();
+    verses.push(verse);
+    sideStatus.textContent='VERSE '+String(id).padStart(2,'0')+' ACTIVE';
+  }
+  function endVerse(now){
+    if(phraseState.current)phraseState.current.end=now;
+    phraseState.active=false;
+    phraseState.current=null;
+    phraseState.loudFrames=0;
+    phraseState.quietFrames=0;
+    ridgeTracks.clear();
+    sideStatus.textContent='LISTENING FOR NEXT VERSE';
+  }
+  function updatePhraseState(features,now){
+    const amplitude=features.amplitude;
+    if(!phraseState.active){
+      phraseState.noiseFloor=lerp(phraseState.noiseFloor,amplitude,.035);
+    }else{
+      phraseState.noiseFloor=lerp(
+        phraseState.noiseFloor,
+        Math.min(amplitude,phraseState.noiseFloor*1.25),
+        .003
+      );
+    }
+    const threshold=clamp(phraseState.noiseFloor*2.15+.012,.024,.18);
+    const signalPresent=amplitude>threshold||(amplitude>.018&&features.flux>.075);
+    phraseState.signalPresent=signalPresent;
+
+    if(!phraseState.active){
+      phraseState.loudFrames=signalPresent?phraseState.loudFrames+1:0;
+      if(phraseState.loudFrames>=2)beginVerse(now);
+    }else{
+      phraseState.quietFrames=amplitude<threshold*.58?phraseState.quietFrames+1:0;
+      if(phraseState.quietFrames>=8)endVerse(now);
+    }
+    return phraseState.active;
+  }
+  function formatHz(hz){
+    return hz>=1000 ? (hz/1000).toFixed(hz>=10000?1:2)+' kHz' : Math.round(hz)+' Hz';
+  }
+  function showToast(message){
+    toast.textContent=message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>toast.classList.remove('show'),1600);
+  }
+
+  function resize(){
+    const rect=canvas.getBoundingClientRect();
+    dpr=Math.min(window.devicePixelRatio||1,2);
+    width=Math.max(1,Math.floor(rect.width));
+    height=Math.max(1,Math.floor(rect.height));
+    const pixelWidth=Math.max(1,Math.floor(width*dpr));
+    const pixelHeight=Math.max(1,Math.floor(height*dpr));
+    if(canvas.width!==pixelWidth||canvas.height!==pixelHeight){
+      canvas.width=pixelWidth;
+      canvas.height=pixelHeight;
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+    }
+  }
+
+  function fft(){
+    let j=0;
+    for(let i=1;i<FFT_SIZE;i++){
+      let bit=FFT_SIZE>>1;
+      for(;j&bit;bit>>=1) j^=bit;
+      j^=bit;
+      if(i<j){
+        let tmp=fftReal[i];fftReal[i]=fftReal[j];fftReal[j]=tmp;
+        tmp=fftImag[i];fftImag[i]=fftImag[j];fftImag[j]=tmp;
+      }
+    }
+    for(let len=2;len<=FFT_SIZE;len<<=1){
+      const half=len>>1;
+      const angle=-TAU/len;
+      const stepR=Math.cos(angle);
+      const stepI=Math.sin(angle);
+      for(let base=0;base<FFT_SIZE;base+=len){
+        let wr=1;
+        let wi=0;
+        for(let k=0;k<half;k++){
+          const even=base+k;
+          const odd=even+half;
+          const oddR=fftReal[odd]*wr-fftImag[odd]*wi;
+          const oddI=fftReal[odd]*wi+fftImag[odd]*wr;
+          const evenR=fftReal[even];
+          const evenI=fftImag[even];
+          fftReal[even]=evenR+oddR;
+          fftImag[even]=evenI+oddI;
+          fftReal[odd]=evenR-oddR;
+          fftImag[odd]=evenI-oddI;
+          const nextR=wr*stepR-wi*stepI;
+          wi=wr*stepI+wi*stepR;
+          wr=nextR;
+        }
+      }
+    }
+  }
+
+  function demoSignal(){
+    const t0=sampleOffset/SAMPLE_RATE;
+    const cycle=6.4;
+    for(let i=0;i<FFT_SIZE;i++){
+      const t=t0+i/SAMPLE_RATE;
+      const phrase=t%cycle;
+      const family=Math.floor(t/cycle)%4;
+      const jitter=Math.sin((sampleOffset+i)*12.9898)*43758.5453;
+      const noise=(jitter-Math.floor(jitter))-.5;
+      let signal=0;
+      let envelope=0;
+      let frequency=0;
+
+      if(phrase>.28&&phrase<1.42){
+        const u=(phrase-.28)/1.14;
+        envelope=Math.sin(Math.PI*u);
+        frequency=family%2===0?lerp(1750,5200,smoothstep(0,1,u)):lerp(4800,2100,u);
+        frequency+=Math.sin(u*TAU*5)*180;
+      }else if(phrase>1.72&&phrase<2.68){
+        const u=(phrase-1.72)/.96;
+        envelope=Math.sin(Math.PI*u)*(.58+.42*Math.pow(.5+.5*Math.sin(u*TAU*9),3));
+        frequency=2650+Math.sin(u*TAU*7)*720+family*95;
+      }else if(phrase>3.08&&phrase<3.70){
+        const u=(phrase-3.08)/.62;
+        envelope=Math.sin(Math.PI*u);
+        frequency=lerp(6200,3350,u)+Math.sin(u*TAU*3)*260;
+      }else if(phrase>4.02&&phrase<5.18){
+        const u=(phrase-4.02)/1.16;
+        envelope=Math.sin(Math.PI*u)*(.72+.28*Math.sin(u*TAU*12));
+        frequency=3400+Math.sin(u*TAU*4.5)*1250+Math.sin(u*TAU*13)*150;
+      }
+
+      if(envelope>0){
+        const vibrato=1+Math.sin(TAU*18*t)*.006;
+        const f=frequency*vibrato;
+        signal=.58*Math.sin(TAU*f*t);
+        signal+=.24*Math.sin(TAU*f*2.002*t+.35);
+        signal+=.11*Math.sin(TAU*f*3.006*t+1.1);
+        signal+=noise*.055;
+        signal*=envelope;
+      }else{
+        signal=noise*.0015;
+      }
+      timeData[i]=signal;
+    }
+    sampleOffset+=FFT_SIZE;
+  }
+
+  function computeFeatures(){
+    let rmsSum=0;
+    for(let i=0;i<FFT_SIZE;i++){
+      const sample=timeData[i];
+      rmsSum+=sample*sample;
+      fftReal[i]=sample*hann[i];
+      fftImag[i]=0;
+    }
+    fft();
+
+    let total=0;
+    let weighted=0;
+    let maxMagnitude=0;
+    let maxBin=1;
+    let logSum=0;
+    let fluxSum=0;
+    for(let i=1;i<BIN_COUNT;i++){
+      const re=fftReal[i];
+      const im=fftImag[i];
+      const mag=Math.sqrt(re*re+im*im)/FFT_SIZE;
+      magnitude[i]=mag;
+      total+=mag;
+      weighted+=mag*i;
+      logSum+=Math.log(Math.max(1e-12,mag));
+      fluxSum+=Math.max(0,mag-previousMagnitude[i]);
+      if(mag>maxMagnitude){maxMagnitude=mag;maxBin=i}
+    }
+
+    const centroidBin=total>1e-10?weighted/total:0;
+    let spreadSum=0;
+    for(let i=1;i<BIN_COUNT;i++){
+      const delta=i-centroidBin;
+      spreadSum+=delta*delta*magnitude[i];
+    }
+    const spreadBin=total>1e-10?Math.sqrt(spreadSum/total):0;
+    const target=total*.85;
+    let cumulative=0;
+    let rolloffBin=1;
+    for(let i=1;i<BIN_COUNT;i++){
+      cumulative+=magnitude[i];
+      if(cumulative>=target){rolloffBin=i;break}
+    }
+
+    const mean=total/(BIN_COUNT-1);
+    const crest=mean>1e-10?maxMagnitude/mean:0;
+    const flatness=mean>1e-10?Math.exp(logSum/(BIN_COUNT-1))/mean:0;
+    const rms=Math.sqrt(rmsSum/FFT_SIZE);
+    const db=20*Math.log10(Math.max(1e-6,rms));
+    const flux=total>1e-10?fluxSum/total:0;
+    const binHz=SAMPLE_RATE/FFT_SIZE;
+    const phase=Math.atan2(fftImag[maxBin],fftReal[maxBin]);
+
+    previousMagnitude.set(magnitude);
+    return {
+      centroid:centroidBin*binHz,
+      spread:spreadBin*binHz,
+      rolloff:rolloffBin*binHz,
+      activeFrequency:maxBin*binHz,
+      amplitude:clamp(rms*1.75,0,1),
+      db:clamp(db,-90,0),
+      crest:clamp(crest,0,80),
+      flux:clamp(flux,0,1.5),
+      harmonicity:clamp(1-flatness,0,1),
+      phase,
+      peakMagnitude:maxMagnitude,
+    };
+  }
+
+  function describeFrame(features){
+    const centroidN=mapLogFrequency(features.centroid);
+    const spreadN=clamp(Math.log2(1+features.spread/80)/Math.log2(1+7000/80),0,1);
+    const rolloffN=mapLogFrequency(features.rolloff);
+    const fluxN=clamp(features.flux*3.5,0,1);
+    const crestN=clamp(Math.log2(1+features.crest)/Math.log2(50),0,1);
+    const activityN=clamp(fluxN*.52+crestN*.32+(1-features.harmonicity)*.16,0,1);
+    return {centroidN,spreadN,rolloffN,fluxN,crestN,activityN};
+  }
+
+  function makeVersePoints(features,descriptor,now,verse){
+    const verseAge=now-verse.start;
+    const targetBase={
+      x:verse.anchor.x+centeredAxis('centroid',descriptor.centroidN)*.24+verse.direction.x*Math.min(verseAge,12),
+      y:verse.anchor.y+centeredAxis('spread',descriptor.spreadN)*.24+verse.direction.y*Math.min(verseAge,12),
+      z:verse.anchor.z+centeredAxis('activity',descriptor.activityN)*.24+verse.direction.z*Math.min(verseAge,12),
+    };
+    verse.base={
+      x:lerp(verse.base.x,targetBase.x,.055),
+      y:lerp(verse.base.y,targetBase.y,.055),
+      z:lerp(verse.base.z,targetBase.z,.055),
+    };
+    const emitted=[];
+    const lowBin=4;
+    const highBin=Math.min(BIN_COUNT-2,700);
+    const logRange=Math.log(highBin/lowBin);
+
+    for(let track=0;track<RIDGES_PER_FRAME;track++){
+      const bandStart=Math.max(lowBin,Math.floor(lowBin*Math.exp(logRange*track/RIDGES_PER_FRAME)));
+      const bandEnd=Math.max(bandStart+1,Math.floor(lowBin*Math.exp(logRange*(track+1)/RIDGES_PER_FRAME)));
+      let activeBin=bandStart;
+      let bandPeak=0;
+      for(let bin=bandStart;bin<=Math.min(bandEnd,highBin);bin++){
+        if(magnitude[bin]>bandPeak){
+          bandPeak=magnitude[bin];
+          activeBin=bin;
+        }
+      }
+      const relative=clamp(bandPeak/Math.max(features.peakMagnitude,1e-9),0,1);
+      const measuredFrequency=activeBin*SAMPLE_RATE/FFT_SIZE;
+      const previous=ridgeTracks.get(track);
+      const frequency=previous?lerp(previous.frequency,measuredFrequency,.16):measuredFrequency;
+      const frequencyN=mapLogFrequency(frequency);
+      const phase=Math.atan2(fftImag[activeBin],fftReal[activeBin]);
+      const targetElevation=(frequencyN-.5)*.88+(descriptor.spreadN-.5)*.20;
+      const targetRadius=.035+.29*Math.pow(relative,.34);
+      const frequencyMotion=previous?frequencyN-previous.frequencyN:0;
+      const turnDirection=track%2===0?1:-1;
+      const azimuth=previous
+        ?previous.azimuth+clamp(frequencyMotion*1.8,-.032,.032)+turnDirection*(.0045+track*.00012)
+        :phase*.12+frequencyN*TAU*.58+track*.11;
+      const elevation=previous?lerp(previous.elevation,targetElevation,.10):targetElevation;
+      const radius=previous?lerp(previous.radius,targetRadius,.13):targetRadius;
+      const ring=Math.cos(elevation)*radius;
+      const targetPosition={
+        x:verse.base.x+Math.cos(azimuth)*ring,
+        y:verse.base.y+Math.sin(elevation)*radius,
+        z:verse.base.z+Math.sin(azimuth)*ring,
+      };
+      const velocity=previous?{
+        x:previous.velocity.x*.72+(targetPosition.x-previous.position.x)*.12,
+        y:previous.velocity.y*.72+(targetPosition.y-previous.position.y)*.12,
+        z:previous.velocity.z*.72+(targetPosition.z-previous.position.z)*.12,
+      }:{x:0,y:0,z:0};
+      const position=previous?{
+        x:clamp(previous.position.x+velocity.x,-.94,.94),
+        y:clamp(previous.position.y+velocity.y,-.94,.94),
+        z:clamp(previous.position.z+velocity.z,-.94,.94),
+      }:{
+        x:clamp(targetPosition.x,-.94,.94),
+        y:clamp(targetPosition.y,-.94,.94),
+        z:clamp(targetPosition.z,-.94,.94),
+      };
+      const pointFeatures={
+        centroid:features.centroid,
+        spread:features.spread,
+        rolloff:features.rolloff,
+        activeFrequency:frequency,
+        amplitude:clamp(Math.sqrt(relative)*(.28+.72*features.amplitude),0,1),
+        db:features.db,
+        crest:features.crest,
+        flux:features.flux,
+        harmonicity:features.harmonicity,
+        phase,
+      };
+      const point={
+        x:position.x,
+        y:position.y,
+        z:position.z,
+        centroidN:descriptor.centroidN,
+        spreadN:descriptor.spreadN,
+        rolloffN:descriptor.rolloffN,
+        fluxN:descriptor.fluxN,
+        crestN:descriptor.crestN,
+        colorN:frequencyN,
+        strength:relative,
+        track,
+        verseId:verse.id,
+        previousPosition:previous?previous.position:null,
+        previousPreviousPosition:previous?previous.previousPosition:null,
+        birth:now,
+        features:pointFeatures,
+        screenX:-1000,
+        screenY:-1000,
+        depth:0,
+      };
+      emitted.push(point);
+      ridgeTracks.set(track,{
+        frequency,
+        frequencyN,
+        azimuth,
+        elevation,
+        radius,
+        position,
+        previousPosition:previous?previous.position:null,
+        velocity,
+      });
+    }
+    return emitted;
+  }
+
+  function processAudio(nowMs){
+    if(sourceMode==='demo'){
+      demoSignal();
+    }else if(analyser){
+      analyser.getFloatTimeDomainData(timeData);
+    }else{
+      return;
+    }
+    const features=computeFeatures();
+    const now=nowMs/1000;
+    const descriptor=describeFrame(features);
+    updatePhraseState(features,now);
+    if(phraseState.active&&phraseState.signalPresent&&phraseState.current){
+      const emitted=makeVersePoints(features,descriptor,now,phraseState.current);
+      points.push(...emitted);
+      if(points.length>MAX_POINTS) points.splice(0,points.length-MAX_POINTS);
+      latestPoint=emitted.reduce((best,point)=>
+        !best||point.features.amplitude>best.features.amplitude?point:best,null);
+    }
+    history.push({
+      time:now,
+      db:clamp((features.db+72)/72,0,1),
+      centroid:descriptor.centroidN,
+      spread:descriptor.spreadN,
+      flux:descriptor.fluxN,
+      crest:descriptor.crestN,
+    });
+    if(history.length>MAX_HISTORY) history.splice(0,history.length-MAX_HISTORY);
+  }
+
+  function spectralColor(t,alpha=1){
+    const stops=[
+      [0.00,[91,104,255]],
+      [.20,[164,103,255]],
+      [.40,[244,94,157]],
+      [.58,[255,180,116]],
+      [.77,[129,232,166]],
+      [1.00,[127,199,255]],
+    ];
+    t=clamp(t,0,1);
+    let a=stops[0];
+    let b=stops[stops.length-1];
+    for(let i=1;i<stops.length;i++){
+      if(t<=stops[i][0]){a=stops[i-1];b=stops[i];break}
+    }
+    const u=(t-a[0])/(b[0]-a[0]||1);
+    const r=Math.round(lerp(a[1][0],b[1][0],u));
+    const g=Math.round(lerp(a[1][1],b[1][1],u));
+    const bl=Math.round(lerp(a[1][2],b[1][2],u));
+    return `rgba(${r},${g},${bl},${alpha})`;
+  }
+
+  function panelPath(x,y,w,h){
+    const r=6;
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.lineTo(x+w-r,y);
+    ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r);
+    ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h);
+    ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r);
+    ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+  }
+
+  function drawPanel(box){
+    panelPath(box.x,box.y,box.w,box.h);
+    ctx.fillStyle=colors.panel;
+    ctx.fill();
+    ctx.strokeStyle=colors.line;
+    ctx.lineWidth=1;
+    ctx.stroke();
+  }
+
+  function label(text,x,y,align='left',color=colors.dim,font='8px "JetBrains Mono"'){
+    ctx.font=font;
+    ctx.textAlign=align;
+    ctx.textBaseline='alphabetic';
+    ctx.fillStyle=color;
+    ctx.fillText(text,x,y);
+  }
+
+  function rotate3(p,yaw,pitch){
+    const cy=Math.cos(yaw);
+    const sy=Math.sin(yaw);
+    const cp=Math.cos(pitch);
+    const sp=Math.sin(pitch);
+    const x=p.x*cy-p.z*sy;
+    const z=p.x*sy+p.z*cy;
+    const y=p.y*cp-z*sp;
+    return {x,y,z:p.y*sp+z*cp};
+  }
+
+  function project3(p,box,yaw,pitch,zoom=1){
+    const r=rotate3(p,yaw,pitch);
+    const perspective=2.9/(3.15+r.z);
+    const scale=Math.min(box.w,box.h)*.36*zoom;
+    return {
+      x:box.x+box.w*.50+r.x*scale*perspective,
+      y:box.y+box.h*.54-r.y*scale*perspective,
+      z:r.z,
+      perspective,
+    };
+  }
+
+  const cubeVertices=[
+    {x:-1,y:-1,z:-1},{x:1,y:-1,z:-1},{x:1,y:1,z:-1},{x:-1,y:1,z:-1},
+    {x:-1,y:-1,z:1},{x:1,y:-1,z:1},{x:1,y:1,z:1},{x:-1,y:1,z:1},
+  ];
+  const cubeEdges=[
+    [0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],
+    [0,4],[1,5],[2,6],[3,7],
+  ];
+
+  function drawCube(plot,yaw,pitch,zoom=1,alpha=.19){
+    const projected=cubeVertices.map(p=>project3(p,plot,yaw,pitch,zoom));
+    ctx.strokeStyle=`rgba(230,236,242,${alpha})`;
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    for(const edge of cubeEdges){
+      const a=projected[edge[0]];
+      const b=projected[edge[1]];
+      ctx.moveTo(a.x,a.y);
+      ctx.lineTo(b.x,b.y);
+    }
+    ctx.stroke();
+
+    ctx.strokeStyle='rgba(230,236,242,.055)';
+    for(const t of [-.5,0,.5]){
+      const lines=[
+        [{x:-1,y:-1,z:t},{x:1,y:-1,z:t}],
+        [{x:t,y:-1,z:-1},{x:t,y:-1,z:1}],
+        [{x:-1,y:t,z:-1},{x:-1,y:t,z:1}],
+      ];
+      ctx.beginPath();
+      for(const line of lines){
+        const a=project3(line[0],plot,yaw,pitch,zoom);
+        const b=project3(line[1],plot,yaw,pitch,zoom);
+        ctx.moveTo(a.x,a.y);
+        ctx.lineTo(b.x,b.y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawMiniDescriptor(box,now){
+    drawPanel(box);
+    label('SPREAD - CENTROID - CREST',box.x+14,box.y+18,'left',colors.ink,'9px "JetBrains Mono"');
+    label('SPECTRAL DESCRIPTOR PROJECTION',box.x+box.w-14,box.y+18,'right',colors.dim);
+    const plot={x:box.x+18,y:box.y+24,w:box.w-36,h:box.h-34};
+    const yaw=-.48+Math.sin(now*.00008)*.10;
+    const pitch=-.42;
+    drawCube(plot,yaw,pitch,.74,.14);
+
+    const visible=points.slice(Math.max(0,points.length-900));
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    const lastByTrack=new Map();
+    for(let i=0;i<visible.length;i++){
+      const point=visible[i];
+      const p=project3(point,plot,yaw,pitch,.74);
+      const age=(now/1000-point.birth)/params.persistence;
+      const strength=.12+.88*Math.pow(point.strength,.34);
+      const alpha=(1-clamp(age,0,1))*.34*strength;
+      const key=point.verseId+':'+point.track;
+      const last=lastByTrack.get(key);
+      if(point.strength>.025&&last&&Math.hypot(p.x-last.x,p.y-last.y)<28){
+        ctx.strokeStyle=spectralColor(point.colorN,alpha*.25);
+        ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();
+      }
+      const radius=.7+point.features.amplitude*1.8;
+      ctx.fillStyle=spectralColor(point.colorN,alpha);
+      ctx.beginPath();ctx.arc(p.x,p.y,radius,0,TAU);ctx.fill();
+      lastByTrack.set(key,p);
+    }
+    ctx.restore();
+    label('CENTROID',box.x+box.w-16,box.y+box.h-9,'right',colors.dim);
+    label('SPREAD',box.x+16,box.y+34,'left',colors.dim);
+    label('CREST',box.x+16,box.y+box.h-9,'left',colors.dim);
+  }
+
+  function drawDescriptorHistory(box){
+    drawPanel(box);
+    label('DB DOMAIN DESCRIPTORS',box.x+14,box.y+18,'left',colors.ink,'9px "JetBrains Mono"');
+    const plot={x:box.x+14,y:box.y+31,w:box.w-28,h:box.h-45};
+    const rows=4;
+    ctx.strokeStyle='rgba(230,236,242,.06)';
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    for(let i=0;i<=rows;i++){
+      const y=plot.y+plot.h*i/rows;
+      ctx.moveTo(plot.x,y);ctx.lineTo(plot.x+plot.w,y);
+    }
+    ctx.stroke();
+    label('TIME',plot.x+plot.w*.5,box.y+box.h-8,'center',colors.dim);
+
+    const series=[
+      ['DB',p=>p.db,'#7fc7ff'],
+      ['CENTROID',p=>p.centroid,'#ffb474'],
+      ['SPREAD',p=>p.spread,'#81e8a6'],
+      ['FLUX',p=>p.flux,'#f45e9d'],
+      ['CREST',p=>p.crest,'#a467ff'],
+    ];
+    const legendWidth=Math.min(108,plot.w*.30);
+    const graphWidth=plot.w-legendWidth;
+    for(let s=0;s<series.length;s++){
+      const [name,getValue,color]=series[s];
+      if(history.length>1){
+        ctx.beginPath();
+        for(let i=0;i<history.length;i++){
+          const x=plot.x+graphWidth*i/(MAX_HISTORY-1);
+          const y=plot.y+plot.h*(1-clamp(getValue(history[i]),0,1));
+          if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+        }
+        ctx.strokeStyle=color;
+        ctx.globalAlpha=.56;
+        ctx.lineWidth=1;
+        ctx.stroke();
+        ctx.globalAlpha=1;
+      }
+      const lx=plot.x+graphWidth+11;
+      const ly=plot.y+8+s*13;
+      ctx.strokeStyle=color;
+      ctx.beginPath();ctx.moveTo(lx,ly-3);ctx.lineTo(lx+10,ly-3);ctx.stroke();
+      label(name,lx+15,ly,'left',colors.dim,'7px "JetBrains Mono"');
+    }
+  }
+
+  function drawColorBar(box){
+    const barX=box.x+box.w-22;
+    const barY=box.y+55;
+    const barH=Math.max(86,box.h-110);
+    const gradient=ctx.createLinearGradient(0,barY+barH,0,barY);
+    for(const stop of [0,.2,.4,.58,.77,1]) gradient.addColorStop(stop,spectralColor(stop,1));
+    ctx.fillStyle=gradient;
+    ctx.fillRect(barX,barY,3,barH);
+    label('12 kHz',barX-5,barY+3,'right',colors.dim,'7px "JetBrains Mono"');
+    label('1 kHz',barX-5,barY+barH*.55,'right',colors.dim,'7px "JetBrains Mono"');
+    label('80 Hz',barX-5,barY+barH,'right',colors.dim,'7px "JetBrains Mono"');
+    ctx.save();
+    ctx.translate(barX+14,barY+barH*.5);
+    ctx.rotate(Math.PI/2);
+    label('SPECTRAL CENTROID',0,0,'center',colors.dim,'7px "JetBrains Mono"');
+    ctx.restore();
+  }
+
+  function drawMainPointLabels(plot,projectedPoints){
+    if(!params.labels||projectedPoints.length<30)return;
+    const candidates=[];
+    const stride=Math.max(20,Math.floor(projectedPoints.length/22));
+    for(let i=projectedPoints.length-1;i>=0&&candidates.length<22;i-=stride){
+      const item=projectedPoints[i];
+      if(item.point.strength<=.035)continue;
+      if(item.p.x>plot.x+18&&item.p.x<plot.x+plot.w-56&&item.p.y>plot.y+25&&item.p.y<plot.y+plot.h-18){
+        candidates.push(item);
+      }
+    }
+    for(const item of candidates){
+      const age=performance.now()/1000-item.point.birth;
+      const alpha=(1-clamp(age/params.persistence,0,1))*.72;
+      label((item.point.features.activeFrequency/1000).toFixed(2),item.p.x+4,item.p.y-4,'left',spectralColor(item.point.colorN,alpha),'7px "JetBrains Mono"');
+    }
+  }
+
+  function calloutText(title,value,x,y,align){
+    label(title,x,y,align,colors.dim,'7px "JetBrains Mono"');
+    label(value,x,y+12,align,colors.ink,'10px "JetBrains Mono"');
+  }
+
+  function drawPointCallout(point,projected,box,now){
+    if(!params.labels||!point||!projected)return;
+    const px=projected.x;
+    const py=projected.y;
+    const leftSide=px>box.x+box.w*.52;
+    const topSide=py>box.y+box.h*.50;
+    const leftX=clamp(px-82,box.x+24,box.x+box.w-116);
+    const rightX=clamp(px+82,box.x+112,box.x+box.w-30);
+    const topY=clamp(py-44,box.y+48,box.y+box.h-70);
+    const bottomY=clamp(py+38,box.y+58,box.y+box.h-35);
+
+    ctx.strokeStyle='rgba(230,236,242,.34)';
+    ctx.lineWidth=1;
+    ctx.strokeRect(px-6,py-6,12,12);
+    ctx.fillStyle=spectralColor(point.colorN,.95);
+    ctx.fillRect(px-1.5,py-1.5,3,3);
+
+    const sideX=leftSide?leftX:rightX;
+    const sideAlign=leftSide?'right':'left';
+    ctx.beginPath();
+    ctx.moveTo(px+(leftSide?-7:7),py);
+    ctx.lineTo(sideX+(leftSide?8:-8),py-8);
+    ctx.stroke();
+    calloutText('ACTIVE FREQUENCY',formatHz(point.features.activeFrequency),sideX,py-10,sideAlign);
+
+    const ampX=leftSide?rightX:leftX;
+    const ampAlign=leftSide?'left':'right';
+    ctx.beginPath();
+    ctx.moveTo(px+(leftSide?7:-7),py-4);
+    ctx.lineTo(ampX+(leftSide?-8:8),topY+8);
+    ctx.stroke();
+    calloutText('SIGNAL AMPLITUDE',point.features.amplitude.toFixed(4),ampX,topY,ampAlign);
+
+    const lifetime=Math.max(0,now/1000-point.birth);
+    const born=Math.max(0,point.birth-startTime);
+    const lifeX=leftSide?leftX:rightX;
+    const lifeAlign=leftSide?'right':'left';
+    ctx.beginPath();
+    ctx.moveTo(px+(leftSide?-5:5),py+6);
+    ctx.lineTo(lifeX+(leftSide?8:-8),bottomY-8);
+    ctx.stroke();
+    calloutText('LIFETIME',lifetime.toFixed(2)+' s',lifeX,bottomY-13,lifeAlign);
+
+    const emissionX=leftSide?rightX:leftX;
+    const emissionAlign=leftSide?'left':'right';
+    ctx.beginPath();
+    ctx.moveTo(px+(leftSide?5:-5),py+6);
+    ctx.lineTo(emissionX+(leftSide?-8:8),bottomY+5);
+    ctx.stroke();
+    calloutText('EMISSION TIME',born.toFixed(2)+' s',emissionX,bottomY,emissionAlign);
+  }
+
+  function versePosition(verse,nowSec){
+    const duration=Math.min((verse.end||nowSec)-verse.start,12);
+    return {
+      x:verse.anchor.x+verse.direction.x*duration,
+      y:verse.anchor.y+verse.direction.y*duration,
+      z:verse.anchor.z+verse.direction.z*duration,
+    };
+  }
+
+  function drawVerseScaffold(plot,nowSec){
+    const visibleIds=new Set(points.map(point=>point.verseId));
+    verses=verses.filter(verse=>visibleIds.has(verse.id)||phraseState.current===verse);
+    if(!verses.length)return;
+
+    const anchors=verses.map(verse=>({
+      verse,
+      p:project3(versePosition(verse,nowSec),plot,view.yaw,view.pitch,view.zoom),
+    }));
+    ctx.strokeStyle='rgba(230,236,242,.16)';
+    ctx.lineWidth=.8;
+    ctx.beginPath();
+    for(let i=1;i<anchors.length;i++){
+      ctx.moveTo(anchors[i-1].p.x,anchors[i-1].p.y);
+      ctx.lineTo(anchors[i].p.x,anchors[i].p.y);
+    }
+    ctx.stroke();
+
+    for(const anchor of anchors){
+      ctx.strokeStyle=anchor.verse.end?'rgba(230,236,242,.22)':'rgba(127,199,255,.62)';
+      ctx.beginPath();
+      ctx.arc(anchor.p.x,anchor.p.y,3,0,TAU);
+      ctx.stroke();
+      if(params.labels){
+        label(
+          'V'+String(anchor.verse.id).padStart(2,'0'),
+          anchor.p.x+6,
+          anchor.p.y-5,
+          'left',
+          anchor.verse.end?colors.dim:colors.accent,
+          '7px "JetBrains Mono"'
+        );
+      }
+    }
+  }
+
+  function drawMainTimbre(box,now){
+    drawPanel(box);
+    label('3D TIMBRE SPACE',box.x+14,box.y+20,'left',colors.ink,'9px "JetBrains Mono"');
+    label('VERSE NETWORKS / TRACKED SPECTRAL RIDGES / TIME',box.x+box.w-42,box.y+20,'right',colors.dim);
+    const plot={x:box.x+12,y:box.y+24,w:box.w-44,h:box.h-32};
+    drawCube(plot,view.yaw,view.pitch,view.zoom,.20);
+
+    const nowSec=now/1000;
+    points=points.filter(point=>nowSec-point.birth<=params.persistence);
+    if(selectedPoint&&!points.includes(selectedPoint))selectedPoint=null;
+    if(latestPoint&&!points.includes(latestPoint))latestPoint=null;
+
+    const projectedPoints=points.map(point=>{
+      const p=project3(point,plot,view.yaw,view.pitch,view.zoom);
+      point.screenX=p.x;
+      point.screenY=p.y;
+      point.depth=p.z;
+      return {point,p};
+    });
+
+    drawVerseScaffold(plot,nowSec);
+
+    const lineBuckets=Array.from({length:LINE_FADE_BUCKETS},()=>[]);
+    for(const item of projectedPoints){
+      const previous=item.point.previousPosition;
+      if(!previous)continue;
+      if(item.point.strength<=.022)continue;
+      const lineAge=nowSec-item.point.birth;
+      if(lineAge>=LINE_LIFETIME)continue;
+      const distance=Math.hypot(
+        item.point.x-previous.x,
+        item.point.y-previous.y,
+        item.point.z-previous.z
+      );
+      if(distance>.52)continue;
+      const p0=project3(previous,plot,view.yaw,view.pitch,view.zoom);
+      const bucket=Math.min(
+        LINE_FADE_BUCKETS-1,
+        Math.floor(lineAge/LINE_LIFETIME*LINE_FADE_BUCKETS)
+      );
+      const earlier=item.point.previousPreviousPosition;
+      if(earlier){
+        const pMinus=project3(earlier,plot,view.yaw,view.pitch,view.zoom);
+        lineBuckets[bucket].push(
+          (pMinus.x+p0.x)*.5,
+          (pMinus.y+p0.y)*.5,
+          p0.x,
+          p0.y,
+          (p0.x+item.p.x)*.5,
+          (p0.y+item.p.y)*.5
+        );
+      }else{
+        lineBuckets[bucket].push(p0.x,p0.y,p0.x,p0.y,item.p.x,item.p.y);
+      }
+    }
+    ctx.lineWidth=1.15;
+    for(let bucket=0;bucket<LINE_FADE_BUCKETS;bucket++){
+      const segments=lineBuckets[bucket];
+      if(!segments.length)continue;
+      const fade=1-(bucket+.5)/LINE_FADE_BUCKETS;
+      const alpha=Math.min(fade*fade*.58*params.exposure,.72);
+      ctx.strokeStyle=`rgba(230,236,242,${alpha})`;
+      ctx.beginPath();
+      for(let i=0;i<segments.length;i+=6){
+        ctx.moveTo(segments[i],segments[i+1]);
+        ctx.quadraticCurveTo(
+          segments[i+2],
+          segments[i+3],
+          segments[i+4],
+          segments[i+5]
+        );
+      }
+      ctx.stroke();
+    }
+
+    ctx.save();
+    ctx.globalCompositeOperation='lighter';
+    for(const item of projectedPoints){
+      const point=item.point;
+      const age=nowSec-point.birth;
+      const life=1-clamp(age/params.persistence,0,1);
+      const radius=(.55+point.features.amplitude*3.0)*params.pointSize*item.p.perspective;
+      const glow=radius*2.5;
+      const strength=.12+.88*Math.pow(point.strength,.34);
+      if(point.strength>.045||life>.90){
+        ctx.fillStyle=spectralColor(point.colorN,clamp(life*.11*params.exposure*strength,0,.22));
+        ctx.beginPath();ctx.arc(item.p.x,item.p.y,glow,0,TAU);ctx.fill();
+      }
+      ctx.fillStyle=spectralColor(point.colorN,clamp(life*.78*params.exposure*strength,0,1));
+      ctx.beginPath();ctx.arc(item.p.x,item.p.y,Math.max(.6,radius*.42),0,TAU);ctx.fill();
+    }
+    ctx.restore();
+
+    drawMainPointLabels(plot,projectedPoints);
+    let calloutPoint=selectedPoint||latestPoint;
+    let calloutProjection=null;
+    if(calloutPoint){
+      const found=projectedPoints.find(item=>item.point===calloutPoint);
+      calloutProjection=found?found.p:project3(calloutPoint,plot,view.yaw,view.pitch,view.zoom);
+    }
+    drawPointCallout(calloutPoint,calloutProjection,plot,now);
+    drawColorBar(box);
+
+    label('SPECTRAL FLUX',box.x+16,box.y+box.h-10,'left',colors.dim);
+    label('SPECTRAL SPREAD',box.x+106,box.y+box.h-10,'left',colors.dim);
+    label('CENTROID',box.x+206,box.y+box.h-10,'left',colors.dim);
+    label('CREST',box.x+276,box.y+box.h-10,'left',colors.dim);
+  }
+
+  function layout(){
+    const pad=18;
+    const gap=10;
+    const topHeight=clamp(height*.265,126,230);
+    const topY=12;
+    const available=width-pad*2;
+    const leftWidth=Math.floor(available*.54);
+    const topLeft={x:pad,y:topY,w:leftWidth-gap*.5,h:topHeight};
+    const topRight={x:pad+leftWidth+gap*.5,y:topY,w:available-leftWidth-gap*.5,h:topHeight};
+    const main={x:pad,y:topY+topHeight+gap,w:available,h:height-topY-topHeight-gap-12};
+    return {topLeft,topRight,main};
+  }
+
+  function draw(now){
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,width,height);
+    ctx.fillStyle=colors.bg;
+    ctx.fillRect(0,0,width,height);
+    const background=ctx.createRadialGradient(width*.35,height*.33,0,width*.35,height*.33,Math.max(width,height)*.72);
+    background.addColorStop(0,'rgba(26,40,51,.30)');
+    background.addColorStop(.48,'rgba(12,17,22,.12)');
+    background.addColorStop(1,'rgba(7,8,9,0)');
+    ctx.fillStyle=background;
+    ctx.fillRect(0,0,width,height);
+
+    const boxes=layout();
+    drawMiniDescriptor(boxes.topLeft,now);
+    drawDescriptorHistory(boxes.topRight);
+    drawMainTimbre(boxes.main,now);
+  }
+
+  function updateHover(){
+    if(pointer.down)return;
+    let nearest=null;
+    let distance=13;
+    for(let i=points.length-1;i>=0;i--){
+      const point=points[i];
+      const d=Math.hypot(pointer.x-point.screenX,pointer.y-point.screenY);
+      if(d<distance){distance=d;nearest=point}
+    }
+    selectedPoint=nearest;
+  }
+
+  function clearAudioSource(){
+    if(sourceNode){
+      try{sourceNode.stop()}catch(error){}
+      try{sourceNode.disconnect()}catch(error){}
+      sourceNode=null;
+    }
+    if(micStream){
+      for(const track of micStream.getTracks())track.stop();
+      micStream=null;
+    }
+    analyser=null;
+  }
+
+  async function ensureAudioContext(){
+    if(!audioContext)audioContext=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioContext.state==='suspended')await audioContext.resume();
+  }
+
+  function resetData(){
+    points=[];
+    history=[];
+    selectedPoint=null;
+    latestPoint=null;
+    previousMagnitude.fill(0);
+    sampleOffset=0;
+    axisStats=createAxisStats();
+    phraseState=createPhraseState();
+    verses=[];
+    ridgeTracks.clear();
+    startTime=performance.now()/1000;
+    sideStatus.textContent='LISTENING FOR FIRST VERSE';
+  }
+
+  function startDemo(){
+    clearAudioSource();
+    sourceMode='demo';
+    sourceSelect.value='demo';
+    sourceMeta.textContent='procedural birdsong';
+    params.running=true;
+    controls.pause.textContent='Pause';
+    controls.pause.classList.remove('active');
+    resetData();
+    showToast('Birdsong demo active');
+  }
+
+  async function startMic(){
+    try{
+      await ensureAudioContext();
+      clearAudioSource();
+      micStream=await navigator.mediaDevices.getUserMedia({audio:true});
+      sourceNode=audioContext.createMediaStreamSource(micStream);
+      analyser=audioContext.createAnalyser();
+      analyser.fftSize=FFT_SIZE;
+      analyser.smoothingTimeConstant=0;
+      sourceNode.connect(analyser);
+      sourceMode='mic';
+      sourceSelect.value='mic';
+      sourceMeta.textContent='microphone input';
+      params.running=true;
+      controls.pause.textContent='Pause';
+      controls.pause.classList.remove('active');
+      resetData();
+      sideStatus.textContent='LISTENING FOR FIRST VERSE';
+      showToast('Microphone source active');
+    }catch(error){
+      startDemo();
+      showToast('Microphone unavailable - demo restored');
+    }
+  }
+
+  async function startFile(file){
+    try{
+      await ensureAudioContext();
+      clearAudioSource();
+      const buffer=await audioContext.decodeAudioData(await file.arrayBuffer());
+      analyser=audioContext.createAnalyser();
+      analyser.fftSize=FFT_SIZE;
+      analyser.smoothingTimeConstant=0;
+      const player=audioContext.createBufferSource();
+      player.buffer=buffer;
+      player.loop=true;
+      player.connect(analyser);
+      player.connect(audioContext.destination);
+      player.start();
+      sourceNode=player;
+      sourceMode='file';
+      sourceSelect.value='file';
+      sourceMeta.textContent=file.name;
+      params.running=true;
+      controls.pause.textContent='Pause';
+      controls.pause.classList.remove('active');
+      resetData();
+      sideStatus.textContent='LISTENING FOR FIRST VERSE';
+      showToast('Audio file active');
+    }catch(error){
+      startDemo();
+      showToast('Audio file could not be decoded');
+    }
+  }
+
+  function syncControls(){
+    controls.pointValue.textContent=params.pointSize.toFixed(1);
+    controls.persistenceValue.textContent=params.persistence.toFixed(0)+'s';
+    controls.exposureValue.textContent=params.exposure.toFixed(2);
+    controls.spin.classList.toggle('active',params.spin);
+    controls.labels.classList.toggle('active',params.labels);
+  }
+
+  controls.pointSize.addEventListener('input',()=>{
+    params.pointSize=Number(controls.pointSize.value);
+    syncControls();
+  });
+  controls.persistence.addEventListener('input',()=>{
+    params.persistence=Number(controls.persistence.value);
+    syncControls();
+  });
+  controls.exposure.addEventListener('input',()=>{
+    params.exposure=Number(controls.exposure.value);
+    syncControls();
+  });
+  controls.spin.addEventListener('click',()=>{
+    params.spin=!params.spin;
+    syncControls();
+  });
+  controls.labels.addEventListener('click',()=>{
+    params.labels=!params.labels;
+    syncControls();
+  });
+  controls.pause.addEventListener('click',async()=>{
+    params.running=!params.running;
+    controls.pause.textContent=params.running?'Pause':'Resume';
+    controls.pause.classList.toggle('active',!params.running);
+    sideStatus.textContent=params.running
+      ?(phraseState.current?'VERSE '+String(phraseState.current.id).padStart(2,'0')+' ACTIVE':'LISTENING FOR NEXT VERSE')
+      :'SPECTRAL ANALYSIS PAUSED';
+    if(audioContext){
+      if(params.running)await audioContext.resume();
+      else await audioContext.suspend();
+    }
+  });
+  controls.upload.addEventListener('click',()=>fileInput.click());
+  controls.reset.addEventListener('click',()=>{
+    resetData();
+    view={yaw:-.63,pitch:-.30,zoom:1};
+    showToast('Verse networks cleared');
+  });
+  sourceSelect.addEventListener('change',()=>{
+    if(sourceSelect.value==='demo')startDemo();
+    else if(sourceSelect.value==='mic')startMic();
+    else{
+      sourceSelect.value=sourceMode;
+      fileInput.click();
+    }
+  });
+  fileInput.addEventListener('change',()=>{
+    if(fileInput.files&&fileInput.files[0])startFile(fileInput.files[0]);
+    fileInput.value='';
+  });
+
+  canvas.addEventListener('pointerdown',event=>{
+    pointer.down=true;
+    pointer.lastX=event.clientX;
+    pointer.lastY=event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointermove',event=>{
+    const rect=canvas.getBoundingClientRect();
+    pointer.x=event.clientX-rect.left;
+    pointer.y=event.clientY-rect.top;
+    if(pointer.down){
+      const dx=event.clientX-pointer.lastX;
+      const dy=event.clientY-pointer.lastY;
+      view.yaw+=dx*.006;
+      view.pitch=clamp(view.pitch+dy*.005,-1.05,.72);
+      pointer.lastX=event.clientX;
+      pointer.lastY=event.clientY;
+    }else{
+      updateHover();
+    }
+  });
+  canvas.addEventListener('pointerup',event=>{
+    pointer.down=false;
+    canvas.releasePointerCapture(event.pointerId);
+    updateHover();
+  });
+  canvas.addEventListener('pointerleave',()=>{
+    if(!pointer.down){pointer.x=-1000;pointer.y=-1000;selectedPoint=null}
+  });
+  canvas.addEventListener('wheel',event=>{
+    event.preventDefault();
+    view.zoom=clamp(view.zoom*Math.exp(-event.deltaY*.001),.62,1.65);
+  },{passive:false});
+  window.addEventListener('resize',resize);
+
+  function tick(now){
+    resize();
+    const dt=Math.min((now-lastFrame)/1000,.05);
+    lastFrame=now;
+    if(params.running&&now-lastProcess>=PROCESS_INTERVAL){
+      processAudio(now);
+      lastProcess=now;
+    }
+    if(params.spin&&!pointer.down)view.yaw+=dt*.075;
+    draw(now);
+    updateHover();
+
+    fpsFrames++;
+    if(now-fpsClock>=500){
+      const fps=Math.round(fpsFrames*1000/(now-fpsClock));
+      fpsMeta.textContent=fps+' fps / '+points.length+' points / '+verses.length+' verses';
+      fpsClock=now;
+      fpsFrames=0;
+    }
+    requestAnimationFrame(tick);
+  }
+
+  syncControls();
+  resize();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

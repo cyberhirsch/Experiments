@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>№ 11 — Erosion · v001 SDF</title>
+<style>
+  :root{
+    --bg:#0a0908; --ink:#e6ecf2; --dim:#8a7e72; --accent:#ffb474; --line:rgba(230,236,242,0.10);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:var(--bg);color:var(--ink);
+    font-family:'JetBrains Mono',ui-monospace,monospace;overflow:hidden}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #panel{position:fixed;top:18px;left:18px;z-index:10;width:248px;
+    background:rgba(10,9,8,0.72);border:1px solid var(--line);backdrop-filter:blur(8px);
+    padding:18px 18px 16px}
+  #panel h1{font-family:Georgia,'Cormorant Garamond',serif;font-style:italic;font-weight:400;
+    font-size:21px;letter-spacing:.02em;color:var(--accent);margin-bottom:2px}
+  #panel .sub{font-size:9px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim);margin-bottom:16px}
+  .row{margin:11px 0}
+  .row label{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+  .row label b{color:var(--ink);font-weight:400}
+  input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:var(--line);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+    background:var(--accent);cursor:pointer}
+  select{width:100%;background:rgba(10,9,8,0.9);border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:10px;letter-spacing:.1em;padding:6px 8px;outline:none;cursor:pointer}
+  select:hover{border-color:var(--accent)}
+  .btns{display:flex;gap:8px;margin-top:16px}
+  button{flex:1;background:transparent;border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:9px;letter-spacing:.2em;text-transform:uppercase;padding:8px 0;cursor:pointer;
+    transition:.25s}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  #hint{position:fixed;bottom:14px;left:18px;z-index:10;font-size:9px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--dim)}
+  #hint b{color:var(--accent);font-weight:400}
+  #err{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:40px;z-index:20;
+    background:var(--bg)}
+  #err div{max-width:520px;font-size:13px;line-height:1.9;color:var(--dim)}
+  #err b{color:var(--accent)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="panel">
+  <h1>Erosion</h1>
+  <div class="sub">№ 11 · v001 — SDF Hoodoos</div>
+  <div class="row"><label>Rain (vertical) <b id="vRain">1.4</b></label>
+    <input id="rain" type="range" min="0" max="4" step="0.05" value="1.4"></div>
+  <div class="row"><label>Wind (undercut) <b id="vWind">1.0</b></label>
+    <input id="wind" type="range" min="0" max="4" step="0.05" value="1.0"></div>
+  <div class="row"><label>Hardness noise</label>
+    <select id="ntype">
+      <option value="0" selected>Strata — layered beds</option>
+      <option value="1">Value fBm — mounds</option>
+      <option value="2">Cellular — boulders</option>
+      <option value="3">Cellular — cracked ridges</option>
+    </select></div>
+  <div class="row"><label>Noise scale <b id="vScale">0.050</b></label>
+    <input id="scale" type="range" min="0.01" max="0.15" step="0.002" value="0.05"></div>
+  <div class="row"><label>Octaves <b id="vOct">3</b></label>
+    <input id="oct" type="range" min="1" max="6" step="1" value="3"></div>
+  <div class="row"><label>Domain warp <b id="vWarp">0.50</b></label>
+    <input id="warp" type="range" min="0" max="1.5" step="0.01" value="0.5"></div>
+  <div class="row"><label>Warp scale <b id="vWScale">0.040</b></label>
+    <input id="wscale" type="range" min="0.005" max="0.12" step="0.002" value="0.04"></div>
+  <div class="row"><label>Warp octaves <b id="vWOct">2</b></label>
+    <input id="woct" type="range" min="1" max="5" step="1" value="2"></div>
+  <div class="row"><label>Hardness contrast <b id="vCon">0.85</b></label>
+    <input id="con" type="range" min="0" max="1" step="0.01" value="0.85"></div>
+  <div class="row"><label>Erosion speed <b id="vSpd">2.0</b></label>
+    <input id="spd" type="range" min="0" max="6" step="0.1" value="2"></div>
+  <div class="row" style="display:flex;align-items:center;gap:8px">
+    <input id="cull" type="checkbox" checked style="width:auto;accent-color:var(--accent)">
+    <label for="cull" style="margin:0;cursor:pointer">Remove floating rock</label></div>
+  <div class="row" style="display:flex;align-items:center;gap:8px">
+    <input id="open" type="checkbox" checked style="width:auto;accent-color:var(--accent)">
+    <label for="open" style="margin:0;cursor:pointer">Open all sides (material leaves)</label></div>
+  <div class="row" style="display:flex;align-items:center;gap:8px">
+    <input id="sed" type="checkbox" checked style="width:auto;accent-color:var(--accent)">
+    <label for="sed" style="margin:0;cursor:pointer">Sedimentation (talus)</label></div>
+  <div class="row"><label>Sediment yield <b id="vDep">0.80</b></label>
+    <input id="dep" type="range" min="0" max="1" step="0.01" value="0.8"></div>
+  <div class="row"><label>Talus angle <b id="vRep">0.06</b></label>
+    <input id="rep" type="range" min="0.01" max="0.2" step="0.005" value="0.06"></div>
+  <div class="row"><label>Grid resolution</label>
+    <select id="grid">
+      <option value="64">64³ — fast</option>
+      <option value="128">128³</option>
+      <option value="192" selected>192³ — default</option>
+      <option value="256">256³ — fine</option>
+      <option value="320">320³</option>
+      <option value="384">384³ — heavy</option>
+      <option value="512">512³ — extreme</option>
+    </select></div>
+  <div class="row"><label>Render quality</label>
+    <select id="quality">
+      <option value="low">Low — 0.5× · 130 steps</option>
+      <option value="med" selected>Medium — 0.85× · 220 steps</option>
+      <option value="high">High — 1.2× · 320 steps</option>
+      <option value="ultra">Ultra — 1.5× · 440 steps</option>
+    </select></div>
+  <div class="btns">
+    <button id="reset">Reset</button>
+    <button id="pause">Pause</button>
+  </div>
+</div>
+
+<div id="hint">Drag <b>orbit</b> · scroll <b>zoom</b> · auto-rotating</div>
+<div id="err"><div></div></div>
+
+<script type="module">
+let N = 192;                   // grid resolution per axis (rebuildable)
+const WG = 4;                  // workgroup size per axis
+const errEl = document.getElementById('err');
+function fail(msg){ errEl.style.display='grid'; errEl.firstElementChild.innerHTML = msg; }
+
+if(!navigator.gpu){
+  fail("This experiment needs <b>WebGPU</b>.<br><br>Use a recent Chrome, Edge or Firefox Nightly on desktop, with hardware acceleration enabled.");
+  throw new Error("no webgpu");
+}
+
+const adapter = await navigator.gpu.requestAdapter();
+if(!adapter){ fail("Could not get a <b>GPU adapter</b>. Enable hardware acceleration and try again."); throw new Error("no adapter"); }
+const device = await adapter.requestDevice();
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('webgpu');
+const format = navigator.gpu.getPreferredCanvasFormat();
+ctx.configure({ device, format, alphaMode:'opaque' });
+
+/* ---------- shared WGSL ---------- */
+const COMMON = /* wgsl */`
+struct Uni {
+  rain:f32, wind:f32, contrast:f32, dt:f32,
+  N:f32, bedrock:f32, time:f32, hardThresh:f32,
+  eye:vec3<f32>, tanFov:f32,
+  fwd:vec3<f32>, aspect:f32,
+  right:vec3<f32>, steps:f32,
+  up:vec3<f32>, warp:f32,
+  sunDir:vec3<f32>, pad3:f32,
+  noiseType:f32, noiseScale:f32, octaves:f32, cullThresh:f32,
+  warpScale:f32, warpOct:f32, openEdges:f32, pad6:f32,
+  deposit:f32, sedWash:f32, repose:f32, slumpRate:f32,
+};
+
+fn hash13(q:vec3<f32>)->f32{
+  var p3 = fract(q*0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x+p3.y)*p3.z);
+}
+fn vnoise(x:vec3<f32>)->f32{
+  let i=floor(x); let f=fract(x); let u=f*f*(3.0-2.0*f);
+  let a=hash13(i+vec3<f32>(0.,0.,0.)); let b=hash13(i+vec3<f32>(1.,0.,0.));
+  let c=hash13(i+vec3<f32>(0.,1.,0.)); let d=hash13(i+vec3<f32>(1.,1.,0.));
+  let e=hash13(i+vec3<f32>(0.,0.,1.)); let g=hash13(i+vec3<f32>(1.,0.,1.));
+  let h=hash13(i+vec3<f32>(0.,1.,1.)); let k=hash13(i+vec3<f32>(1.,1.,1.));
+  let x1=mix(a,b,u.x); let x2=mix(c,d,u.x); let x3=mix(e,g,u.x); let x4=mix(h,k,u.x);
+  return mix(mix(x1,x2,u.y), mix(x3,x4,u.y), u.z);
+}
+fn hash33(p:vec3<f32>)->vec3<f32>{
+  let q=vec3<f32>(dot(p,vec3<f32>(127.1,311.7,74.7)),
+                  dot(p,vec3<f32>(269.5,183.3,246.1)),
+                  dot(p,vec3<f32>(113.5,271.9,124.6)));
+  return fract(sin(q)*43758.5453);
+}
+// Worley / cellular: returns (F1,F2) = distances to nearest & 2nd-nearest point
+fn cellular(p:vec3<f32>)->vec2<f32>{
+  let ip=floor(p); let fp=fract(p);
+  var f1=9.9; var f2=9.9;
+  for(var k=-1;k<=1;k++){ for(var j=-1;j<=1;j++){ for(var i=-1;i<=1;i++){
+    let g=vec3<f32>(f32(i),f32(j),f32(k));
+    let o=hash33(ip+g);
+    let d=length(g+o-fp);
+    if(d<f1){ f2=f1; f1=d; } else if(d<f2){ f2=d; }
+  }}}
+  return vec2<f32>(f1,f2);
+}
+fn fbmVal(p:vec3<f32>, oct:i32)->f32{
+  var a=0.5; var s=0.0; var nrm=0.0; var q=p;
+  for(var i=0;i<oct;i++){ s+=a*vnoise(q); nrm+=a; q=q*2.02; a*=0.5; }
+  return s/max(nrm,1e-4);
+}
+fn fbmCellF1(p:vec3<f32>, oct:i32)->f32{
+  var a=0.6; var s=0.0; var nrm=0.0; var q=p;
+  for(var i=0;i<oct;i++){ s+=a*cellular(q).x; nrm+=a; q=q*2.02; a*=0.5; }
+  return s/max(nrm,1e-4);
+}
+fn fbmCellCrack(p:vec3<f32>, oct:i32)->f32{
+  var a=0.6; var s=0.0; var nrm=0.0; var q=p;
+  for(var i=0;i<oct;i++){ let c=cellular(q); s+=a*(c.y-c.x); nrm+=a; q=q*2.02; a*=0.5; }
+  return s/max(nrm,1e-4);
+}
+// 0..1 base field; high = hard rock
+fn baseNoise(p:vec3<f32>, ntype:i32, scale:f32, oct:i32)->f32{
+  let q=p*scale;
+  if(ntype==0){                                   // layered strata + caprock
+    let band=0.5+0.5*sin(p.y*scale*6.0);
+    let cap =smoothstep(0.80,0.98, 0.5+0.5*sin(p.y*scale*3.4+1.3));
+    return clamp(0.25+0.55*band+0.45*cap, 0.0, 1.0);
+  } else if(ntype==1){                            // value fBm (blobby mounds)
+    return fbmVal(q, oct);
+  } else if(ntype==2){                            // cellular F1 (rounded boulders)
+    return clamp(1.0 - fbmCellF1(q, oct)*1.3, 0.0, 1.0);
+  }
+  return clamp(fbmCellCrack(q, oct)*1.6, 0.0, 1.0); // cellular F2-F1 (cracked ridges)
+}
+// p in voxel space (0..N). returns relative resistance to erosion.
+fn hardness(p:vec3<f32>, contrast:f32, warp:f32, ntype:f32, scale:f32, oct:f32,
+            warpScale:f32, warpOct:f32)->f32{
+  // vector domain warp: distort the noise domain in 3D (swirled / folded layers).
+  // The warp is its own fBm noise, with independent scale + octaves.
+  let wo=i32(warpOct);
+  let wv=vec3<f32>(fbmVal(p*warpScale, wo),
+                   fbmVal(p*warpScale+19.3, wo),
+                   fbmVal(p*warpScale+47.1, wo)) - vec3<f32>(0.5);
+  let pw=p + wv*warp*42.0;
+  let n=baseNoise(pw, i32(ntype), scale, i32(oct));
+  let h=mix(0.40 - contrast*0.22, 1.00 + contrast*0.70, n);
+  return clamp(h, 0.18, 2.2);
+}
+fn initDensity(p:vec3<f32>, NN:f32)->f32{
+  let topH = NN*0.74 + (vnoise(vec3<f32>(p.x,0.0,p.z)*0.028)-0.5)*NN*0.20;
+  return select(0.0, 1.0, p.y < topH);
+}
+`;
+
+/* ---------- init compute ---------- */
+const initWGSL = COMMON + /* wgsl */`
+@group(0) @binding(0) var<uniform> uni:Uni;
+@group(0) @binding(1) var dst: texture_storage_3d<rgba16float, write>;
+@compute @workgroup_size(${WG},${WG},${WG})
+fn main(@builtin(global_invocation_id) gid:vec3<u32>){
+  let NN=i32(uni.N);
+  let ip=vec3<i32>(gid);
+  if(ip.x>=NN||ip.y>=NN||ip.z>=NN){return;}
+  let p=vec3<f32>(ip);
+  var d=initDensity(p, uni.N);
+  if(ip.y < i32(uni.bedrock)){ d=1.0; }
+  textureStore(dst, ip, vec4<f32>(d,0.0,0.0,1.0));  // .r = rock, .g = sediment(0)
+}
+`;
+
+/* ---------- erosion compute ---------- */
+const erodeWGSL = COMMON + /* wgsl */`
+@group(0) @binding(0) var<uniform> uni:Uni;
+@group(0) @binding(1) var src: texture_3d<f32>;
+@group(0) @binding(2) var dst: texture_storage_3d<rgba16float, write>;
+@group(0) @binding(3) var sup: texture_3d<f32>;   // grounded-support field (r32float)
+
+// total occupancy (rock + sediment) of a neighbour
+fn samp(ix:i32, iy:i32, iz:i32, NN:i32)->f32{
+  if(iy>=NN){ return 0.0; }              // sky above = empty
+  if(iy<0){ return 1.0; }                // below floor = solid
+  if(ix<0||ix>=NN||iz<0||iz>=NN){ return select(1.0, 0.0, uni.openEdges>0.5); } // walls: open->empty
+  let c=textureLoad(src, vec3<i32>(ix,iy,iz), 0);
+  return c.r + c.g;
+}
+
+@compute @workgroup_size(${WG},${WG},${WG})
+fn main(@builtin(global_invocation_id) gid:vec3<u32>){
+  let NN=i32(uni.N);
+  let ip=vec3<i32>(gid);
+  if(ip.x>=NN||ip.y>=NN||ip.z>=NN){return;}
+
+  if(ip.y < i32(uni.bedrock)){
+    textureStore(dst, ip, vec4<f32>(1.0,0.0,0.0,1.0)); return;   // bedrock held solid
+  }
+  let cell = textureLoad(src, ip, 0);
+  var rock = cell.r; var sed = cell.g;
+  if(rock + sed <= 0.003){ textureStore(dst, ip, vec4<f32>(0.0,0.0,0.0,1.0)); return; }
+
+  // structural soundness: delete unsupported rock, but keep the loose sediment
+  // (it isn't load-bearing — let it slump and fall to a real surface).
+  if(uni.cullThresh >= 0.0){
+    let s = textureLoad(sup, ip, 0).r;
+    if(s < uni.cullThresh){ textureStore(dst, ip, vec4<f32>(0.0, sed, 0.0, 1.0)); return; }
+  }
+
+  let above = samp(ip.x,ip.y+1,ip.z, NN);
+  let below = samp(ip.x,ip.y-1,ip.z, NN);
+  let xp = samp(ip.x+1,ip.y,ip.z, NN);
+  let xm = samp(ip.x-1,ip.y,ip.z, NN);
+  let zp = samp(ip.x,ip.y,ip.z+1, NN);
+  let zm = samp(ip.x,ip.y,ip.z-1, NN);
+
+  let topEmpty = select(0.0,1.0, above<0.5);
+  let sideEmpty = select(0.0,1.0,xp<0.5)+select(0.0,1.0,xm<0.5)
+                 +select(0.0,1.0,zp<0.5)+select(0.0,1.0,zm<0.5);
+  let botEmpty = select(0.0,1.0, below<0.5);
+  let exposure = topEmpty+sideEmpty+botEmpty;
+  if(exposure < 0.5){ textureStore(dst, ip, vec4<f32>(rock,sed,0.0,1.0)); return; }
+
+  // sample hardness in a resolution-independent space (referenced to 128³)
+  let H = hardness(vec3<f32>(ip)*(128.0/uni.N), uni.contrast, uni.warp, uni.noiseType, uni.noiseScale, uni.octaves, uni.warpScale, uni.warpOct);
+  // rock harder than the threshold is effectively permanent -> spires stand
+  let erod = smoothstep(uni.hardThresh, uni.hardThresh-0.55, H);
+  if(erod > 0.001){
+    let soft = 1.0/H;
+    // wind undercuts harder higher up the column (drier, more exposed)
+    let h01 = f32(ip.y)/uni.N;
+    let rate = uni.dt * erod * soft * ( uni.rain*topEmpty
+                               + uni.wind*0.25*sideEmpty*(0.5+0.9*h01)
+                               + uni.wind*0.10*botEmpty );
+    let nrock = clamp(rock - rate, 0.0, 1.0);
+    sed += uni.deposit * (rock - nrock);   // weathered rock -> loose sediment
+    rock = nrock;
+  }
+  // loose sediment on an exposed face slowly washes away (carried off by water)
+  sed = max(0.0, sed - uni.sedWash * uni.dt * exposure);
+  sed = clamp(sed, 0.0, max(0.0, 1.0 - rock));
+  textureStore(dst, ip, vec4<f32>(rock, sed, 0.0, 1.0));
+}
+`;
+
+/* ---------- grounded-support: reset + flood sweep (r32float) ---------- */
+// Exact connectivity, recomputed each sweep. reset seeds bedrock=1 (everything
+// else 0); flood does pure-max propagation through connected solid rock. After a
+// full sweep every voxel reachable from bedrock holds 1.0, everything else 0.0 —
+// disconnected chunks are simply never reached, so they cull within one sweep.
+const resetWGSL = COMMON + /* wgsl */`
+@group(0) @binding(0) var<uniform> uni:Uni;
+@group(0) @binding(1) var sDst: texture_storage_3d<r32float, write>;
+@compute @workgroup_size(${WG},${WG},${WG})
+fn main(@builtin(global_invocation_id) gid:vec3<u32>){
+  let NN=i32(uni.N);
+  let ip=vec3<i32>(gid);
+  if(ip.x>=NN||ip.y>=NN||ip.z>=NN){return;}
+  let s = select(0.0, 1.0, ip.y < i32(uni.bedrock));  // seed bedrock only
+  textureStore(sDst, ip, vec4<f32>(s));
+}
+`;
+const floodWGSL = COMMON + /* wgsl */`
+@group(0) @binding(0) var<uniform> uni:Uni;
+@group(0) @binding(1) var dens: texture_3d<f32>;
+@group(0) @binding(2) var sSrc: texture_3d<f32>;
+@group(0) @binding(3) var sDst: texture_storage_3d<r32float, write>;
+
+fn loadS(ix:i32, iy:i32, iz:i32, NN:i32)->f32{
+  if(ix<0||ix>=NN||iy<0||iy>=NN||iz<0||iz>=NN){ return 0.0; }
+  return textureLoad(sSrc, vec3<i32>(ix,iy,iz), 0).r;
+}
+
+@compute @workgroup_size(${WG},${WG},${WG})
+fn main(@builtin(global_invocation_id) gid:vec3<u32>){
+  let NN=i32(uni.N);
+  let ip=vec3<i32>(gid);
+  if(ip.x>=NN||ip.y>=NN||ip.z>=NN){return;}
+
+  let c = textureLoad(dens, ip, 0);
+  if(c.r + c.g < 0.5){ textureStore(sDst, ip, vec4<f32>(0.0)); return; } // empty: no support
+  if(ip.y < i32(uni.bedrock)){ textureStore(sDst, ip, vec4<f32>(1.0)); return; } // source
+
+  var m = 0.0;
+  m = max(m, loadS(ip.x+1,ip.y,ip.z,NN));
+  m = max(m, loadS(ip.x-1,ip.y,ip.z,NN));
+  m = max(m, loadS(ip.x,ip.y+1,ip.z,NN));
+  m = max(m, loadS(ip.x,ip.y-1,ip.z,NN));
+  m = max(m, loadS(ip.x,ip.y,ip.z+1,NN));
+  m = max(m, loadS(ip.x,ip.y,ip.z-1,NN));
+
+  textureStore(sDst, ip, vec4<f32>(m));   // pure-max: exact, no decay
+}
+`;
+
+/* ---------- talus slumping (sediment gravity + angle of repose) ---------- */
+// Loose sediment (.g) falls into free space below (conservative vertical exchange)
+// and, once resting, spreads to lower lateral neighbours up to the repose angle.
+const slumpWGSL = COMMON + /* wgsl */`
+@group(0) @binding(0) var<uniform> uni:Uni;
+@group(0) @binding(1) var src: texture_3d<f32>;
+@group(0) @binding(2) var dst: texture_storage_3d<rgba16float, write>;
+
+fn cell(ix:i32,iy:i32,iz:i32,NN:i32)->vec2<f32>{
+  if(iy<0){ return vec2<f32>(1.0,0.0); }     // bedrock below = full (no room)
+  if(iy>=NN){ return vec2<f32>(0.0,0.0); }   // sky above = empty
+  if(ix<0||ix>=NN||iz<0||iz>=NN){ return select(vec2<f32>(1.0,0.0), vec2<f32>(0.0,0.0), uni.openEdges>0.5); } // walls: open->empty (sediment leaves)
+  let c=textureLoad(src, vec3<i32>(ix,iy,iz), 0);
+  return vec2<f32>(c.r, c.g);
+}
+// Signed lateral flow into this cell from a neighbour, computed identically by
+// both cells (sign() is odd) so the pairwise exchange is mass-conserving. Gated
+// by a symmetric rock-full test so sediment never flows into solid rock.
+fn lat(mySed:f32, myRock:f32, nb:vec2<f32>, bias:f32)->f32{
+  if(myRock>=0.999 || nb.x>=0.999){ return 0.0; }
+  let d = nb.y - mySed;
+  return sign(d)*max(0.0, abs(d)-bias);
+}
+
+@compute @workgroup_size(${WG},${WG},${WG})
+fn main(@builtin(global_invocation_id) gid:vec3<u32>){
+  let NN=i32(uni.N);
+  let ip=vec3<i32>(gid);
+  if(ip.x>=NN||ip.y>=NN||ip.z>=NN){return;}
+  let sc=cell(ip.x,ip.y,ip.z,NN);
+  let rock=sc.x; var sed=sc.y;
+  if(ip.y < i32(uni.bedrock)){ textureStore(dst, ip, vec4<f32>(rock,sed,0.0,1.0)); return; }
+
+  let capSelf = max(0.0, 1.0 - rock - sed);
+  // --- gravity: conservative vertical exchange ---
+  let bel = cell(ip.x,ip.y-1,ip.z,NN);
+  let capBelow = max(0.0, 1.0 - bel.x - bel.y);
+  let outDown = min(sed, capBelow);                 // sediment leaving downward
+  let abv = cell(ip.x,ip.y+1,ip.z,NN);
+  let inAbove = min(abv.y, capSelf);                // sediment arriving from above
+  var ns = sed - outDown + inAbove;
+
+  // --- angle of repose: symmetric lateral exchange (conservative), always on ---
+  let r=uni.slumpRate; let bias=uni.repose;
+  var net=0.0;
+  net += lat(sed, rock, cell(ip.x+1,ip.y,ip.z,NN), bias);
+  net += lat(sed, rock, cell(ip.x-1,ip.y,ip.z,NN), bias);
+  net += lat(sed, rock, cell(ip.x,ip.y,ip.z+1,NN), bias);
+  net += lat(sed, rock, cell(ip.x,ip.y,ip.z-1,NN), bias);
+  ns += r*net;
+
+  ns = clamp(ns, 0.0, max(0.0, 1.0 - rock));
+  textureStore(dst, ip, vec4<f32>(rock, ns, 0.0, 1.0));
+}
+`;
+
+/* ---------- render ---------- */
+const renderWGSL = COMMON + /* wgsl */`
+@group(0) @binding(0) var<uniform> uni:Uni;
+@group(0) @binding(1) var samp0: sampler;
+@group(0) @binding(2) var dens: texture_3d<f32>;
+
+struct VSOut{ @builtin(position) pos:vec4<f32>, @location(0) uv:vec2<f32> };
+@vertex
+fn vs(@builtin(vertex_index) vi:u32)->VSOut{
+  var p=array<vec2<f32>,3>(vec2<f32>(-1.,-1.),vec2<f32>(3.,-1.),vec2<f32>(-1.,3.));
+  var o:VSOut; o.pos=vec4<f32>(p[vi],0.,1.); o.uv=p[vi]; return o;
+}
+
+fn sampleRG(pos:vec3<f32>)->vec2<f32>{   // (rock, sediment)
+  if(any(pos<vec3<f32>(0.0)) || any(pos>vec3<f32>(1.0))){ return vec2<f32>(0.0); }
+  return textureSampleLevel(dens, samp0, pos, 0.0).rg;
+}
+fn sampleD(pos:vec3<f32>)->f32{          // total occupancy = surface field
+  let rg=sampleRG(pos);
+  return rg.x + rg.y;
+}
+fn boxIntersect(ro:vec3<f32>, rd:vec3<f32>)->vec2<f32>{
+  let inv=1.0/rd;
+  let t0=(vec3<f32>(0.0)-ro)*inv;
+  let t1=(vec3<f32>(1.0)-ro)*inv;
+  let tmin=min(t0,t1); let tmax=max(t0,t1);
+  let tn=max(max(tmin.x,tmin.y),tmin.z);
+  let tf=min(min(tmax.x,tmax.y),tmax.z);
+  return vec2<f32>(tn,tf);
+}
+fn calcNormal(p:vec3<f32>)->vec3<f32>{
+  let e=vec2<f32>(1.4/uni.N, 0.0);
+  return normalize(vec3<f32>(
+    sampleD(p+e.xyy)-sampleD(p-e.xyy),
+    sampleD(p+e.yxy)-sampleD(p-e.yxy),
+    sampleD(p+e.yyx)-sampleD(p-e.yyx)));
+}
+fn sky(rd:vec3<f32>)->vec3<f32>{
+  let t=clamp(rd.y*0.5+0.5,0.0,1.0);
+  var c=mix(vec3<f32>(0.82,0.66,0.50), vec3<f32>(0.30,0.45,0.70), t);
+  let s=max(dot(rd,uni.sunDir),0.0);
+  c+=vec3<f32>(1.0,0.82,0.55)*pow(s,90.0)*0.9;
+  return c;
+}
+fn rockColor(p:vec3<f32>)->vec3<f32>{
+  let pv=p*uni.N;
+  let h=hardness(pv*(128.0/uni.N), uni.contrast, uni.warp, uni.noiseType, uni.noiseScale, uni.octaves, uni.warpScale, uni.warpOct);
+  let band=sin(pv.y*0.30);
+  let t=clamp((h-0.3)*0.9,0.0,1.0);
+  let c1=vec3<f32>(0.40,0.16,0.10);  // deep rust
+  let c2=vec3<f32>(0.76,0.38,0.17);  // orange
+  let c3=vec3<f32>(0.87,0.67,0.43);  // tan / caprock
+  var col=mix(c1,c2,smoothstep(0.25,0.6,t));
+  col=mix(col,c3,smoothstep(0.62,0.95,t));
+  col*=0.88+0.16*band;
+  return col;
+}
+// surface colour = banded rock, blended toward a distinct matte sand where the
+// surface is loose sediment (talus / scree).
+fn surfaceColor(p:vec3<f32>)->vec3<f32>{
+  let rg=sampleRG(p);
+  let sedFrac=rg.y/max(rg.x+rg.y, 1e-3);
+  let sand=vec3<f32>(0.78,0.71,0.58);                       // pale matte scree (distinct from rust rock)
+  let grain=0.92+0.14*vnoise(p*uni.N*0.9);                  // faint sandy speckle
+  return mix(rockColor(p), sand*grain, smoothstep(0.2,0.6,sedFrac));
+}
+
+@fragment
+fn fs(in:VSOut)->@location(0) vec4<f32>{
+  let rd=normalize(uni.fwd + in.uv.x*uni.tanFov*uni.aspect*uni.right + in.uv.y*uni.tanFov*uni.up);
+  let ro=uni.eye;
+  let tb=boxIntersect(ro,rd);
+  if(tb.y<tb.x || tb.y<0.0){ return vec4<f32>(sky(rd),1.0); }
+
+  var t=max(tb.x,0.0)+0.001;
+  let tend=tb.y;
+  let steps=i32(uni.steps);
+  let ds=(tend-t)/f32(steps);
+  var hit=false; var pos=vec3<f32>(0.0); var prevT=t;
+  for(var i=0;i<steps;i++){
+    pos=ro+rd*t;
+    if(sampleD(pos)>0.5){ hit=true; break; }
+    prevT=t; t+=ds;
+  }
+  if(!hit){ return vec4<f32>(sky(rd),1.0); }
+  // bisection refine
+  var lo=prevT; var hi=t;
+  for(var j=0;j<5;j++){
+    let m=(lo+hi)*0.5; let pm=ro+rd*m;
+    if(sampleD(pm)>0.5){ hi=m; } else { lo=m; }
+  }
+  pos=ro+rd*hi;
+
+  let n=calcNormal(pos);
+  let L=uni.sunDir;
+  var diff=max(dot(n,L),0.0);
+
+  // soft-ish shadow toward the sun
+  var sh=1.0;
+  var st=2.5/uni.N;
+  for(var k=0;k<26;k++){
+    let sp=pos+n*1.5/uni.N + L*st;
+    if(any(sp<vec3<f32>(0.0))||any(sp>vec3<f32>(1.0))){ break; }
+    if(sampleD(sp)>0.5){ sh=0.18; break; }
+    st+=2.5/uni.N;
+  }
+  // cheap ambient occlusion
+  var ao=0.0;
+  for(var a=1;a<=4;a++){
+    let d=f32(a)*2.5/uni.N;
+    ao += (d - (1.0-sampleD(pos+n*d)));
+  }
+  ao=clamp(1.0 - ao*0.65, 0.35, 1.0);
+
+  let base=surfaceColor(pos);
+  let sunCol=vec3<f32>(1.0,0.86,0.66);
+  let skyAmb=vec3<f32>(0.42,0.50,0.62);
+  var col = base*(diff*sh*sunCol*1.15 + skyAmb*(0.35+0.30*n.y)*ao);
+  col += base*0.05; // tiny fill
+
+  // distance fog into the sky
+  let fog=clamp((hi-tb.x)/1.8,0.0,1.0);
+  col=mix(col, sky(rd), fog*0.35);
+
+  // tonemap + gamma
+  col=col/(col+vec3<f32>(1.0));
+  col=pow(col, vec3<f32>(1.0/2.2));
+  return vec4<f32>(col,1.0);
+}
+`;
+
+/* ---------- pipelines (resolution-independent) ---------- */
+const sampler=device.createSampler({magFilter:'linear',minFilter:'linear'});
+const uniBuf=device.createBuffer({size:160, usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+
+const initPipe=device.createComputePipeline({layout:'auto',
+  compute:{module:device.createShaderModule({code:initWGSL}),entryPoint:'main'}});
+const erodePipe=device.createComputePipeline({layout:'auto',
+  compute:{module:device.createShaderModule({code:erodeWGSL}),entryPoint:'main'}});
+const floodPipe=device.createComputePipeline({layout:'auto',
+  compute:{module:device.createShaderModule({code:floodWGSL}),entryPoint:'main'}});
+const resetPipe=device.createComputePipeline({layout:'auto',
+  compute:{module:device.createShaderModule({code:resetWGSL}),entryPoint:'main'}});
+const slumpPipe=device.createComputePipeline({layout:'auto',
+  compute:{module:device.createShaderModule({code:slumpWGSL}),entryPoint:'main'}});
+const renderMod=device.createShaderModule({code:renderWGSL});
+const renderPipe=device.createRenderPipeline({layout:'auto',
+  vertex:{module:renderMod,entryPoint:'vs'},
+  fragment:{module:renderMod,entryPoint:'fs',targets:[{format}]},
+  primitive:{topology:'triangle-list'}});
+
+/* ---------- grid resources (rebuilt when resolution changes) ---------- */
+// dens[0..1]: rgba8unorm density (ping-pong, filterable for render)
+// sup[0..1] : r32float connectivity-sweep working pair (ping-pong)
+// sup[2]    : r32float published grounded-ness (read by the cull); exact, binary
+let dens=[null,null], sup=[null,null,null], densV=[null,null], supV=[null,null,null];
+let initBG, resetBG, erodeBG=[null,null], slumpBG=[null,null], floodBG=[[null,null],[null,null]], renderBG=[null,null];
+let prevN=128;
+function densTex(n){ return device.createTexture({size:[n,n,n], dimension:'3d', format:'rgba16float',
+  usage:GPUTextureUsage.STORAGE_BINDING|GPUTextureUsage.TEXTURE_BINDING}); }
+function supTex(n){ return device.createTexture({size:[n,n,n], dimension:'3d', format:'r32float',
+  usage:GPUTextureUsage.STORAGE_BINDING|GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_SRC|GPUTextureUsage.COPY_DST}); }
+function rebind(){
+  densV=[dens[0].createView(), dens[1].createView()];
+  supV =[sup[0].createView(),  sup[1].createView(), sup[2].createView()];
+  initBG=device.createBindGroup({layout:initPipe.getBindGroupLayout(0),
+    entries:[{binding:0,resource:{buffer:uniBuf}},{binding:1,resource:densV[0]}]});
+  // reset seeds the working buffer sup[0]
+  resetBG=device.createBindGroup({layout:resetPipe.getBindGroupLayout(0),
+    entries:[{binding:0,resource:{buffer:uniBuf}},{binding:1,resource:supV[0]}]});
+  // erode[densSrc]: read dens[s] & published sup[2] -> write dens[1-s]
+  for(let s=0;s<2;s++) erodeBG[s]=device.createBindGroup({layout:erodePipe.getBindGroupLayout(0),
+    entries:[{binding:0,resource:{buffer:uniBuf}},{binding:1,resource:densV[s]},
+             {binding:2,resource:densV[1-s]},{binding:3,resource:supV[2]}]});
+  // slump[densSrc]: read dens[s] -> write dens[1-s]
+  for(let s=0;s<2;s++) slumpBG[s]=device.createBindGroup({layout:slumpPipe.getBindGroupLayout(0),
+    entries:[{binding:0,resource:{buffer:uniBuf}},{binding:1,resource:densV[s]},{binding:2,resource:densV[1-s]}]});
+  // flood[densIdx][workSrc]: read dens[d] & sup[ss] -> write sup[1-ss]
+  for(let d=0;d<2;d++) for(let ss=0;ss<2;ss++){
+    floodBG[d][ss]=device.createBindGroup({layout:floodPipe.getBindGroupLayout(0),
+      entries:[{binding:0,resource:{buffer:uniBuf}},{binding:1,resource:densV[d]},
+               {binding:2,resource:supV[ss]},{binding:3,resource:supV[1-ss]}]});
+  }
+  for(let s=0;s<2;s++) renderBG[s]=device.createBindGroup({layout:renderPipe.getBindGroupLayout(0),
+    entries:[{binding:0,resource:{buffer:uniBuf}},{binding:1,resource:sampler},{binding:2,resource:densV[s]}]});
+}
+async function buildGrid(){
+  // allocate the new textures while watching for out-of-memory, so a too-big
+  // grid falls back gracefully instead of leaving a black screen.
+  device.pushErrorScope('out-of-memory');
+  const nd0=densTex(N), nd1=densTex(N);
+  const ns0=supTex(N),  ns1=supTex(N), ns2=supTex(N);
+  const oom=await device.popErrorScope();
+  if(oom){
+    nd0.destroy(); nd1.destroy(); ns0.destroy(); ns1.destroy(); ns2.destroy();
+    console.warn(`grid ${N}³ exceeds GPU memory — keeping ${prevN}³`);
+    N=prevN; const sel=document.getElementById('grid'); if(sel) sel.value=String(N);
+    if(!dens[0]){ dens=[densTex(N),densTex(N)]; sup=[supTex(N),supTex(N),supTex(N)]; rebind(); }
+    return;
+  }
+  if(dens[0]){ dens[0].destroy(); dens[1].destroy(); sup[0].destroy(); sup[1].destroy(); sup[2].destroy(); }
+  dens=[nd0,nd1]; sup=[ns0,ns1,ns2]; prevN=N;
+  rebind();
+}
+
+/* ---------- uniforms / camera ---------- */
+const U=new Float32Array(40);
+const params={rain:1.4,wind:1.0,contrast:0.85,warp:0.5,
+  noiseType:0,noiseScale:0.05,octaves:3,warpScale:0.04,warpOct:2,removeFloaters:true,
+  sediment:true,deposit:0.8,sedWash:0.004,repose:0.06,slumpRate:0.2,openEdges:true,
+  speed:2,paused:false,renderScale:0.85,steps:220};
+const cam={az:0.6, el:0.35, r:1.85, dragging:false, px:0, py:0, auto:true};
+
+function norm(v){const l=Math.hypot(v[0],v[1],v[2])||1;return [v[0]/l,v[1]/l,v[2]/l];}
+function cross(a,b){return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]];}
+
+function writeUniforms(time){
+  const tgt=[0.5,0.42,0.5];
+  const ce=Math.cos(cam.el), se=Math.sin(cam.el);
+  const eye=[tgt[0]+cam.r*ce*Math.cos(cam.az), tgt[1]+cam.r*se, tgt[2]+cam.r*ce*Math.sin(cam.az)];
+  const fwd=norm([tgt[0]-eye[0],tgt[1]-eye[1],tgt[2]-eye[2]]);
+  const right=norm(cross(fwd,[0,1,0]));
+  const up=cross(right,fwd);
+  const sun=norm([0.45,0.72,0.30]);
+  const aspect=canvas.width/canvas.height;
+  const tanFov=Math.tan(0.45);
+  const bedrock=Math.floor(N*0.10);
+  U[0]=params.rain;U[1]=params.wind;U[2]=params.contrast;U[3]=0.05*params.speed;
+  U[4]=N;U[5]=bedrock;U[6]=time;U[7]=1.05;  // U[7] = hardThresh
+  U[8]=eye[0];U[9]=eye[1];U[10]=eye[2];U[11]=tanFov;
+  U[12]=fwd[0];U[13]=fwd[1];U[14]=fwd[2];U[15]=aspect;
+  U[16]=right[0];U[17]=right[1];U[18]=right[2];U[19]=params.steps;
+  U[20]=up[0];U[21]=up[1];U[22]=up[2];U[23]=params.warp;
+  U[24]=sun[0];U[25]=sun[1];U[26]=sun[2];U[27]=0;
+  // cull unsupported rock once the first connectivity sweep has published.
+  // support is exact binary (0/1), so threshold 0.5. -1 disables.
+  const cullActive = params.removeFloaters && publishedOnce;
+  U[28]=params.noiseType;U[29]=params.noiseScale;U[30]=params.octaves;
+  U[31]=cullActive ? 0.5 : -1.0;
+  U[32]=params.warpScale;U[33]=params.warpOct;U[34]=params.openEdges?1.0:0.0;U[35]=0;
+  U[36]=params.sediment?params.deposit:0.0;  // deposit=0 disables sedimentation
+  U[37]=params.sedWash;U[38]=params.repose;U[39]=params.slumpRate;
+  device.queue.writeBuffer(uniBuf,0,U);
+}
+
+let cur=0;              // index of the latest density texture
+let sweepIter=0;        // iteration within the current connectivity sweep
+let workCur=0;          // working support buffer holding the latest flood result
+let publishedOnce=false;// has a full sweep published yet? (gates culling)
+function runInit(){
+  writeUniforms(0);
+  const enc=device.createCommandEncoder();
+  const p=enc.beginComputePass();
+  p.setPipeline(initPipe); p.setBindGroup(0,initBG);
+  const g=Math.ceil(N/WG); p.dispatchWorkgroups(g,g,g); p.end();
+  device.queue.submit([enc.finish()]);
+  cur=0; sweepIter=0; workCur=0; publishedOnce=false;
+}
+
+function resize(){
+  const dpr=Math.min(window.devicePixelRatio||1, 1.5)*params.renderScale;
+  const w=Math.max(8,Math.floor((innerWidth||document.documentElement.clientWidth||1280)*dpr));
+  const h=Math.max(8,Math.floor((innerHeight||document.documentElement.clientHeight||720)*dpr));
+  if(canvas.width!==w||canvas.height!==h){ canvas.width=w; canvas.height=h; }
+}
+addEventListener('resize',resize); resize();
+
+/* ---------- interaction ---------- */
+canvas.addEventListener('pointerdown',e=>{cam.dragging=true;cam.auto=false;cam.px=e.clientX;cam.py=e.clientY;canvas.setPointerCapture(e.pointerId);});
+canvas.addEventListener('pointerup',()=>cam.dragging=false);
+canvas.addEventListener('pointermove',e=>{
+  if(!cam.dragging)return;
+  cam.az-=(e.clientX-cam.px)*0.006; cam.el+=(e.clientY-cam.py)*0.006;
+  cam.el=Math.max(-0.2,Math.min(1.45,cam.el));
+  cam.px=e.clientX; cam.py=e.clientY;
+});
+canvas.addEventListener('wheel',e=>{e.preventDefault();cam.r=Math.max(1.0,Math.min(3.2,cam.r+e.deltaY*0.0011));},{passive:false});
+
+const $=id=>document.getElementById(id);
+function bindSlider(id,vid,key,fmt){const el=$(id);el.oninput=()=>{params[key]=parseFloat(el.value);$(vid).textContent=fmt?fmt(params[key]):params[key];};}
+bindSlider('rain','vRain','rain',v=>v.toFixed(2));
+bindSlider('wind','vWind','wind',v=>v.toFixed(2));
+bindSlider('con','vCon','contrast',v=>v.toFixed(2));
+bindSlider('warp','vWarp','warp',v=>v.toFixed(2));
+bindSlider('scale','vScale','noiseScale',v=>v.toFixed(3));
+bindSlider('oct','vOct','octaves',v=>v.toFixed(0));
+bindSlider('wscale','vWScale','warpScale',v=>v.toFixed(3));
+bindSlider('woct','vWOct','warpOct',v=>v.toFixed(0));
+$('ntype').onchange=()=>{params.noiseType=parseInt($('ntype').value);runInit();};
+$('spd').oninput=()=>{params.speed=parseFloat($('spd').value);$('vSpd').textContent=params.speed.toFixed(1);};
+$('cull').onchange=()=>{params.removeFloaters=$('cull').checked;};
+$('open').onchange=()=>{params.openEdges=$('open').checked;};
+$('sed').onchange=()=>{params.sediment=$('sed').checked;};
+bindSlider('dep','vDep','deposit',v=>v.toFixed(2));
+bindSlider('rep','vRep','repose',v=>v.toFixed(3));
+$('reset').onclick=()=>runInit();
+$('pause').onclick=()=>{params.paused=!params.paused;$('pause').textContent=params.paused?'Run':'Pause';};
+
+const QUALITY={low:{renderScale:0.5,steps:130},med:{renderScale:0.85,steps:220},
+  high:{renderScale:1.2,steps:320},ultra:{renderScale:1.5,steps:440}};
+$('quality').onchange=()=>{const q=QUALITY[$('quality').value];params.renderScale=q.renderScale;params.steps=q.steps;resize();};
+$('grid').onchange=async()=>{N=parseInt($('grid').value);await buildGrid();runInit();};
+
+/* ---------- main loop ---------- */
+await buildGrid();
+runInit();
+const FLOOD_ITERS=32;                       // sweep iterations per frame
+function sweepTarget(){ return Math.ceil(2.5*N); } // iters for a full sweep
+function stepSim(enc){
+  const g=Math.ceil(N/WG);
+  // 1) connectivity sweep: reset (iter 0) then pure-max flood; publish on completion.
+  //    Latency to remove a floater = one sweep period (~sweepTarget/FLOOD_ITERS frames).
+  let cp=enc.beginComputePass();
+  for(let i=0;i<FLOOD_ITERS;i++){
+    if(sweepIter===0){
+      cp.setPipeline(resetPipe); cp.setBindGroup(0, resetBG);   // seed bedrock -> sup[0]
+      cp.dispatchWorkgroups(g,g,g); workCur=0;
+    } else {
+      cp.setPipeline(floodPipe); cp.setBindGroup(0, floodBG[cur][workCur]);
+      cp.dispatchWorkgroups(g,g,g); workCur^=1;
+    }
+    sweepIter++;
+    if(sweepIter>=sweepTarget()){
+      cp.end();                                                 // publish: copy result -> sup[2]
+      enc.copyTextureToTexture({texture:sup[workCur]}, {texture:sup[2]}, [N,N,N]);
+      publishedOnce=true; sweepIter=0;
+      cp=enc.beginComputePass();
+    }
+  }
+  cp.end();
+  // 2) erosion + cull — fixed 2 sub-steps; "speed" scales dt (float). Cull reads
+  //    the published grounded-ness, so it runs even at speed 0.
+  const ep=enc.beginComputePass();
+  ep.setPipeline(erodePipe);
+  for(let s=0;s<2;s++){
+    ep.setBindGroup(0, erodeBG[cur]);
+    ep.dispatchWorkgroups(g,g,g);
+    cur^=1;
+  }
+  // 3) talus slumping — settle loose sediment (gravity + repose). Even count
+  //    keeps cur parity, so the render samples the latest texture.
+  if(params.sediment){
+    ep.setPipeline(slumpPipe);
+    for(let s=0;s<8;s++){
+      ep.setBindGroup(0, slumpBG[cur]);
+      ep.dispatchWorkgroups(g,g,g);
+      cur^=1;
+    }
+  }
+  ep.end();
+}
+let t0=performance.now();
+function frame(now){
+  const time=(now-t0)*0.001;
+  resize();
+  if(cam.auto) cam.az+=0.0016;
+  writeUniforms(time);
+
+  const enc=device.createCommandEncoder();
+  if(!params.paused) stepSim(enc);
+  const rp=enc.beginRenderPass({colorAttachments:[{
+    view:ctx.getCurrentTexture().createView(),
+    clearValue:{r:0,g:0,b:0,a:1},loadOp:'clear',storeOp:'store'}]});
+  rp.setPipeline(renderPipe);
+  rp.setBindGroup(0, renderBG[cur]);  // sample the latest density texture
+  rp.draw(3); rp.end();
+
+  device.queue.submit([enc.finish()]);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

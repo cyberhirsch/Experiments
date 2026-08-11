@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Turing Manifolds - Local Neighborhood</title>
+<style>
+html,body{height:100%;margin:0;overflow:hidden;background:#070809;color:#e6ecf2;font:12px JetBrains Mono,Consolas,monospace}
+body{display:grid;grid-template-rows:auto 1fr auto;background:radial-gradient(ellipse at 48% 47%,rgba(143,166,180,.12),transparent 52%),#070809}
+header,footer{padding:18px 28px;border-color:rgba(230,236,242,.12);z-index:2}header{border-bottom:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;align-items:baseline}footer{border-top:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+h1{font:italic 28px Cormorant Garamond,Georgia,serif;font-weight:300;margin:0}.meta,.dim{color:#5a6470}.hot{color:#8fa6b4}
+main{position:relative}canvas{position:absolute;inset:0;width:100%;height:100%;display:block}.read{position:absolute;right:28px;top:20px;text-align:right;color:#5a6470;line-height:1.8;text-transform:uppercase}.read b{color:#8fa6b4;font-weight:400}.left{position:absolute;left:28px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;color:#5a6470;text-transform:uppercase}.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap}input{width:118px;accent-color:#8fa6b4}label{color:#5a6470}button{background:transparent;border:1px solid rgba(230,236,242,.14);color:#5a6470;padding:7px 12px;text-transform:uppercase;cursor:pointer}button.active,button:hover{color:#8fa6b4;border-color:#8fa6b4}
+</style>
+</head>
+<body>
+<header><h1>No. 09 - Local Neighborhood</h1><div class="meta">meshless Gray-Scott / radius graph diffusion / <span class="hot">point manifold</span></div></header>
+<main><canvas id="stage"></canvas><div class="left" id="status">POINT FIELD ACTIVE</div><div class="read">points <b id="pts">3600</b><br>links <b id="links">0</b><br>v max <b id="vmax">0.00</b><br>fps <b id="fps">0</b><br>iter <b id="iter">0</b></div></main>
+<footer><div class="dim">Reaction-diffusion over an unstructured point set on a deforming implicit surface</div><div class="controls"><label>Feed <input id="feed" type="range" min=".015" max=".075" step=".001" value=".038"></label><label>Kill <input id="kill" type="range" min=".040" max=".085" step=".001" value=".060"></label><label>Speed <input id="speed" type="range" min="1" max="8" step="1" value="4"></label><button id="run" class="active">Run</button><button id="reset">Reset</button></div></footer>
+<script>
+const N=3600,canvas=document.getElementById('stage'),ctx=canvas.getContext('2d'),P=[],nbr=[],u=new Float32Array(N),v=new Float32Array(N),nu=new Float32Array(N),nv=new Float32Array(N);let running=true,iter=0,yaw=0,last=performance.now(),frames=0,acc=0;
+const $=id=>document.getElementById(id);
+function rnd(i){const x=Math.sin(i*12.9898+i*i*.078)*43758.5453;return x-Math.floor(x)}
+function buildPoints(){P.length=0;for(let i=0;i<N;i++){const z=1-2*(i+.5)/N,r=Math.sqrt(1-z*z),a=Math.PI*(3-Math.sqrt(5))*i;let x=Math.cos(a)*r,y=Math.sin(a)*r;const bump=1+.13*Math.sin(5*a+2*z)+.08*Math.sin(11*y);P.push({x:x*bump,y:y*bump,z:z*bump})}}
+function buildGraph(){for(let i=0;i<N;i++)nbr[i]=[];let links=0;for(let i=0;i<N;i++){const pi=P[i],best=[];for(let j=0;j<N;j+=3){if(i===j)continue;const pj=P[j],d=(pi.x-pj.x)**2+(pi.y-pj.y)**2+(pi.z-pj.z)**2;if(best.length<10||d<best[best.length-1].d){best.push({j,d});best.sort((a,b)=>a.d-b.d);best.length=Math.min(best.length,10)}}nbr[i]=best.map(e=>e.j);links+=nbr[i].length}$('links').textContent=links}
+function reset(){u.fill(1);v.fill(0);for(let i=0;i<N;i++){const p=P[i],seed=Math.exp(-((p.x-.45)**2+(p.y+.15)**2+(p.z-.1)**2)*18)+Math.exp(-((p.x+.3)**2+(p.y-.5)**2+(p.z+.2)**2)*16);v[i]=Math.min(.85,seed*.55+rnd(i)*.025);u[i]=1-v[i]*.5}iter=0}
+function tick(){const F=+$('feed').value,K=+$('kill').value;let vmax=0;for(let i=0;i<N;i++){let lu=0,lv=0;for(const j of nbr[i]){lu+=u[j]-u[i];lv+=v[j]-v[i]}lu/=nbr[i].length;lv/=nbr[i].length;const uvv=u[i]*v[i]*v[i];nu[i]=Math.max(0,Math.min(1,u[i]+(.20*lu-uvv+F*(1-u[i]))));nv[i]=Math.max(0,Math.min(1,v[i]+(.10*lv+uvv-(F+K)*v[i])));vmax=Math.max(vmax,nv[i])}u.set(nu);v.set(nv);iter++;$('vmax').textContent=vmax.toFixed(2)}
+function draw(){ctx.fillStyle='#070809';ctx.fillRect(0,0,canvas.width,canvas.height);const s=Math.min(canvas.width,canvas.height)*.34,cx=canvas.width/2,cy=canvas.height/2,cyaw=Math.cos(yaw),syaw=Math.sin(yaw);for(let i=0;i<N;i++){const p=P[i],x=p.x*cyaw-p.z*syaw,z=p.x*syaw+p.z*cyaw,scale=1/(1.8+z*.22),px=cx+x*s*scale,py=cy+p.y*s*scale,d=v[i];ctx.fillStyle=`rgba(${60+d*190|0},${80+d*170|0},${95+d*160|0},${.18+d*.75})`;ctx.fillRect(px,py,1.6*scale+1,1.6*scale+1)}}
+function resize(){const d=Math.min(devicePixelRatio||1,2),w=canvas.clientWidth*d,h=canvas.clientHeight*d;if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}}
+function frame(t){resize();if(running){for(let i=0;i<+$('speed').value;i++)tick()}yaw+=.004;draw();frames++;acc+=(t-last)/1000;last=t;if(acc>.5){$('fps').textContent=Math.round(frames/acc);$('iter').textContent=iter;frames=0;acc=0}requestAnimationFrame(frame)}
+$('run').onclick=()=>{running=!running;$('run').classList.toggle('active',running);$('status').textContent=running?'POINT FIELD ACTIVE':'POINT FIELD PAUSED'};$('reset').onclick=reset;
+buildPoints();buildGraph();reset();requestAnimationFrame(frame);
+</script>
+</body>
+</html>

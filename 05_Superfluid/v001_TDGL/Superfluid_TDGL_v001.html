@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Superfluid Vortices - TDGL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070809;
+    --ink:#e6ecf2;
+    --dim:#5a6470;
+    --accent:#7fc7ff;
+    --line:rgba(230,236,242,0.10);
+    --field:#101820;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{
+    height:100%;
+    background:var(--bg);
+    color:var(--ink);
+    overflow:hidden;
+    font-family:'JetBrains Mono',monospace;
+  }
+  body{
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    background:
+      radial-gradient(ellipse at 28% 18%, rgba(127,199,255,0.08), transparent 54%),
+      radial-gradient(ellipse at 76% 82%, rgba(74,112,146,0.07), transparent 58%),
+      var(--bg);
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:100;
+    pointer-events:none;
+    opacity:.28;
+    mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.33 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  header{
+    padding:22px 32px 8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    border-bottom:1px solid var(--line);
+    z-index:2;
+  }
+  header h1{
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-weight:300;
+    font-size:26px;
+    letter-spacing:0;
+  }
+  header h1 .num{
+    font-family:'JetBrains Mono',monospace;
+    font-style:normal;
+    font-size:10px;
+    color:var(--dim);
+    margin-right:14px;
+    letter-spacing:0;
+  }
+  header .meta{
+    font-size:10px;
+    color:var(--dim);
+    letter-spacing:0;
+    text-transform:uppercase;
+  }
+  header .meta b{color:var(--accent);font-weight:400}
+  main{position:relative;overflow:hidden}
+  #stage{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+  }
+  .corner{
+    position:absolute;
+    font-size:9px;
+    color:var(--dim);
+    letter-spacing:0;
+    text-transform:uppercase;
+    pointer-events:none;
+    z-index:3;
+    line-height:1.7;
+  }
+  .corner.tl{top:18px;left:32px}
+  .corner.tr{top:18px;right:32px;text-align:right}
+  .corner.bl{bottom:18px;left:32px}
+  .corner.br{bottom:18px;right:32px;text-align:right}
+  .corner b{color:var(--accent);font-weight:400}
+  .ornament{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    font-family:'Cormorant Garamond',serif;
+    color:var(--dim);
+    font-size:11px;
+    letter-spacing:0;
+    z-index:3;
+    pointer-events:none;
+    font-style:italic;
+  }
+  .ornament.top{top:14px}
+  .ornament.bot{bottom:14px}
+  .crosshair{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:1px;
+    height:1px;
+    z-index:2;
+    pointer-events:none;
+  }
+  .crosshair::before,.crosshair::after{content:"";position:absolute;background:var(--line)}
+  .crosshair::before{width:22px;height:1px;left:-11px;top:0}
+  .crosshair::after{width:1px;height:22px;left:0;top:-11px}
+  #status{
+    position:absolute;
+    left:32px;
+    top:50%;
+    transform:translateY(-50%) rotate(180deg);
+    font-size:9px;
+    letter-spacing:0;
+    color:var(--dim);
+    writing-mode:vertical-rl;
+    z-index:3;
+    pointer-events:none;
+  }
+  #readout{
+    position:absolute;
+    right:32px;
+    top:50%;
+    transform:translateY(-50%);
+    font-size:9px;
+    letter-spacing:0;
+    color:var(--dim);
+    writing-mode:vertical-rl;
+    z-index:3;
+    pointer-events:none;
+    text-align:right;
+    line-height:2;
+  }
+  #readout span{color:var(--accent)}
+  footer{
+    padding:14px 32px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:18px;
+    font-size:10px;
+    color:var(--dim);
+    letter-spacing:0;
+    text-transform:uppercase;
+    z-index:2;
+  }
+  footer .controls{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .slider-group{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:9px;
+    color:var(--dim);
+  }
+  input[type=range]{
+    width:118px;
+    accent-color:var(--accent);
+  }
+  .val{
+    min-width:54px;
+    color:var(--accent);
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  button{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--dim);
+    font:inherit;
+    font-size:10px;
+    letter-spacing:0;
+    padding:7px 10px;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:border-color .25s,color .25s,background .25s;
+  }
+  button:hover,button.active{
+    border-color:var(--accent);
+    color:var(--accent);
+    background:rgba(127,199,255,0.06);
+  }
+  .sep{width:1px;height:18px;background:var(--line)}
+  #toast{
+    position:absolute;
+    left:50%;
+    bottom:64px;
+    transform:translateX(-50%);
+    background:rgba(7,8,9,0.88);
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-size:10px;
+    letter-spacing:0;
+    text-transform:uppercase;
+    padding:8px 16px;
+    opacity:0;
+    transition:opacity .3s;
+    pointer-events:none;
+    z-index:50;
+  }
+  #toast.show{opacity:1}
+  @media (max-width: 760px){
+    header{display:block;padding:20px 20px 8px}
+    header .meta{margin-top:8px}
+    footer{display:block;padding:14px 20px}
+    footer > div:first-child{margin-bottom:12px}
+    footer .controls{justify-content:flex-start}
+    .corner.tl,.corner.bl{left:20px}
+    .corner.tr,.corner.br{right:20px}
+    #status{left:20px}
+    #readout{right:20px}
+    .ornament{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="num">No. 05 - VOL. II</span>Superfluid Vortices <span style="color:var(--dim);font-size:14px;font-style:normal"> - TDGL</span></h1>
+  <div class="meta">WebGL2 float field / complex order parameter / <b>phase vortices</b></div>
+</header>
+
+<main>
+  <div class="ornament top">- rotating condensate - dissipative relaxation - quantized winding -</div>
+  <div class="corner tl">order field<br><b>psi = a + ib</b><br>finite difference</div>
+  <div class="corner tr">grid <b id="grid-label">384^2</b><br>density <b id="density-label">0.00</b><br>cores <b id="core-label">0</b></div>
+  <div class="corner bl">phase color<br>trap potential<br><b>winding estimate</b></div>
+  <div class="corner br">omega <b id="omega-label">0.00</b><br>stir radius <b id="stir-label">0.00</b><br>tdgl v001</div>
+  <div class="crosshair"></div>
+  <div id="status">FIELD ACTIVE</div>
+  <div id="readout">fps <span id="fps">0</span> / t <span id="tt">0.0</span>s / steps <span id="steps">0</span></div>
+  <canvas id="stage"></canvas>
+  <div class="ornament bot">- - -</div>
+</main>
+
+<footer>
+  <div>Time-dependent Ginzburg-Landau flow in a rotating harmonic trap</div>
+  <div class="controls">
+    <div class="slider-group"><label>Omega</label><input id="s-omega" type="range" min="0" max="2.4" step="0.01" value="0.92"><span id="v-omega" class="val">0.92</span></div>
+    <div class="sep"></div>
+    <div class="slider-group"><label>Damp</label><input id="s-damping" type="range" min="0.2" max="2.0" step="0.01" value="0.82"><span id="v-damping" class="val">0.82</span></div>
+    <div class="sep"></div>
+    <div class="slider-group"><label>Trap</label><input id="s-trap" type="range" min="0.45" max="1.8" step="0.01" value="0.92"><span id="v-trap" class="val">0.92</span></div>
+    <div class="sep"></div>
+    <button id="b-evolve" class="active">Evolve</button>
+    <button id="b-stir" class="active">Stir</button>
+    <button id="b-phase" class="active">Phase</button>
+    <button id="b-reset">Reset</button>
+  </div>
+</footer>
+<div id="toast"></div>
+
+<script type="module">
+const SIM_RES = 384;
+const DT = 0.014;
+const STEPS_PER_FRAME = 3;
+const TWO_PI = Math.PI * 2;
+
+const canvas = document.getElementById('stage');
+const statusEl = document.getElementById('status');
+const fpsEl = document.getElementById('fps');
+const timeEl = document.getElementById('tt');
+const stepsEl = document.getElementById('steps');
+const gridLabel = document.getElementById('grid-label');
+const densityLabel = document.getElementById('density-label');
+const coreLabel = document.getElementById('core-label');
+const omegaLabel = document.getElementById('omega-label');
+const stirLabel = document.getElementById('stir-label');
+const toast = document.getElementById('toast');
+
+const controls = {
+  omega: document.getElementById('s-omega'),
+  omegaVal: document.getElementById('v-omega'),
+  damping: document.getElementById('s-damping'),
+  dampingVal: document.getElementById('v-damping'),
+  trap: document.getElementById('s-trap'),
+  trapVal: document.getElementById('v-trap'),
+  evolve: document.getElementById('b-evolve'),
+  stir: document.getElementById('b-stir'),
+  phase: document.getElementById('b-phase'),
+  reset: document.getElementById('b-reset'),
+};
+
+const params = {
+  omega: 0.92,
+  damping: 0.82,
+  trap: 0.92,
+  evolve: true,
+  stir: true,
+  phase: true,
+};
+
+let toastTimer = null;
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1400);
+}
+
+function syncUi() {
+  controls.omega.value = params.omega.toFixed(2);
+  controls.damping.value = params.damping.toFixed(2);
+  controls.trap.value = params.trap.toFixed(2);
+  controls.omegaVal.textContent = params.omega.toFixed(2);
+  controls.dampingVal.textContent = params.damping.toFixed(2);
+  controls.trapVal.textContent = params.trap.toFixed(2);
+  controls.evolve.classList.toggle('active', params.evolve);
+  controls.stir.classList.toggle('active', params.stir);
+  controls.phase.classList.toggle('active', params.phase);
+  omegaLabel.textContent = params.omega.toFixed(2);
+  stirLabel.textContent = params.stir ? '0.36' : 'off';
+  statusEl.textContent = params.evolve ? 'FIELD ACTIVE' : 'FIELD PAUSED';
+}
+
+controls.omega.addEventListener('input', () => { params.omega = Number(controls.omega.value); syncUi(); });
+controls.damping.addEventListener('input', () => { params.damping = Number(controls.damping.value); syncUi(); });
+controls.trap.addEventListener('input', () => { params.trap = Number(controls.trap.value); syncUi(); });
+controls.evolve.onclick = () => { params.evolve = !params.evolve; syncUi(); showToast(params.evolve ? 'Evolution resumed' : 'Evolution paused'); };
+controls.stir.onclick = () => { params.stir = !params.stir; syncUi(); showToast(params.stir ? 'Rotating stirrer enabled' : 'Rotating stirrer disabled'); };
+controls.phase.onclick = () => { params.phase = !params.phase; syncUi(); showToast(params.phase ? 'Phase view enabled' : 'Density view enabled'); };
+
+const gl = canvas.getContext('webgl2', { antialias:false, depth:false, stencil:false });
+if (!gl) throw new Error('WebGL2 is required.');
+if (!gl.getExtension('EXT_color_buffer_float')) throw new Error('EXT_color_buffer_float is required.');
+
+function shader(type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(s) || 'Shader compile failed.');
+  }
+  return s;
+}
+
+function program(vsSource, fsSource) {
+  const p = gl.createProgram();
+  gl.attachShader(p, shader(gl.VERTEX_SHADER, vsSource));
+  gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fsSource));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(p) || 'Program link failed.');
+  }
+  return p;
+}
+
+const quadVs = `#version 300 es
+precision highp float;
+const vec2 P[3] = vec2[3](vec2(-1.0,-3.0), vec2(3.0,1.0), vec2(-1.0,1.0));
+out vec2 vUv;
+void main() {
+  vec2 p = P[gl_VertexID];
+  vUv = p * 0.5 + 0.5;
+  gl_Position = vec4(p, 0.0, 1.0);
+}`;
+
+const simFs = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D uPsi;
+uniform vec2 uTexel;
+uniform float uDt;
+uniform float uTime;
+uniform float uOmega;
+uniform float uDamping;
+uniform float uTrap;
+uniform float uStir;
+
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+vec2 cmulI(vec2 z) {
+  return vec2(-z.y, z.x);
+}
+
+vec2 readPsi(vec2 uv) {
+  return texture(uPsi, uv).xy;
+}
+
+void main() {
+  vec2 xy = vUv * 2.0 - 1.0;
+  vec2 psi = readPsi(vUv);
+  vec2 px = vec2(uTexel.x, 0.0);
+  vec2 py = vec2(0.0, uTexel.y);
+  vec2 left = readPsi(vUv - px);
+  vec2 right = readPsi(vUv + px);
+  vec2 down = readPsi(vUv - py);
+  vec2 up = readPsi(vUv + py);
+
+  vec2 lap = left + right + down + up - 4.0 * psi;
+  vec2 gradX = (right - left) * 0.5;
+  vec2 gradY = (up - down) * 0.5;
+
+  float r2 = dot(xy, xy);
+  float potential = uTrap * r2;
+  if (uStir > 0.5) {
+    float a = uTime * max(uOmega, 0.05);
+    vec2 c0 = vec2(cos(a), sin(a)) * 0.36;
+    vec2 c1 = vec2(cos(a + 3.14159265), sin(a + 3.14159265)) * 0.36;
+    potential += exp(-dot(xy - c0, xy - c0) * 115.0) * 0.75;
+    potential += exp(-dot(xy - c1, xy - c1) * 115.0) * 0.75;
+  }
+
+  float density = dot(psi, psi);
+  vec2 relax = lap * 0.72 + (1.05 - potential - density) * psi;
+  vec2 orbital = xy.x * gradY - xy.y * gradX;
+  vec2 rotation = cmulI(orbital) * uOmega;
+  float edgeLoss = smoothstep(0.74, 1.15, r2) * 0.16;
+  float n = hash21(vUv + vec2(uTime * 0.017, -uTime * 0.013)) - 0.5;
+
+  vec2 dPsi = relax * uDamping + rotation * 0.54 - psi * edgeLoss + vec2(n, -n) * 0.002;
+  psi += dPsi * uDt;
+  psi *= 1.0 / max(1.0, dot(psi, psi) * 0.18);
+
+  outColor = vec4(psi, density, 1.0);
+}`;
+
+const renderFs = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+uniform sampler2D uPsi;
+uniform vec2 uTexel;
+uniform float uTime;
+uniform float uPhase;
+uniform float uStir;
+uniform float uOmega;
+
+vec3 phaseColor(float a) {
+  return 0.54 + 0.46 * cos(a + vec3(0.0, 2.0943951, 4.1887902));
+}
+
+float wrapPhase(float x) {
+  return atan(sin(x), cos(x));
+}
+
+float phaseAt(vec2 uv) {
+  vec2 p = texture(uPsi, uv).xy;
+  return atan(p.y, p.x);
+}
+
+void main() {
+  vec2 psi = texture(uPsi, vUv).xy;
+  float density = clamp(dot(psi, psi), 0.0, 1.8);
+  float phase = atan(psi.y, psi.x);
+  vec3 hue = phaseColor(phase);
+  vec3 base = mix(vec3(0.006, 0.009, 0.014), hue, smoothstep(0.015, 0.72, density));
+  if (uPhase < 0.5) {
+    base = vec3(0.02, 0.055, 0.085) + vec3(0.50, 0.82, 1.0) * smoothstep(0.0, 1.15, density);
+  }
+
+  float p0 = phaseAt(vUv);
+  float px = phaseAt(vUv + vec2(uTexel.x, 0.0));
+  float py = phaseAt(vUv + vec2(0.0, uTexel.y));
+  float swirl = abs(wrapPhase(px - p0)) + abs(wrapPhase(py - p0));
+  float core = (1.0 - smoothstep(0.018, 0.11, density)) * smoothstep(1.0, 3.1, swirl);
+  base += vec3(0.62, 0.88, 1.0) * core;
+
+  vec2 xy = vUv * 2.0 - 1.0;
+  float trapEdge = smoothstep(0.70, 1.05, dot(xy, xy));
+  base *= 1.0 - trapEdge * 0.52;
+
+  if (uStir > 0.5) {
+    float a = uTime * max(uOmega, 0.05);
+    vec2 c0 = vec2(cos(a), sin(a)) * 0.36;
+    vec2 c1 = vec2(cos(a + 3.14159265), sin(a + 3.14159265)) * 0.36;
+    float s0 = exp(-dot(xy - c0, xy - c0) * 260.0);
+    float s1 = exp(-dot(xy - c1, xy - c1) * 260.0);
+    base += vec3(0.38, 0.78, 1.0) * (s0 + s1) * 0.42;
+  }
+
+  outColor = vec4(pow(max(base, vec3(0.0)), vec3(0.88)), 1.0);
+}`;
+
+const simProgram = program(quadVs, simFs);
+const renderProgram = program(quadVs, renderFs);
+gl.bindVertexArray(gl.createVertexArray());
+
+function createTexture(data) {
+  const tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, SIM_RES, SIM_RES, 0, gl.RGBA, gl.FLOAT, data);
+  return tex;
+}
+
+function createFramebuffer(texture) {
+  const fb = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+  const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+  if (status !== gl.FRAMEBUFFER_COMPLETE) throw new Error('Float framebuffer is incomplete.');
+  return fb;
+}
+
+let textures = [];
+let framebuffers = [];
+let current = 0;
+let simTime = 0;
+let stepCount = 0;
+let last = performance.now();
+let fpsAccum = 0;
+let fpsFrames = 0;
+let statsTimer = 0;
+let readback = new Float32Array(SIM_RES * SIM_RES * 4);
+
+function seeded(i) {
+  return Math.sin(i * 12.9898 + i * i * 0.078233) * 43758.5453123;
+}
+
+function makeInitialField() {
+  const data = new Float32Array(SIM_RES * SIM_RES * 4);
+  const vortices = [
+    [-0.35, -0.22, 1], [0.26, -0.18, 1], [-0.12, 0.30, -1], [0.42, 0.24, -1],
+    [-0.03, -0.44, 1], [0.08, 0.08, -1],
+  ];
+  for (let y = 0; y < SIM_RES; y++) {
+    for (let x = 0; x < SIM_RES; x++) {
+      const nx = x / (SIM_RES - 1) * 2 - 1;
+      const ny = y / (SIM_RES - 1) * 2 - 1;
+      const r2 = nx * nx + ny * ny;
+      let amp = Math.sqrt(Math.max(1.0 - r2 * 0.95, 0.0)) * 0.92;
+      let phase = Math.atan2(ny, nx) * 0.15;
+      for (const v of vortices) {
+        const dx = nx - v[0];
+        const dy = ny - v[1];
+        const d2 = dx * dx + dy * dy;
+        phase += Math.atan2(dy, dx) * v[2];
+        amp *= smoothstep(0.002, 0.020, d2);
+      }
+      const jitter = (seeded(x + y * 17) - Math.floor(seeded(x + y * 17))) - 0.5;
+      phase += jitter * 0.18;
+      const i = (y * SIM_RES + x) * 4;
+      data[i] = Math.cos(phase) * amp;
+      data[i + 1] = Math.sin(phase) * amp;
+      data[i + 2] = amp * amp;
+      data[i + 3] = 1;
+    }
+  }
+  return data;
+}
+
+function smoothstep(a, b, x) {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+}
+
+function resetField() {
+  for (const fb of framebuffers) gl.deleteFramebuffer(fb);
+  for (const tex of textures) gl.deleteTexture(tex);
+  const initial = makeInitialField();
+  textures = [createTexture(initial), createTexture(initial)];
+  framebuffers = [createFramebuffer(textures[0]), createFramebuffer(textures[1])];
+  current = 0;
+  simTime = 0;
+  stepCount = 0;
+  showToast('Field reinitialized');
+}
+
+controls.reset.onclick = () => {
+  Object.assign(params, { omega:0.92, damping:0.82, trap:0.92, evolve:true, stir:true, phase:true });
+  syncUi();
+  resetField();
+};
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+  const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+}
+
+function setUniforms(p, values) {
+  for (const [name, value] of Object.entries(values)) {
+    const loc = gl.getUniformLocation(p, name);
+    if (loc === null) continue;
+    if (Array.isArray(value)) gl.uniform2f(loc, value[0], value[1]);
+    else gl.uniform1f(loc, value);
+  }
+}
+
+function stepSimulation() {
+  const next = 1 - current;
+  gl.useProgram(simProgram);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[next]);
+  gl.viewport(0, 0, SIM_RES, SIM_RES);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textures[current]);
+  gl.uniform1i(gl.getUniformLocation(simProgram, 'uPsi'), 0);
+  setUniforms(simProgram, {
+    uTexel:[1 / SIM_RES, 1 / SIM_RES],
+    uDt:DT,
+    uTime:simTime,
+    uOmega:params.omega,
+    uDamping:params.damping,
+    uTrap:params.trap,
+    uStir:params.stir ? 1 : 0,
+  });
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  current = next;
+  stepCount++;
+}
+
+function render() {
+  gl.useProgram(renderProgram);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, textures[current]);
+  gl.uniform1i(gl.getUniformLocation(renderProgram, 'uPsi'), 0);
+  setUniforms(renderProgram, {
+    uTexel:[1 / SIM_RES, 1 / SIM_RES],
+    uTime:simTime,
+    uPhase:params.phase ? 1 : 0,
+    uStir:params.stir ? 1 : 0,
+    uOmega:params.omega,
+  });
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+function wrapPhase(d) {
+  return Math.atan2(Math.sin(d), Math.cos(d));
+}
+
+function updateStats() {
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffers[current]);
+  gl.readPixels(0, 0, SIM_RES, SIM_RES, gl.RGBA, gl.FLOAT, readback);
+  let densitySum = 0;
+  let cores = 0;
+  const stride = 4;
+  const sampleStep = 4;
+  for (let y = sampleStep; y < SIM_RES - sampleStep; y += sampleStep) {
+    for (let x = sampleStep; x < SIM_RES - sampleStep; x += sampleStep) {
+      const i = (y * SIM_RES + x) * stride;
+      const re = readback[i];
+      const im = readback[i + 1];
+      const d = re * re + im * im;
+      densitySum += d;
+      if (d > 0.12) continue;
+      const i00 = ((y) * SIM_RES + x) * stride;
+      const i10 = ((y) * SIM_RES + (x + sampleStep)) * stride;
+      const i11 = ((y + sampleStep) * SIM_RES + (x + sampleStep)) * stride;
+      const i01 = ((y + sampleStep) * SIM_RES + x) * stride;
+      const p00 = Math.atan2(readback[i00 + 1], readback[i00]);
+      const p10 = Math.atan2(readback[i10 + 1], readback[i10]);
+      const p11 = Math.atan2(readback[i11 + 1], readback[i11]);
+      const p01 = Math.atan2(readback[i01 + 1], readback[i01]);
+      const winding = wrapPhase(p10 - p00) + wrapPhase(p11 - p10) + wrapPhase(p01 - p11) + wrapPhase(p00 - p01);
+      if (Math.abs(winding) > Math.PI) cores++;
+    }
+  }
+  const samples = Math.pow(Math.floor((SIM_RES - sampleStep * 2) / sampleStep), 2);
+  densityLabel.textContent = (densitySum / samples).toFixed(2);
+  coreLabel.textContent = String(cores);
+}
+
+function frame(now) {
+  resize();
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  if (params.evolve) {
+    for (let i = 0; i < STEPS_PER_FRAME; i++) {
+      simTime += DT;
+      stepSimulation();
+    }
+  }
+  render();
+  statsTimer += dt;
+  if (statsTimer > 0.8) {
+    updateStats();
+    statsTimer = 0;
+  }
+  fpsAccum += dt;
+  fpsFrames++;
+  if (fpsAccum > 0.45) {
+    fpsEl.textContent = String(Math.round(fpsFrames / fpsAccum));
+    timeEl.textContent = simTime.toFixed(1);
+    stepsEl.textContent = String(stepCount);
+    fpsAccum = 0;
+    fpsFrames = 0;
+  }
+  requestAnimationFrame(frame);
+}
+
+gridLabel.textContent = `${SIM_RES}^2`;
+syncUi();
+resetField();
+resize();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

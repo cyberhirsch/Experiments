@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Crystal Growth - Grid Hash</title>
+<style>
+html,body{height:100%;margin:0;overflow:hidden;background:#070809;color:#e6ecf2;font:12px JetBrains Mono,Consolas,monospace}
+body{display:grid;grid-template-rows:auto 1fr auto;background:radial-gradient(ellipse at 48% 50%,rgba(159,216,208,.12),transparent 52%),#070809}
+header,footer{padding:18px 28px;border-color:rgba(230,236,242,.12);z-index:2}header{border-bottom:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;align-items:baseline}footer{border-top:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+h1{font:italic 28px Cormorant Garamond,Georgia,serif;font-weight:300;margin:0}.meta,.dim{color:#5a6470}.hot{color:#9fd8d0}
+main{position:relative}canvas{position:absolute;inset:0;width:100%;height:100%;display:block}.read{position:absolute;right:28px;top:20px;text-align:right;color:#5a6470;line-height:1.8;text-transform:uppercase}.read b{color:#9fd8d0;font-weight:400}.left{position:absolute;left:28px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;color:#5a6470;text-transform:uppercase}.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap}input{width:118px;accent-color:#9fd8d0}label{color:#5a6470}button{background:transparent;border:1px solid rgba(230,236,242,.14);color:#5a6470;padding:7px 12px;text-transform:uppercase;cursor:pointer}button.active,button:hover{color:#9fd8d0;border-color:#9fd8d0}
+</style>
+</head>
+<body>
+<header><h1>No. 10 - Grid Hash</h1><div class="meta">uniform spatial hash / dense DLA backend / <span class="hot">fast collision lookup</span></div></header>
+<main><canvas id="stage"></canvas><div class="left" id="status">HASH GROWTH ACTIVE</div><div class="read">cells <b id="cells">0</b><br>walkers <b id="walkers">512</b><br>rate <b id="rate">0/s</b><br>radius <b id="radius">0</b><br>fps <b id="fps">0</b></div></main>
+<footer><div class="dim">Dense diffusion-limited aggregation with flat integer cell keys</div><div class="controls"><label>Stick <input id="stick" type="range" min=".2" max="1" step=".01" value=".72"></label><label>Bias <input id="bias" type="range" min="0" max=".8" step=".01" value=".38"></label><label>Speed <input id="speed" type="range" min="1" max="10" step="1" value="5"></label><button id="run" class="active">Run</button><button id="reset">Reset</button></div></footer>
+<script>
+const SIZE=160,C=SIZE>>1,WALKERS=512,MAX=45000,canvas=document.getElementById('stage'),ctx=canvas.getContext('2d'),occ=new Uint8Array(SIZE*SIZE),cells=[],walkers=[];let running=true,maxR=2,rateN=0,rateT=0,last=performance.now(),frames=0,acc=0;
+const $=id=>document.getElementById(id),id=(x,y)=>y*SIZE+x;
+function occupied(x,y){return x>=0&&y>=0&&x<SIZE&&y<SIZE&&occ[id(x,y)]}
+function add(x,y){if(occupied(x,y)||cells.length>=MAX)return false;occ[id(x,y)]=1;cells.push([x,y,cells.length/MAX]);const r=Math.hypot(x-C,y-C);maxR=Math.max(maxR,r);rateN++;return true}
+function respawn(w){const a=Math.random()*Math.PI*2,r=Math.min(SIZE*.47,maxR+15);w.x=Math.round(C+Math.cos(a)*r);w.y=Math.round(C+Math.sin(a)*r);w.age=0}
+function reset(){occ.fill(0);cells.length=0;for(let y=-2;y<=2;y++)for(let x=-2;x<=2;x++)if(Math.abs(x)+Math.abs(y)<4)add(C+x,C+y);walkers.length=0;for(let i=0;i<WALKERS;i++){const w={x:C,y:C,age:0};respawn(w);walkers.push(w)}maxR=3;rateN=0;rateT=0}
+function near(x,y){for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++)if((i||j)&&occupied(x+i,y+j))return true;return false}
+function step(){const stick=+$('stick').value,bias=+$('bias').value;for(const w of walkers){for(let s=0;s<+$('speed').value;s++){if(near(w.x,w.y)&&Math.random()<stick){if(add(w.x,w.y))respawn(w);break}if(Math.random()<bias){const dx=C-w.x,dy=C-w.y;if(Math.abs(dx)>Math.abs(dy))w.x+=Math.sign(dx);else w.y+=Math.sign(dy)}else{w.x+=(Math.random()*3|0)-1;w.y+=(Math.random()*3|0)-1}w.age++;if(w.x<2||w.y<2||w.x>SIZE-3||w.y>SIZE-3||Math.hypot(w.x-C,w.y-C)>maxR+24||w.age>650){respawn(w);break}}}}
+function draw(){ctx.fillStyle='rgba(7,8,9,.36)';ctx.fillRect(0,0,canvas.width,canvas.height);const sc=Math.min(canvas.width,canvas.height)/(SIZE*.88),ox=canvas.width/2-C*sc,oy=canvas.height/2-C*sc;ctx.globalCompositeOperation='lighter';for(const c of cells){const hue=c[2];ctx.fillStyle=`rgba(${100+hue*150|0},${180+hue*55|0},${175+hue*60|0},.55)`;ctx.fillRect(ox+c[0]*sc,oy+c[1]*sc,Math.max(1,sc*.85),Math.max(1,sc*.85))}ctx.globalCompositeOperation='source-over'}
+function resize(){const d=Math.min(devicePixelRatio||1,2),w=canvas.clientWidth*d,h=canvas.clientHeight*d;if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}}
+function frame(t){resize();const dt=(t-last)/1000;last=t;if(running)step();draw();frames++;acc+=dt;rateT+=dt;if(acc>.5){$('fps').textContent=Math.round(frames/acc);frames=0;acc=0}$('cells').textContent=cells.length;$('radius').textContent=Math.round(maxR);if(rateT>.8){$('rate').textContent=(rateN/rateT).toFixed(0)+'/s';rateN=0;rateT=0}requestAnimationFrame(frame)}
+$('run').onclick=()=>{running=!running;$('run').classList.toggle('active',running);$('status').textContent=running?'HASH GROWTH ACTIVE':'HASH GROWTH PAUSED'};$('reset').onclick=reset;
+reset();requestAnimationFrame(frame);
+</script>
+</body>
+</html>

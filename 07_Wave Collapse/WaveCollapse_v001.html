@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wave Collapse v001 - Quantum Packet Study</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#070809;--ink:#e6ecf2;--dim:#5a6470;--accent:#7fc7ff;--line:rgba(230,236,242,.10)}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--bg);color:var(--ink);overflow:hidden;font-family:'JetBrains Mono',monospace}
+  body{
+    display:grid;grid-template-rows:auto 1fr auto;
+    background:
+      radial-gradient(ellipse at 28% 18%, rgba(127,199,255,.08), transparent 54%),
+      radial-gradient(ellipse at 76% 82%, rgba(255,255,255,.03), transparent 54%),
+      var(--bg);
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:100;opacity:.22;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.28 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  header,footer{z-index:2}
+  header{padding:22px 32px 8px;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line)}
+  header h1{font-family:'Cormorant Garamond',serif;font-style:italic;font-weight:300;font-size:26px;letter-spacing:.02em}
+  header h1 .num{font-family:'JetBrains Mono',monospace;font-style:normal;font-size:10px;color:var(--dim);margin-right:14px;letter-spacing:.3em}
+  header .meta{font-size:10px;color:var(--dim);letter-spacing:.25em;text-transform:uppercase}
+  header .meta b{color:var(--accent);font-weight:400}
+  main{position:relative;overflow:hidden}
+  #stage{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .corner{position:absolute;font-size:9px;color:var(--dim);letter-spacing:.3em;text-transform:uppercase;pointer-events:none;z-index:3;line-height:1.7}
+  .corner.tl{top:18px;left:32px}
+  .corner.tr{top:18px;right:32px;text-align:right}
+  .corner.bl{bottom:18px;left:32px}
+  .corner.br{bottom:18px;right:32px;text-align:right}
+  .corner b{color:var(--accent);font-weight:400}
+  .ornament{position:absolute;left:50%;transform:translateX(-50%);font-family:'Cormorant Garamond',serif;color:var(--dim);font-size:11px;letter-spacing:.35em;z-index:3;pointer-events:none;font-style:italic}
+  .ornament.top{top:14px}
+  .ornament.bot{bottom:14px}
+  #status{position:absolute;left:32px;top:50%;transform:translateY(-50%) rotate(180deg);font-size:9px;letter-spacing:.25em;color:var(--dim);writing-mode:vertical-rl;z-index:3;pointer-events:none}
+  #readout{position:absolute;right:32px;top:50%;transform:translateY(-50%);font-size:9px;letter-spacing:.18em;color:var(--dim);writing-mode:vertical-rl;z-index:3;pointer-events:none;text-align:right;line-height:2}
+  #readout span{color:var(--accent)}
+  .crosshair{position:absolute;left:50%;top:50%;width:1px;height:1px;z-index:2;pointer-events:none}
+  .crosshair::before,.crosshair::after{content:"";position:absolute;background:var(--line)}
+  .crosshair::before{width:22px;height:1px;left:-11px;top:0}
+  .crosshair::after{width:1px;height:22px;left:0;top:-11px}
+  footer{padding:14px 32px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:18px;font-size:10px;color:var(--dim);letter-spacing:.25em;text-transform:uppercase}
+  footer .controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:flex-end}
+  .slider-group{display:flex;align-items:center;gap:10px;font-size:9px;color:var(--dim)}
+  input[type=range]{width:112px;accent-color:var(--accent)}
+  .val{min-width:54px;color:var(--accent);text-align:right;font-variant-numeric:tabular-nums}
+  button{background:transparent;border:1px solid var(--line);color:var(--dim);font:inherit;font-size:10px;letter-spacing:.18em;padding:7px 10px;text-transform:uppercase;cursor:pointer;transition:border-color .25s,color .25s,background .25s}
+  button:hover,button.active{border-color:var(--accent);color:var(--accent);background:rgba(127,199,255,.06)}
+  .sep{width:1px;height:18px;background:var(--line)}
+  #toast{position:absolute;left:50%;bottom:64px;transform:translateX(-50%);background:rgba(7,8,9,.88);border:1px solid var(--line);color:var(--ink);font-size:10px;letter-spacing:.18em;text-transform:uppercase;padding:8px 16px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:50}
+  #toast.show{opacity:1}
+  @media (max-width:760px){
+    header{display:block;padding:20px 20px 8px}
+    header .meta{margin-top:8px}
+    footer{display:block;padding:14px 20px}
+    footer > div:first-child{margin-bottom:12px}
+    footer .controls{justify-content:flex-start}
+    .corner.tl,.corner.bl{left:20px}
+    .corner.tr,.corner.br{right:20px}
+    #status{left:20px}
+    #readout{right:20px}
+    .ornament{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="num">№ 07 — VOL. II</span>Wave Collapse <span style="color:var(--dim);font-size:14px;font-style:normal"> · packet tunneling study</span></h1>
+  <div class="meta">quantum field sketch · periodic domain · <b>interference leakage</b></div>
+</header>
+<main>
+  <div class="ornament top">— coherent packet launch · barrier coupling · phase interference field —</div>
+  <div class="corner tl">state<br><b>complex wavefunction</b><br>density + phase</div>
+  <div class="corner tr">barrier <b id="barrier-label">0.00</b><br>packet width <b id="width-label">0.00</b><br>k <b id="k-label">0.00</b></div>
+  <div class="corner.bl">periodic wrap<br>tunneling leakage<br><b>interference fringes</b></div>
+  <div class="corner br">prototype <b>v001</b><br>spectral path next<br>journal field study</div>
+  <div class="crosshair"></div>
+  <div id="status">WAVE PROPAGATING</div>
+  <div id="readout">fps <span id="fps">0</span> · t <span id="tt">0.0</span>s · norm <span id="norm">0.0</span></div>
+  <canvas id="stage"></canvas>
+  <div class="ornament bot">⟡ ⟡ ⟡</div>
+</main>
+<footer>
+  <div>Wave-packet propagation through a periodic barrier field with visible tunneling leakage</div>
+  <div class="controls">
+    <div class="slider-group"><label>K</label><input id="s-k" type="range" min="1" max="16" step="0.1" value="7.4"><span id="v-k" class="val">7.4</span></div>
+    <div class="sep"></div>
+    <div class="slider-group"><label>Barrier</label><input id="s-barrier" type="range" min="0" max="2.2" step="0.01" value="1.15"><span id="v-barrier" class="val">1.15</span></div>
+    <div class="sep"></div>
+    <div class="slider-group"><label>Width</label><input id="s-width" type="range" min="8" max="38" step="1" value="18"><span id="v-width" class="val">18</span></div>
+    <div class="sep"></div>
+    <button id="b-phase" class="active">Phase</button>
+    <button id="b-pause" class="active">Evolve</button>
+    <button id="b-reset">Reset</button>
+  </div>
+</footer>
+<div id="toast"></div>
+<script>
+const canvas = document.getElementById('stage');
+const ctx = canvas.getContext('2d', { alpha: false });
+const statusEl = document.getElementById('status');
+const fpsEl = document.getElementById('fps');
+const timeEl = document.getElementById('tt');
+const normEl = document.getElementById('norm');
+const barrierLabel = document.getElementById('barrier-label');
+const widthLabel = document.getElementById('width-label');
+const kLabel = document.getElementById('k-label');
+const toast = document.getElementById('toast');
+const el = {
+  k: document.getElementById('s-k'),
+  kVal: document.getElementById('v-k'),
+  barrier: document.getElementById('s-barrier'),
+  barrierVal: document.getElementById('v-barrier'),
+  width: document.getElementById('s-width'),
+  widthVal: document.getElementById('v-width'),
+  phase: document.getElementById('b-phase'),
+  pause: document.getElementById('b-pause'),
+  reset: document.getElementById('b-reset'),
+};
+
+const W = 196;
+const H = 196;
+const state = { k: 7.4, barrier: 1.15, width: 18, phase: true, evolve: true };
+let re = new Float32Array(W * H);
+let im = new Float32Array(W * H);
+let nextRe = new Float32Array(W * H);
+let nextIm = new Float32Array(W * H);
+let potential = new Float32Array(W * H);
+let image = null;
+let simTime = 0;
+let last = performance.now();
+let fpsAccum = 0;
+let fpsFrames = 0;
+let toastTimer = null;
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
+}
+
+function syncUi() {
+  el.k.value = state.k.toFixed(1);
+  el.barrier.value = state.barrier.toFixed(2);
+  el.width.value = String(state.width);
+  el.kVal.textContent = state.k.toFixed(1);
+  el.barrierVal.textContent = state.barrier.toFixed(2);
+  el.widthVal.textContent = String(state.width);
+  barrierLabel.textContent = state.barrier.toFixed(2);
+  widthLabel.textContent = String(state.width);
+  kLabel.textContent = state.k.toFixed(1);
+  el.phase.classList.toggle('active', state.phase);
+  el.pause.classList.toggle('active', state.evolve);
+  statusEl.textContent = state.evolve ? 'WAVE PROPAGATING' : 'WAVE PAUSED';
+}
+
+function idx(x, y) { return y * W + x; }
+function wrapX(x) { return (x + W) % W; }
+function wrapY(y) { return (y + H) % H; }
+
+function rebuildPotential() {
+  potential.fill(0);
+  const slitCenter = H * 0.5;
+  const slitGap = H * 0.16;
+  const slitHalf = H * 0.055;
+  const barrierX = Math.floor(W * 0.54);
+  for (let y = 0; y < H; y++) {
+    const inUpper = Math.abs(y - (slitCenter - slitGap)) < slitHalf;
+    const inLower = Math.abs(y - (slitCenter + slitGap)) < slitHalf;
+    for (let dx = -2; dx <= 2; dx++) {
+      const x = barrierX + dx;
+      if (x < 0 || x >= W) continue;
+      if (!(inUpper || inLower)) potential[idx(x, y)] = state.barrier;
+    }
+  }
+}
+
+function resetField() {
+  re.fill(0);
+  im.fill(0);
+  rebuildPotential();
+  const cx = W * 0.22;
+  const cy = H * 0.5;
+  const sigma2 = state.width * state.width;
+  let norm = 0;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const g = Math.exp(-(dx * dx + dy * dy) / (2 * sigma2));
+      const ph = state.k * dx * 0.1;
+      const i = idx(x, y);
+      re[i] = Math.cos(ph) * g;
+      im[i] = Math.sin(ph) * g;
+      norm += re[i] * re[i] + im[i] * im[i];
+    }
+  }
+  const inv = 1 / Math.sqrt(norm);
+  for (let i = 0; i < re.length; i++) {
+    re[i] *= inv;
+    im[i] *= inv;
+  }
+  simTime = 0;
+  showToast('Wave packet reinitialized');
+}
+
+el.k.addEventListener('input', () => { state.k = Number(el.k.value); syncUi(); resetField(); });
+el.barrier.addEventListener('input', () => { state.barrier = Number(el.barrier.value); syncUi(); rebuildPotential(); });
+el.width.addEventListener('input', () => { state.width = Number(el.width.value); syncUi(); resetField(); });
+el.phase.onclick = () => { state.phase = !state.phase; syncUi(); showToast(state.phase ? 'Phase overlay enabled' : 'Density-only view'); };
+el.pause.onclick = () => { state.evolve = !state.evolve; syncUi(); showToast(state.evolve ? 'Evolution resumed' : 'Evolution paused'); };
+el.reset.onclick = () => {
+  Object.assign(state, { k: 7.4, barrier: 1.15, width: 18, phase: true, evolve: true });
+  syncUi();
+  resetField();
+};
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.floor(innerWidth * dpr));
+  const h = Math.max(1, Math.floor(innerHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+    image = ctx.createImageData(W, H);
+  }
+}
+
+function step(dt) {
+  const alpha = 0.22;
+  const beta = 0.12;
+  let norm = 0;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = idx(x, y);
+      const l = idx(wrapX(x - 1), y);
+      const r = idx(wrapX(x + 1), y);
+      const u = idx(x, wrapY(y - 1));
+      const d = idx(x, wrapY(y + 1));
+      const lapRe = re[l] + re[r] + re[u] + re[d] - 4 * re[i];
+      const lapIm = im[l] + im[r] + im[u] + im[d] - 4 * im[i];
+      const v = potential[i];
+      nextRe[i] = re[i] + dt * (-alpha * lapIm + v * im[i] - beta * re[i] * 0.02);
+      nextIm[i] = im[i] + dt * ( alpha * lapRe - v * re[i] - beta * im[i] * 0.02);
+      norm += nextRe[i] * nextRe[i] + nextIm[i] * nextIm[i];
+    }
+  }
+  const invNorm = 1 / Math.sqrt(Math.max(norm, 1e-12));
+  for (let i = 0; i < re.length; i++) {
+    re[i] = nextRe[i] * invNorm;
+    im[i] = nextIm[i] * invNorm;
+  }
+  normEl.textContent = norm.toFixed(2);
+}
+
+function draw() {
+  const data = image.data;
+  for (let i = 0; i < re.length; i++) {
+    const density = Math.min(re[i] * re[i] + im[i] * im[i], 1);
+    const phase = Math.atan2(im[i], re[i]);
+    const hueA = 0.5 + 0.5 * Math.cos(phase);
+    const hueB = 0.5 + 0.5 * Math.cos(phase - 2.094);
+    const hueC = 0.5 + 0.5 * Math.cos(phase - 4.188);
+    const pot = potential[i] > 0 ? 0.5 + potential[i] * 0.22 : 0;
+    const base = density * 255;
+    const r = state.phase ? base * (0.26 + hueA * 0.88) + pot * 36 : base * 0.9 + pot * 48;
+    const g = state.phase ? base * (0.26 + hueB * 0.95) + pot * 18 : base * 0.96 + pot * 30;
+    const b = state.phase ? base * (0.38 + hueC * 1.08) + pot * 70 : base * 1.18 + pot * 86;
+    const o = i * 4;
+    data[o + 0] = Math.min(r, 255);
+    data[o + 1] = Math.min(g, 255);
+    data[o + 2] = Math.min(b, 255);
+    data[o + 3] = 255;
+  }
+  const scratch = document.createElement('canvas');
+  scratch.width = W;
+  scratch.height = H;
+  const sctx = scratch.getContext('2d');
+  sctx.putImageData(image, 0, 0);
+  ctx.imageSmoothingEnabled = true;
+  ctx.fillStyle = '#070809';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(scratch, 0, 0, canvas.width, canvas.height);
+}
+
+function frame(now) {
+  resize();
+  const dt = Math.min((now - last) / 1000, 0.04);
+  last = now;
+  simTime += dt;
+  if (state.evolve) {
+    for (let i = 0; i < 2; i++) step(0.45);
+  }
+  draw();
+  fpsAccum += dt;
+  fpsFrames++;
+  if (fpsAccum > 0.4) {
+    fpsEl.textContent = String(Math.round(fpsFrames / fpsAccum));
+    timeEl.textContent = simTime.toFixed(1);
+    fpsAccum = 0;
+    fpsFrames = 0;
+  }
+  requestAnimationFrame(frame);
+}
+
+resize();
+syncUi();
+resetField();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

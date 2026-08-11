@@ -1,0 +1,778 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Crystal Growth - SVO DLA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#070809;
+    --ink:#e6ecf2;
+    --dim:#5a6470;
+    --accent:#9fd8d0;
+    --metal:#e2c07b;
+    --line:rgba(230,236,242,0.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{
+    height:100%;
+    overflow:hidden;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'JetBrains Mono',monospace;
+  }
+  body{
+    display:grid;
+    grid-template-rows:auto 1fr auto;
+    background:
+      radial-gradient(ellipse at 44% 50%, rgba(159,216,208,0.075), transparent 48%),
+      radial-gradient(ellipse at 72% 28%, rgba(226,192,123,0.045), transparent 56%),
+      var(--bg);
+  }
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    z-index:100;
+    pointer-events:none;
+    opacity:.32;
+    mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.94' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.34 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+  header{
+    padding:22px 32px 8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    border-bottom:1px solid var(--line);
+    z-index:2;
+  }
+  header h1{
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-weight:300;
+    font-size:26px;
+    letter-spacing:0;
+  }
+  header h1 .num{
+    font-family:'JetBrains Mono',monospace;
+    font-style:normal;
+    font-size:10px;
+    color:var(--dim);
+    margin-right:14px;
+    letter-spacing:0;
+  }
+  header .meta{
+    font-size:10px;
+    color:var(--dim);
+    letter-spacing:0;
+    text-transform:uppercase;
+  }
+  header .meta b{color:var(--accent);font-weight:400}
+  main{position:relative;overflow:hidden}
+  #stage{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    display:block;
+    cursor:grab;
+  }
+  #stage:active{cursor:grabbing}
+  .corner{
+    position:absolute;
+    z-index:3;
+    pointer-events:none;
+    color:var(--dim);
+    font-size:9px;
+    letter-spacing:0;
+    text-transform:uppercase;
+    line-height:1.7;
+  }
+  .corner.tl{top:18px;left:32px}
+  .corner.tr{top:18px;right:32px;text-align:right}
+  .corner.bl{bottom:18px;left:32px}
+  .corner.br{bottom:18px;right:32px;text-align:right}
+  .corner b{color:var(--accent);font-weight:400}
+  .corner .metal{color:var(--metal)}
+  .ornament{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+    z-index:3;
+    pointer-events:none;
+    color:var(--dim);
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-size:11px;
+    letter-spacing:0;
+  }
+  .ornament.top{top:14px}
+  .ornament.bot{bottom:14px}
+  .crosshair{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:1px;
+    height:1px;
+    z-index:2;
+    pointer-events:none;
+  }
+  .crosshair::before,.crosshair::after{content:"";position:absolute;background:var(--line)}
+  .crosshair::before{width:22px;height:1px;left:-11px;top:0}
+  .crosshair::after{width:1px;height:22px;left:0;top:-11px}
+  #status{
+    position:absolute;
+    left:32px;
+    top:50%;
+    transform:translateY(-50%) rotate(180deg);
+    writing-mode:vertical-rl;
+    z-index:3;
+    pointer-events:none;
+    color:var(--dim);
+    font-size:9px;
+    letter-spacing:0;
+  }
+  #readout{
+    position:absolute;
+    right:32px;
+    top:50%;
+    transform:translateY(-50%);
+    writing-mode:vertical-rl;
+    z-index:3;
+    pointer-events:none;
+    color:var(--dim);
+    font-size:9px;
+    letter-spacing:0;
+    line-height:2;
+    text-align:right;
+  }
+  #readout span{color:var(--accent)}
+  footer{
+    padding:14px 32px;
+    border-top:1px solid var(--line);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:18px;
+    z-index:2;
+    color:var(--dim);
+    font-size:10px;
+    letter-spacing:0;
+    text-transform:uppercase;
+  }
+  footer .controls{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
+    justify-content:flex-end;
+  }
+  .slider-group{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-size:9px;
+    color:var(--dim);
+  }
+  input[type=range]{
+    -webkit-appearance:none;
+    appearance:none;
+    width:112px;
+    height:1px;
+    background:var(--line);
+    outline:none;
+    cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    appearance:none;
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    border:none;
+    background:var(--accent);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    border:none;
+    background:var(--accent);
+  }
+  .val{
+    min-width:56px;
+    color:var(--accent);
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+  }
+  button{
+    background:transparent;
+    border:1px solid var(--line);
+    color:var(--dim);
+    font:inherit;
+    font-size:9px;
+    letter-spacing:0;
+    padding:7px 12px;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:border-color .25s,color .25s,background .25s;
+  }
+  button:hover,button.active{
+    border-color:var(--accent);
+    color:var(--accent);
+    background:rgba(159,216,208,0.08);
+  }
+  .sep{width:1px;height:18px;background:var(--line)}
+  #toast{
+    position:absolute;
+    left:50%;
+    bottom:64px;
+    transform:translateX(-50%);
+    z-index:50;
+    pointer-events:none;
+    padding:8px 16px;
+    background:rgba(7,8,9,0.88);
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-size:10px;
+    letter-spacing:0;
+    text-transform:uppercase;
+    opacity:0;
+    transition:opacity .3s;
+  }
+  #toast.show{opacity:1}
+  @media (max-width: 820px){
+    header{display:block;padding:20px 20px 8px}
+    header .meta{margin-top:8px}
+    footer{display:block;padding:14px 20px}
+    footer > div:first-child{margin-bottom:12px}
+    footer .controls{justify-content:flex-start}
+    .corner.tl,.corner.bl{left:20px}
+    .corner.tr,.corner.br{right:20px}
+    #status{left:20px}
+    #readout{right:20px}
+    .ornament{display:none}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="num">No. 10 - VOL. I</span>Crystal Growth <span style="color:var(--dim);font-size:14px;font-style:normal"> - SVO DLA</span></h1>
+  <div class="meta">Sparse voxel octree / diffusion limited aggregation / <b>faceted growth</b></div>
+</header>
+
+<main>
+  <div class="ornament top">- random walkers - octree collision queries - mineral branching -</div>
+  <div class="corner tl">structure<br><b>sparse octree</b><br>depth <b id="depth-label">7</b></div>
+  <div class="corner tr">voxels <b id="vox-label">0</b><br>nodes <b id="nodes-label">0</b><br>walkers <b id="walkers-label">0</b></div>
+  <div class="corner bl">growth rate<br><b id="rate-label">0.0/s</b><br><span class="metal">metal facets</span></div>
+  <div class="corner br">dimension <b id="dim-label">0.00</b><br>radius <b id="radius-label">0</b><br>webgl2 v001</div>
+  <div class="crosshair"></div>
+  <div id="status">GROWTH ACTIVE</div>
+  <div id="readout">fps <span id="fps">0</span> / t <span id="tt">0.0</span>s / stuck <span id="stuck-label">0</span></div>
+  <canvas id="stage"></canvas>
+  <div class="ornament bot">- - -</div>
+</main>
+
+<footer>
+  <div>Three-dimensional DLA with octree occupancy and instanced voxel facets</div>
+  <div class="controls">
+    <div class="slider-group"><label>Stick</label><input id="s-stick" type="range" min="0.15" max="1" step="0.01" value="0.76"><span id="v-stick" class="val">0.76</span></div>
+    <div class="sep"></div>
+    <div class="slider-group"><label>Bias</label><input id="s-bias" type="range" min="0" max="0.75" step="0.01" value="0.32"><span id="v-bias" class="val">0.32</span></div>
+    <div class="sep"></div>
+    <div class="slider-group"><label>Speed</label><input id="s-speed" type="range" min="1" max="12" step="1" value="4"><span id="v-speed" class="val">4</span></div>
+    <div class="sep"></div>
+    <button id="b-run" class="active">Run</button>
+    <button id="b-reset">Reset</button>
+  </div>
+</footer>
+<div id="toast"></div>
+
+<script type="module">
+const GRID_BITS = 7;
+const GRID_SIZE = 1 << GRID_BITS;
+const CENTER = GRID_SIZE >> 1;
+const MAX_VOXELS = 22000;
+const WALKER_COUNT = 384;
+const VOXEL_SCALE = 0.024;
+
+const canvas = document.getElementById('stage');
+const gl = canvas.getContext('webgl2', { antialias:true, depth:true, stencil:false, alpha:false });
+if (!gl) throw new Error('WebGL2 is required.');
+
+const fpsEl = document.getElementById('fps');
+const timeEl = document.getElementById('tt');
+const statusEl = document.getElementById('status');
+const voxLabel = document.getElementById('vox-label');
+const nodesLabel = document.getElementById('nodes-label');
+const walkersLabel = document.getElementById('walkers-label');
+const rateLabel = document.getElementById('rate-label');
+const dimLabel = document.getElementById('dim-label');
+const radiusLabel = document.getElementById('radius-label');
+const stuckLabel = document.getElementById('stuck-label');
+const toast = document.getElementById('toast');
+
+const controls = {
+  stick: document.getElementById('s-stick'),
+  stickVal: document.getElementById('v-stick'),
+  bias: document.getElementById('s-bias'),
+  biasVal: document.getElementById('v-bias'),
+  speed: document.getElementById('s-speed'),
+  speedVal: document.getElementById('v-speed'),
+  run: document.getElementById('b-run'),
+  reset: document.getElementById('b-reset'),
+};
+
+const params = {
+  stick: 0.76,
+  inwardBias: 0.32,
+  speed: 4,
+  running: true,
+};
+
+class OctreeNode {
+  constructor() {
+    this.children = null;
+    this.occupied = false;
+  }
+}
+
+let root, nodeCount, voxelCount, maxRadius, stuckTotal, growthWindowCount, growthWindowTime;
+let instanceData = new Float32Array(MAX_VOXELS * 8);
+let walkers = [];
+let simTime = 0;
+let last = performance.now();
+let fpsAccum = 0;
+let fpsFrames = 0;
+let statsAccum = 0;
+let yaw = -0.68;
+let pitch = 0.42;
+let distance = 4.2;
+let dragging = false;
+let lastPointer = [0, 0];
+let toastTimer = null;
+
+function showToast(message) {
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 1300);
+}
+
+function syncUi() {
+  controls.stick.value = params.stick.toFixed(2);
+  controls.bias.value = params.inwardBias.toFixed(2);
+  controls.speed.value = String(params.speed);
+  controls.stickVal.textContent = params.stick.toFixed(2);
+  controls.biasVal.textContent = params.inwardBias.toFixed(2);
+  controls.speedVal.textContent = String(params.speed);
+  controls.run.classList.toggle('active', params.running);
+  statusEl.textContent = params.running ? 'GROWTH ACTIVE' : 'GROWTH PAUSED';
+}
+
+controls.stick.addEventListener('input', () => { params.stick = Number(controls.stick.value); syncUi(); });
+controls.bias.addEventListener('input', () => { params.inwardBias = Number(controls.bias.value); syncUi(); });
+controls.speed.addEventListener('input', () => { params.speed = Number(controls.speed.value); syncUi(); });
+controls.run.onclick = () => {
+  params.running = !params.running;
+  syncUi();
+  showToast(params.running ? 'Growth resumed' : 'Growth paused');
+};
+controls.reset.onclick = () => resetGrowth();
+
+canvas.addEventListener('pointerdown', event => {
+  dragging = true;
+  lastPointer = [event.clientX, event.clientY];
+  canvas.setPointerCapture(event.pointerId);
+});
+canvas.addEventListener('pointermove', event => {
+  if (!dragging) return;
+  const dx = event.clientX - lastPointer[0];
+  const dy = event.clientY - lastPointer[1];
+  yaw += dx * 0.006;
+  pitch = Math.max(-1.18, Math.min(1.18, pitch + dy * 0.006));
+  lastPointer = [event.clientX, event.clientY];
+});
+canvas.addEventListener('pointerup', event => {
+  dragging = false;
+  canvas.releasePointerCapture(event.pointerId);
+});
+canvas.addEventListener('wheel', event => {
+  event.preventDefault();
+  distance = Math.max(2.2, Math.min(8.2, distance * Math.exp(event.deltaY * 0.001)));
+}, { passive:false });
+
+function queryVoxel(x, y, z) {
+  if (x < 0 || y < 0 || z < 0 || x >= GRID_SIZE || y >= GRID_SIZE || z >= GRID_SIZE) return false;
+  let node = root;
+  for (let bit = GRID_BITS - 1; bit >= 0; bit--) {
+    if (!node.children) return false;
+    const index = ((x >> bit) & 1) | (((y >> bit) & 1) << 1) | (((z >> bit) & 1) << 2);
+    node = node.children[index];
+    if (!node) return false;
+  }
+  return node.occupied;
+}
+
+function insertVoxel(x, y, z) {
+  if (queryVoxel(x, y, z) || voxelCount >= MAX_VOXELS) return false;
+  let node = root;
+  for (let bit = GRID_BITS - 1; bit >= 0; bit--) {
+    const index = ((x >> bit) & 1) | (((y >> bit) & 1) << 1) | (((z >> bit) & 1) << 2);
+    if (!node.children) node.children = new Array(8).fill(null);
+    if (!node.children[index]) {
+      node.children[index] = new OctreeNode();
+      nodeCount++;
+    }
+    node = node.children[index];
+  }
+  node.occupied = true;
+  const dx = x - CENTER;
+  const dy = y - CENTER;
+  const dz = z - CENTER;
+  const r = Math.hypot(dx, dy, dz);
+  maxRadius = Math.max(maxRadius, r);
+  const age = voxelCount / MAX_VOXELS;
+  const hue = 0.5 + 0.5 * Math.sin((x * 0.31 + y * 0.19 + z * 0.23) + r * 0.17);
+  const o = voxelCount * 8;
+  instanceData[o] = dx;
+  instanceData[o + 1] = dy;
+  instanceData[o + 2] = dz;
+  instanceData[o + 3] = age;
+  instanceData[o + 4] = 0.42 + hue * 0.38;
+  instanceData[o + 5] = 0.68 + (1 - hue) * 0.22;
+  instanceData[o + 6] = 0.66 + hue * 0.26;
+  instanceData[o + 7] = 1.0;
+  voxelCount++;
+  growthWindowCount++;
+  return true;
+}
+
+const DIRS = [];
+for (let x = -1; x <= 1; x++) {
+  for (let y = -1; y <= 1; y++) {
+    for (let z = -1; z <= 1; z++) {
+      if (x || y || z) DIRS.push([x, y, z]);
+    }
+  }
+}
+
+function randomUnit(seed) {
+  const a = Math.sin(seed * 91.17) * 43758.5453;
+  const b = Math.sin(seed * 17.31 + 4.7) * 43758.5453;
+  const u = (a - Math.floor(a)) * 2 - 1;
+  const t = (b - Math.floor(b)) * Math.PI * 2;
+  const s = Math.sqrt(Math.max(0, 1 - u * u));
+  return [Math.cos(t) * s, Math.sin(t) * s, u];
+}
+
+function respawnWalker(w, seed) {
+  const spawn = Math.min(58, Math.max(8, maxRadius + 10));
+  const dir = randomUnit(seed + simTime * 13.1 + w.seed);
+  w.x = Math.round(CENTER + dir[0] * spawn);
+  w.y = Math.round(CENTER + dir[1] * spawn);
+  w.z = Math.round(CENTER + dir[2] * spawn);
+  w.age = 0;
+}
+
+function hasOccupiedNeighbor(x, y, z) {
+  for (const d of DIRS) {
+    if (queryVoxel(x + d[0], y + d[1], z + d[2])) return true;
+  }
+  return false;
+}
+
+function randomStep(w) {
+  const inward = Math.random() < params.inwardBias;
+  if (inward) {
+    const dx = CENTER - w.x;
+    const dy = CENTER - w.y;
+    const dz = CENTER - w.z;
+    const ax = Math.abs(dx), ay = Math.abs(dy), az = Math.abs(dz);
+    if (ax >= ay && ax >= az) return [Math.sign(dx), 0, 0];
+    if (ay >= ax && ay >= az) return [0, Math.sign(dy), 0];
+    return [0, 0, Math.sign(dz)];
+  }
+  return DIRS[Math.floor(Math.random() * DIRS.length)];
+}
+
+function growStep() {
+  if (voxelCount >= MAX_VOXELS) return;
+  for (const w of walkers) {
+    for (let k = 0; k < params.speed; k++) {
+      if (hasOccupiedNeighbor(w.x, w.y, w.z) && Math.random() < params.stick) {
+        if (insertVoxel(w.x, w.y, w.z)) {
+          stuckTotal++;
+          respawnWalker(w, stuckTotal + w.seed);
+        }
+        break;
+      }
+      const d = randomStep(w);
+      w.x += d[0];
+      w.y += d[1];
+      w.z += d[2];
+      w.age++;
+      const r = Math.hypot(w.x - CENTER, w.y - CENTER, w.z - CENTER);
+      if (r > maxRadius + 24 || w.x < 2 || w.y < 2 || w.z < 2 || w.x >= GRID_SIZE - 2 || w.y >= GRID_SIZE - 2 || w.z >= GRID_SIZE - 2 || w.age > 900) {
+        respawnWalker(w, stuckTotal + w.seed * 7);
+        break;
+      }
+    }
+  }
+}
+
+function shader(type, source) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, source);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(s) || 'Shader compile failed.');
+  }
+  return s;
+}
+
+function program(vs, fs) {
+  const p = gl.createProgram();
+  gl.attachShader(p, shader(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, shader(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(p) || 'Program link failed.');
+  }
+  return p;
+}
+
+const vs = `#version 300 es
+precision highp float;
+layout(location=0) in vec3 aPos;
+layout(location=1) in vec3 aNormal;
+layout(location=2) in vec4 iPosAge;
+layout(location=3) in vec4 iColor;
+uniform mat4 uViewProj;
+uniform float uVoxelScale;
+out vec3 vNormal;
+out vec3 vColor;
+out vec3 vWorld;
+void main() {
+  vec3 world = (iPosAge.xyz + aPos * 0.92) * uVoxelScale;
+  vWorld = world;
+  vNormal = aNormal;
+  float ageGlow = smoothstep(0.0, 0.9, iPosAge.w);
+  vColor = mix(iColor.rgb, vec3(1.0, 0.76, 0.42), ageGlow * 0.22);
+  gl_Position = uViewProj * vec4(world, 1.0);
+}`;
+
+const fs = `#version 300 es
+precision highp float;
+in vec3 vNormal;
+in vec3 vColor;
+in vec3 vWorld;
+out vec4 outColor;
+void main() {
+  vec3 n = normalize(vNormal);
+  vec3 lightA = normalize(vec3(-0.42, 0.66, 0.52));
+  vec3 lightB = normalize(vec3(0.58, -0.24, -0.36));
+  float diff = max(dot(n, lightA), 0.0) * 0.82 + max(dot(n, lightB), 0.0) * 0.28;
+  float facet = pow(max(dot(reflect(-lightA, n), normalize(-vWorld + vec3(0.0, 0.0, 4.0))), 0.0), 22.0) * 0.36;
+  vec3 color = vColor * (0.20 + diff) + vec3(0.95, 0.76, 0.44) * facet;
+  outColor = vec4(pow(max(color, vec3(0.0)), vec3(0.88)), 1.0);
+}`;
+
+const drawProgram = program(vs, fs);
+
+function cubeVertices() {
+  const faces = [
+    [[1,0,0], [[1,-1,-1],[1,1,-1],[1,1,1],[1,-1,-1],[1,1,1],[1,-1,1]]],
+    [[-1,0,0], [[-1,-1,1],[-1,1,1],[-1,1,-1],[-1,-1,1],[-1,1,-1],[-1,-1,-1]]],
+    [[0,1,0], [[-1,1,-1],[-1,1,1],[1,1,1],[-1,1,-1],[1,1,1],[1,1,-1]]],
+    [[0,-1,0], [[-1,-1,1],[-1,-1,-1],[1,-1,-1],[-1,-1,1],[1,-1,-1],[1,-1,1]]],
+    [[0,0,1], [[-1,-1,1],[1,-1,1],[1,1,1],[-1,-1,1],[1,1,1],[-1,1,1]]],
+    [[0,0,-1], [[1,-1,-1],[-1,-1,-1],[-1,1,-1],[1,-1,-1],[-1,1,-1],[1,1,-1]]],
+  ];
+  const data = [];
+  for (const [n, verts] of faces) {
+    for (const p of verts) data.push(p[0] * 0.5, p[1] * 0.5, p[2] * 0.5, n[0], n[1], n[2]);
+  }
+  return new Float32Array(data);
+}
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const cubeBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, cubeBuffer);
+const cubeData = cubeVertices();
+gl.bufferData(gl.ARRAY_BUFFER, cubeData, gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+gl.enableVertexAttribArray(1);
+gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
+
+const instanceBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, instanceBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, instanceData.byteLength, gl.DYNAMIC_DRAW);
+gl.enableVertexAttribArray(2);
+gl.vertexAttribPointer(2, 4, gl.FLOAT, false, 32, 0);
+gl.vertexAttribDivisor(2, 1);
+gl.enableVertexAttribArray(3);
+gl.vertexAttribPointer(3, 4, gl.FLOAT, false, 32, 16);
+gl.vertexAttribDivisor(3, 1);
+gl.bindVertexArray(null);
+
+function normalize(v) {
+  const l = Math.hypot(v[0], v[1], v[2]) || 1;
+  return [v[0] / l, v[1] / l, v[2] / l];
+}
+function cross(a, b) {
+  return [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+}
+function dot(a, b) { return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]; }
+function perspective(fovy, aspect, near, far) {
+  const f = 1 / Math.tan(fovy / 2);
+  const nf = 1 / (near - far);
+  return new Float32Array([
+    f / aspect, 0, 0, 0,
+    0, f, 0, 0,
+    0, 0, (far + near) * nf, -1,
+    0, 0, 2 * far * near * nf, 0,
+  ]);
+}
+function lookAt(eye, center, up) {
+  const z = normalize([eye[0] - center[0], eye[1] - center[1], eye[2] - center[2]]);
+  const x = normalize(cross(up, z));
+  const y = cross(z, x);
+  return new Float32Array([
+    x[0], y[0], z[0], 0,
+    x[1], y[1], z[1], 0,
+    x[2], y[2], z[2], 0,
+    -dot(x, eye), -dot(y, eye), -dot(z, eye), 1,
+  ]);
+}
+function multiplyMat4(a, b) {
+  const out = new Float32Array(16);
+  for (let c = 0; c < 4; c++) {
+    for (let r = 0; r < 4; r++) {
+      out[c * 4 + r] =
+        a[0 * 4 + r] * b[c * 4 + 0] +
+        a[1 * 4 + r] * b[c * 4 + 1] +
+        a[2 * 4 + r] * b[c * 4 + 2] +
+        a[3 * 4 + r] * b[c * 4 + 3];
+    }
+  }
+  return out;
+}
+
+function resetGrowth() {
+  root = new OctreeNode();
+  nodeCount = 1;
+  voxelCount = 0;
+  maxRadius = 1;
+  stuckTotal = 0;
+  growthWindowCount = 0;
+  growthWindowTime = 0;
+  instanceData.fill(0);
+  for (let x = -1; x <= 1; x++) {
+    for (let y = -1; y <= 1; y++) {
+      for (let z = -1; z <= 1; z++) {
+        if (Math.abs(x) + Math.abs(y) + Math.abs(z) <= 2) insertVoxel(CENTER + x, CENTER + y, CENTER + z);
+      }
+    }
+  }
+  walkers = Array.from({ length:WALKER_COUNT }, (_, i) => ({ x:CENTER, y:CENTER, z:CENTER, age:0, seed:i + 1 }));
+  walkers.forEach((w, i) => respawnWalker(w, i));
+  simTime = 0;
+  gl.bindBuffer(gl.ARRAY_BUFFER, instanceBuffer);
+  gl.bufferSubData(gl.ARRAY_BUFFER, 0, instanceData);
+  showToast('Octree reseeded');
+}
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+  const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+}
+
+function updateLabels(rate) {
+  voxLabel.textContent = String(voxelCount);
+  nodesLabel.textContent = String(nodeCount);
+  walkersLabel.textContent = String(walkers.length);
+  stuckLabel.textContent = String(stuckTotal);
+  radiusLabel.textContent = String(Math.round(maxRadius));
+  const dim = maxRadius > 2 ? Math.log(Math.max(2, voxelCount)) / Math.log(Math.max(2.1, maxRadius)) : 0;
+  dimLabel.textContent = dim.toFixed(2);
+  rateLabel.textContent = `${rate.toFixed(1)}/s`;
+}
+
+function render(now) {
+  resize();
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  if (params.running) {
+    growStep();
+    simTime += dt;
+    gl.bindBuffer(gl.ARRAY_BUFFER, instanceBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, instanceData.subarray(0, voxelCount * 8));
+  }
+  yaw += dragging ? 0 : dt * 0.04;
+
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.enable(gl.DEPTH_TEST);
+  gl.disable(gl.CULL_FACE);
+  gl.clearColor(0.005, 0.006, 0.008, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  const aspect = canvas.width / Math.max(1, canvas.height);
+  const eye = [
+    Math.cos(yaw) * Math.cos(pitch) * distance,
+    Math.sin(pitch) * distance,
+    Math.sin(yaw) * Math.cos(pitch) * distance,
+  ];
+  const view = lookAt(eye, [0, 0, 0], [0, 1, 0]);
+  const proj = perspective(42 * Math.PI / 180, aspect, 0.05, 18);
+  const viewProj = multiplyMat4(proj, view);
+  gl.useProgram(drawProgram);
+  gl.uniformMatrix4fv(gl.getUniformLocation(drawProgram, 'uViewProj'), false, viewProj);
+  gl.uniform1f(gl.getUniformLocation(drawProgram, 'uVoxelScale'), VOXEL_SCALE);
+  gl.bindVertexArray(vao);
+  gl.drawArraysInstanced(gl.TRIANGLES, 0, 36, voxelCount);
+  gl.bindVertexArray(null);
+
+  fpsAccum += dt;
+  fpsFrames++;
+  statsAccum += dt;
+  growthWindowTime += dt;
+  if (fpsAccum > 0.45) {
+    fpsEl.textContent = String(Math.round(fpsFrames / fpsAccum));
+    timeEl.textContent = simTime.toFixed(1);
+    fpsAccum = 0;
+    fpsFrames = 0;
+  }
+  if (statsAccum > 0.8) {
+    const rate = growthWindowCount / Math.max(0.001, growthWindowTime);
+    updateLabels(rate);
+    growthWindowCount = 0;
+    growthWindowTime = 0;
+    statsAccum = 0;
+  }
+  requestAnimationFrame(render);
+}
+
+syncUi();
+resetGrowth();
+updateLabels(0);
+requestAnimationFrame(render);
+</script>
+</body>
+</html>

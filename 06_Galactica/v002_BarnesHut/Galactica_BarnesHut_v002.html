@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Galactica - Barnes-Hut</title>
+<style>
+html,body{height:100%;margin:0;overflow:hidden;background:#070809;color:#e6ecf2;font:12px JetBrains Mono,Consolas,monospace}
+body{display:grid;grid-template-rows:auto 1fr auto;background:radial-gradient(ellipse at 50% 45%,rgba(255,180,116,.12),transparent 50%),#070809}
+header,footer{padding:18px 28px;border-color:rgba(230,236,242,.12);z-index:2}header{border-bottom:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;align-items:baseline}footer{border-top:1px solid rgba(230,236,242,.12);display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
+h1{font:italic 28px Cormorant Garamond,Georgia,serif;font-weight:300;margin:0}.meta,.dim{color:#5a6470}.hot{color:#ffb474}
+main{position:relative}canvas{position:absolute;inset:0;width:100%;height:100%;display:block}.read{position:absolute;right:28px;top:20px;text-align:right;color:#5a6470;line-height:1.8;text-transform:uppercase}.read b{color:#ffb474;font-weight:400}.left{position:absolute;left:28px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;color:#5a6470;text-transform:uppercase}.controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap}input{width:118px;accent-color:#ffb474}label{color:#5a6470}button{background:transparent;border:1px solid rgba(230,236,242,.14);color:#5a6470;padding:7px 12px;text-transform:uppercase;cursor:pointer}button.active,button:hover{color:#ffb474;border-color:#ffb474}
+</style>
+</head>
+<body>
+<header><h1>No. 06 - Barnes-Hut</h1><div class="meta">CPU quadtree / O(N log N) force approximation / <span class="hot">galactic disk</span></div></header>
+<main><canvas id="stage"></canvas><div class="left" id="status">TREE SOLVER ACTIVE</div><div class="read">particles <b id="n">8192</b><br>nodes <b id="nodes">0</b><br>theta <b id="thetaL">0.70</b><br>fps <b id="fps">0</b><br>step <b id="step">0</b></div></main>
+<footer><div class="dim">Hierarchical gravity approximation with optional tree overlay</div><div class="controls"><label>Theta <input id="theta" type="range" min="0.35" max="1.2" step="0.01" value="0.70"></label><label>G <input id="grav" type="range" min="0.05" max="0.6" step="0.01" value="0.28"></label><button id="tree">Tree</button><button id="run" class="active">Run</button><button id="reset">Reset</button></div></footer>
+<script>
+const N=8192,canvas=document.getElementById('stage'),ctx=canvas.getContext('2d'),P=[];let root,running=true,showTree=false,step=0,last=performance.now(),frames=0,acc=0,nodeCount=0;
+const $=id=>document.getElementById(id);
+class Node{constructor(x,y,h){this.x=x;this.y=y;this.h=h;this.m=0;this.cx=0;this.cy=0;this.body=-1;this.c=null}}
+function rng(i){return (Math.sin(i*12.9898+i*i*.078)*43758.5453)%1}
+function init(){P.length=0;for(let i=0;i<N;i++){const arm=i%2,rad=.04+Math.pow(Math.abs(rng(i+2)),1.7)*.82,a=Math.abs(rng(i+9))*Math.PI*8+arm*Math.PI,sw=a+rad*5,sgn=arm?1:-1;const x=Math.cos(sw)*rad,y=Math.sin(sw)*rad;const sp=Math.sqrt(.23/(rad+.08))*sgn;P.push({x:x+(rng(i+4)-.5)*.015,y:y+(rng(i+5)-.5)*.015,vx:-Math.sin(sw)*sp*.09,vy:Math.cos(sw)*sp*.09,m:1/N,heat:Math.abs(rng(i+7))})}step=0}
+function insert(n,id){const p=P[id];if(n.body<0&&!n.c){n.body=id;return}if(!n.c){n.c=[0,1,2,3].map(k=>new Node(n.x+(k&1?1:-1)*n.h/2,n.y+(k&2?1:-1)*n.h/2,n.h/2));const old=n.body;n.body=-2;insert(n,old)}const q=(p.x>n.x?1:0)|(p.y>n.y?2:0);insert(n.c[q],id)}
+function accumulate(n){nodeCount++;if(n.body>=0){const p=P[n.body];n.m=p.m;n.cx=p.x;n.cy=p.y;return}if(!n.c)return;let m=0,cx=0,cy=0;for(const ch of n.c){accumulate(ch);m+=ch.m;cx+=ch.cx*ch.m;cy+=ch.cy*ch.m}n.m=m;n.cx=cx/(m||1);n.cy=cy/(m||1)}
+function build(){root=new Node(0,0,2.2);nodeCount=0;for(let i=0;i<N;i++)if(Math.abs(P[i].x)<2&&Math.abs(P[i].y)<2)insert(root,i);accumulate(root);$('nodes').textContent=nodeCount}
+function force(n,p,theta){if(!n||n.m===0)return[0,0];const dx=n.cx-p.x,dy=n.cy-p.y,d2=dx*dx+dy*dy+.002;if((!n.c)||n.h/Math.sqrt(d2)<theta){const f=(+$('grav').value)*n.m/(d2*Math.sqrt(d2));return[dx*f,dy*f]}let ax=0,ay=0;for(const ch of n.c){const f=force(ch,p,theta);ax+=f[0];ay+=f[1]}return[ax,ay]}
+function tick(){build();const th=+$('theta').value;$('thetaL').textContent=th.toFixed(2);for(const p of P){let f=force(root,p,th);const r2=p.x*p.x+p.y*p.y+.01,inv=1/Math.sqrt(r2);f[0]-=p.x*.008*inv/r2;f[1]-=p.y*.008*inv/r2;p.vx=(p.vx+f[0]*.035)*.999;p.vy=(p.vy+f[1]*.035)*.999;p.x+=p.vx*.035;p.y+=p.vy*.035}step++}
+function drawNode(n,s){if(!n)return;ctx.strokeStyle='rgba(255,180,116,.08)';ctx.strokeRect((n.x-n.h)*s.cx+s.ox,(n.y-n.h)*s.cy+s.oy,n.h*2*s.cx,n.h*2*s.cy);if(n.c)for(const ch of n.c)drawNode(ch,s)}
+function draw(){ctx.fillStyle='rgba(7,8,9,.28)';ctx.fillRect(0,0,canvas.width,canvas.height);const s={cx:canvas.width*.42,cy:canvas.height*.42,ox:canvas.width/2,oy:canvas.height/2};if(showTree)drawNode(root,s);ctx.globalCompositeOperation='lighter';for(const p of P){const x=p.x*s.cx+s.ox,y=p.y*s.cy+s.oy;if(x<0||y<0||x>canvas.width||y>canvas.height)continue;ctx.fillStyle=`rgba(255,${140+p.heat*80|0},90,.09)`;ctx.fillRect(x,y,1.3,1.3)}ctx.globalCompositeOperation='source-over'}
+function resize(){const d=Math.min(devicePixelRatio||1,2),w=canvas.clientWidth*d,h=canvas.clientHeight*d;if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;ctx.fillStyle='#070809';ctx.fillRect(0,0,w,h)}}
+function frame(t){resize();if(running)tick();draw();frames++;acc+=(t-last)/1000;last=t;if(acc>.5){$('fps').textContent=Math.round(frames/acc);$('step').textContent=step;frames=0;acc=0}requestAnimationFrame(frame)}
+$('tree').onclick=()=>{showTree=!showTree;$('tree').classList.toggle('active',showTree)};$('run').onclick=()=>{running=!running;$('run').classList.toggle('active',running);$('status').textContent=running?'TREE SOLVER ACTIVE':'TREE SOLVER PAUSED'};$('reset').onclick=init;
+init();requestAnimationFrame(frame);
+</script>
+</body>
+</html>
