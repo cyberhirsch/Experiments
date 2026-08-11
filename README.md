@@ -48,11 +48,11 @@ Procedural tree generator with roots that grow around imported objects, exportin
 - **Key Features:** Three species (oak/spruce/banyan), per-species vigor economy, thigmotropism (contact branching), root wrap around obstacles, procedural bark/root/twig textures, WebGL2 viewport, OBJ import.
 - **Exports:** UsdPreviewSurface + UsdUVTexture materials, 64-byte-aligned USDZ archive, embeddable obstacles.
 
-### [№ 14 — Orogeny (S² Stream Power)](14_Orogeny/Orogeny_v001.html)
+### [№ 14 — Orogeny (S² Stream Power)](14_Orogeny/Orogeny_v002.html)
 Seamless planetary erosion — a whole planet held in erosional equilibrium.
-- **Scope:** Uplift, fluvial incision, sediment transport and deposition on a closed sphere.
-- **Key Features:** Equiangular cubed sphere with 1-texel ghost-cell halos, measured arc-length metric, Lagrangian droplets with a P2G/G2P grant cycle, talus, lithification, raymarched shell.
-- **Method:** 6 × 512² RG32F height array; mean-zero (isostatic) uplift; mass audit closes to 0.02% over 10,000 steps.
+- **Scope:** Tectonic uplift, fluvial incision, sediment transport, impacts and deposition on a closed sphere.
+- **Key Features:** Equiangular cubed sphere with 1-texel ghost-cell halos, measured arc-length metric, Lagrangian droplets with a P2G/G2P grant cycle, Euler-pole plate tectonics, mass-conserving impacts, talus, lithification, raymarched shell.
+- **Method:** 6 × 512² height array; mean-zero uplift; mass audit closes to 0.02% over 10,000 steps and 0.0003% per crater.
 - **Verification:** Built-in flat, isotropy and mass tests — cube corners perturb a diffusing feature by ≤0.12% of its amplitude.
 
 ---

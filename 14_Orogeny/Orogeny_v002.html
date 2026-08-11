@@ -12,17 +12,37 @@
   html,body{height:100%;background:var(--bg);color:var(--ink);
     font-family:'JetBrains Mono',ui-monospace,monospace;overflow:hidden}
   canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
-  #panel{position:fixed;top:18px;left:18px;z-index:10;width:252px;max-height:calc(100% - 36px);
-    overflow-y:auto;background:rgba(5,7,10,0.72);border:1px solid var(--line);backdrop-filter:blur(8px);
-    padding:18px 18px 16px}
-  #panel::-webkit-scrollbar{width:4px}
-  #panel::-webkit-scrollbar-thumb{background:var(--line)}
-  #panel h1{font-family:Georgia,'Cormorant Garamond',serif;font-style:italic;font-weight:400;
-    font-size:21px;letter-spacing:.02em;color:var(--accent);margin-bottom:2px}
-  #panel .sub{font-size:9px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim);margin-bottom:16px}
+  /* Four panels on a pointer-transparent grid over the canvas: the container
+     never eats a drag, each panel does. Rows are auto/1fr/auto so the side
+     panels take exactly the height left between the top bar and the footer. */
+  #ui{position:fixed;inset:0;z-index:10;display:grid;gap:12px;padding:12px;
+    grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr) auto;
+    pointer-events:none}
+  .panel{pointer-events:auto;background:rgba(5,7,10,0.72);border:1px solid var(--line);
+    backdrop-filter:blur(8px);padding:13px 15px;overflow-y:auto;min-height:0}
+  .panel::-webkit-scrollbar{width:4px}
+  .panel::-webkit-scrollbar-thumb{background:var(--line)}
+  #top{grid-column:1/-1;grid-row:1;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;
+    padding:11px 15px 12px}
+  #left{grid-column:1;grid-row:2;width:228px}
+  #right{grid-column:3;grid-row:2;width:228px}
+  #bottom{grid-column:1/-1;grid-row:3;display:flex;align-items:flex-start;gap:22px;flex-wrap:wrap;
+    padding:11px 15px}
+  .brand{flex:0 0 auto;margin-right:4px}
+  .brand h1{font-family:Georgia,'Cormorant Garamond',serif;font-style:italic;font-weight:400;
+    font-size:19px;letter-spacing:.02em;color:var(--accent);line-height:1.15}
+  .brand .sub{font-size:8px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim)}
+  .panel h2{font-family:Georgia,'Cormorant Garamond',serif;font-style:italic;font-weight:400;
+    font-size:15px;letter-spacing:.02em;color:var(--accent);margin-bottom:12px}
+  /* a top/bottom bar cell: one labelled control, sized to its content */
+  .cell{flex:0 0 auto;min-width:104px}
+  .cell.wide{min-width:152px}
   .grp{font-size:8.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);
     border-top:1px solid var(--line);padding-top:11px;margin:16px 0 4px;opacity:.75}
+  .grp:first-of-type{border-top:0;padding-top:0;margin-top:0}
+  .note{font-size:8.5px;line-height:1.7;letter-spacing:.06em;color:var(--dim);opacity:.62;margin:6px 0 2px}
   .row{margin:11px 0}
+  .cell .row{margin:0}
   .row label{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:.18em;
     text-transform:uppercase;color:var(--dim);margin-bottom:5px}
   .row label b{color:var(--ink);font-weight:400}
@@ -37,21 +57,29 @@
   .chk label{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
     margin:0;cursor:pointer}
   .btns{display:flex;gap:8px;margin-top:16px}
+  .cell .btns{margin-top:5px}
   button{flex:1;background:transparent;border:1px solid var(--line);color:var(--ink);
-    font-family:inherit;font-size:9px;letter-spacing:.2em;text-transform:uppercase;padding:8px 0;cursor:pointer;
-    transition:.25s}
+    font-family:inherit;font-size:9px;letter-spacing:.2em;text-transform:uppercase;padding:8px 10px;cursor:pointer;
+    transition:.25s;white-space:nowrap}
   button:hover{border-color:var(--accent);color:var(--accent)}
-  #diag{font-size:9px;line-height:1.85;color:var(--dim);white-space:pre-wrap;margin-top:10px;
-    border-left:1px solid var(--line);padding-left:9px;min-height:14px}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  button:disabled:hover{border-color:var(--line);color:var(--ink)}
+  #diag{flex:1 1 260px;font-size:9px;line-height:1.75;color:var(--dim);white-space:pre-wrap;
+    border-left:1px solid var(--line);padding-left:11px;min-height:14px;max-height:112px;overflow-y:auto}
   #diag b{color:var(--accent);font-weight:400}
   #diag .ok{color:#7fd6a2}
   #diag .bad{color:#e8896f}
-  #hint{position:fixed;bottom:14px;left:18px;z-index:10;font-size:9px;letter-spacing:.22em;
-    text-transform:uppercase;color:var(--dim)}
+  #hint{flex:0 0 auto;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);
+    align-self:center}
   #hint b{color:var(--accent);font-weight:400}
-  #hud{position:fixed;bottom:14px;right:18px;z-index:10;font-size:9px;letter-spacing:.2em;
+  #hud{flex:0 0 auto;margin-left:auto;font-size:9px;letter-spacing:.2em;
     text-transform:uppercase;color:var(--dim);text-align:right;line-height:1.9}
   #hud b{color:var(--ink);font-weight:400}
+  /* narrow viewports: side panels stop competing with the globe */
+  @media (max-width:900px){
+    #left,#right{width:186px}
+    #top,#bottom{gap:14px}
+  }
   #err{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:40px;z-index:20;
     background:var(--bg)}
   #err div{max-width:540px;font-size:13px;line-height:1.9;color:var(--dim)}
@@ -61,98 +89,153 @@
 <body>
 <canvas id="c"></canvas>
 
-<div id="panel">
-  <h1>Orogeny</h1>
-  <div class="sub">№ 14 · v001 — S² Droplet</div>
+<div id="ui">
 
-  <div class="grp">Tectonics</div>
-  <div class="row"><label>Uplift rate <b id="vUp">0.55</b></label>
-    <input id="up" type="range" min="0" max="2" step="0.01" value="0.55"></div>
-  <div class="row"><label>Belt scale <b id="vBelt">1.60</b></label>
-    <input id="belt" type="range" min="0.4" max="4" step="0.05" value="1.6"></div>
-  <div class="row"><label>Belt sharpness <b id="vSharp">0.62</b></label>
-    <input id="sharp" type="range" min="0" max="1" step="0.01" value="0.62"></div>
-
-  <div class="grp">Erosion</div>
-  <div class="row"><label>Rain rate <b id="vRain">1.00</b></label>
-    <input id="rain" type="range" min="0" max="3" step="0.02" value="1"></div>
-  <div class="row"><label>Erodibility <b id="vEro">0.50</b></label>
-    <input id="ero" type="range" min="0" max="1.5" step="0.01" value="0.5"></div>
-  <div class="row"><label>Deposition <b id="vDep">0.35</b></label>
-    <input id="dep" type="range" min="0" max="1" step="0.01" value="0.35"></div>
-  <div class="row"><label>Rock hardness <b id="vHard">2.20</b></label>
-    <input id="hard" type="range" min="1" max="8" step="0.05" value="2.2"></div>
-  <div class="row"><label>Inertia <b id="vIner">0.35</b></label>
-    <input id="iner" type="range" min="0" max="0.95" step="0.01" value="0.35"></div>
-  <div class="row"><label>Evaporation <b id="vEvap">0.020</b></label>
-    <input id="evap" type="range" min="0.002" max="0.1" step="0.002" value="0.02"></div>
-  <div class="row"><label>Hillslope creep <b id="vDiff">0.30</b></label>
-    <input id="diff" type="range" min="0" max="2" step="0.01" value="0.3"></div>
-  <div class="row"><label>Talus angle <b id="vRep">0.70</b></label>
-    <input id="rep" type="range" min="0.1" max="3" step="0.02" value="0.7"></div>
-  <div class="row"><label>Sea level <b id="vSea">0.000</b></label>
-    <input id="sea" type="range" min="-0.02" max="0.02" step="0.0005" value="0"></div>
-  <div class="row"><label>Time step <b id="vSpd">1.00</b></label>
-    <input id="spd" type="range" min="0" max="3" step="0.02" value="1"></div>
-
-  <div class="grp">Resolution</div>
-  <div class="row"><label>Grid (per face)</label>
-    <select id="grid">
-      <option value="128">6 × 128² — fast</option>
-      <option value="256">6 × 256²</option>
-      <option value="512" selected>6 × 512² — default</option>
-      <option value="1024">6 × 1024² — heavy</option>
-    </select></div>
-  <div class="row"><label>Droplets</label>
-    <select id="drops">
-      <option value="128">16 k</option>
-      <option value="256">65 k</option>
-      <option value="512" selected>262 k</option>
-      <option value="768">590 k</option>
-    </select></div>
-  <div class="row"><label>Render quality</label>
-    <select id="quality">
-      <option value="low">Low — 0.6× · 180 steps</option>
-      <option value="med" selected>Medium — 0.85× · 300 steps</option>
-      <option value="high">High — 1.0× · 460 steps</option>
-      <option value="ultra">Ultra — 1.0× · 700 steps</option>
-    </select></div>
-
-  <div class="grp">View</div>
-  <div class="row"><label>Shading</label>
-    <select id="shade">
-      <option value="0" selected>Terrain — biome palette</option>
-      <option value="1">Sediment vs bedrock</option>
-      <option value="2">Discharge — drainage network</option>
-      <option value="3">Uplift field</option>
-      <option value="4">Face id — seam check</option>
-    </select></div>
-  <div class="chk"><input id="water" type="checkbox" checked><label for="water">Oceans &amp; rivers</label></div>
-  <div class="chk"><input id="shadow" type="checkbox" checked><label for="shadow">Cast shadows</label></div>
-  <div class="chk"><input id="spin" type="checkbox" checked><label for="spin">Auto-rotate</label></div>
-
-  <div class="grp">Verification</div>
-  <div class="row"><label>Init</label>
-    <select id="init">
-      <option value="0" selected>Planet — fBm relief</option>
-      <option value="1">Flat test — uniform shell</option>
-      <option value="2">Isotropy test — corner vs face bump</option>
-    </select></div>
-  <div class="btns" style="margin-top:10px">
-    <button id="tFlat">Flat</button>
-    <button id="tIso">Isotropy</button>
-    <button id="tMass">Mass</button>
+  <!-- ── TOP · viewing and simulation ───────────────────────────────── -->
+  <div id="top" class="panel">
+    <div class="brand">
+      <h1>Orogeny</h1>
+      <div class="sub">№ 14 · v002 — plates · impacts</div>
+    </div>
+    <div class="cell wide"><div class="row"><label>Shading</label>
+      <select id="shade">
+        <option value="0" selected>Terrain — biome palette</option>
+        <option value="1">Sediment vs bedrock</option>
+        <option value="2">Discharge — drainage network</option>
+        <option value="3">Uplift field</option>
+        <option value="5">Plates — id &amp; margins</option>
+        <option value="4">Face id — seam check</option>
+      </select></div></div>
+    <div class="cell">
+      <div class="chk"><input id="water" type="checkbox" checked><label for="water">Oceans</label></div>
+      <div class="chk"><input id="shadow" type="checkbox" checked><label for="shadow">Shadows</label></div>
+      <div class="chk"><input id="spin" type="checkbox" checked><label for="spin">Rotate</label></div>
+    </div>
+    <div class="cell wide"><div class="row"><label>Grid (per face)</label>
+      <select id="grid">
+        <option value="128">6 × 128² — fast</option>
+        <option value="256">6 × 256²</option>
+        <option value="512" selected>6 × 512² — default</option>
+        <option value="1024">6 × 1024² — heavy</option>
+      </select></div></div>
+    <div class="cell"><div class="row"><label>Droplets</label>
+      <select id="drops">
+        <option value="128">16 k</option>
+        <option value="256">65 k</option>
+        <option value="512" selected>262 k</option>
+        <option value="768">590 k</option>
+      </select></div></div>
+    <div class="cell wide"><div class="row"><label>Render quality</label>
+      <select id="quality">
+        <option value="low">Low — 0.6× · 180 steps</option>
+        <option value="med" selected>Medium — 0.85× · 300 steps</option>
+        <option value="high">High — 1.0× · 460 steps</option>
+        <option value="ultra">Ultra — 1.0× · 700 steps</option>
+      </select></div></div>
+    <div class="cell"><div class="row"><label>Time step <b id="vSpd">1.00</b></label>
+      <input id="spd" type="range" min="0" max="3" step="0.02" value="1"></div></div>
+    <div class="cell"><div class="btns">
+      <button id="pause">Pause</button>
+      <button id="reset">Reset</button>
+    </div></div>
   </div>
-  <div id="diag">idle</div>
 
-  <div class="btns">
-    <button id="reset">Reset</button>
-    <button id="pause">Pause</button>
+  <!-- ── LEFT · tectonics and impacts ───────────────────────────────── -->
+  <div id="left" class="panel">
+    <h2>Tectonics</h2>
+    <div class="grp">Uplift</div>
+    <div class="row"><label>Source</label>
+      <select id="source">
+        <option value="0" selected>Noise belts</option>
+        <option value="1">Euler-pole plates</option>
+      </select></div>
+    <div class="row"><label>Uplift rate <b id="vUp">0.55</b></label>
+      <input id="up" type="range" min="0" max="2" step="0.01" value="0.55"></div>
+    <div class="note">Mean-zero: belts rise, the rest subsides, total volume conserved.</div>
+
+    <div class="grp" id="gNoise">Noise belts</div>
+    <div class="row nz"><label>Belt scale <b id="vBelt">1.60</b></label>
+      <input id="belt" type="range" min="0.4" max="4" step="0.05" value="1.6"></div>
+    <div class="row nz"><label>Belt sharpness <b id="vSharp">0.62</b></label>
+      <input id="sharp" type="range" min="0" max="1" step="0.01" value="0.62"></div>
+
+    <div class="grp" id="gPlate">Plates</div>
+    <div class="row pl"><label>Plate count <b id="vPN">22</b></label>
+      <input id="pn" type="range" min="6" max="48" step="1" value="22"></div>
+    <div class="row pl"><label>Margin width <b id="vBW">0.045</b></label>
+      <input id="bw" type="range" min="0.012" max="0.12" step="0.001" value="0.045"></div>
+    <div class="row pl"><label>Continental frac <b id="vCF">0.42</b></label>
+      <input id="cf" type="range" min="0" max="1" step="0.01" value="0.42"></div>
+    <div class="row pl"><label>Arc offset <b id="vAO">0.055</b></label>
+      <input id="ao" type="range" min="0" max="0.15" step="0.002" value="0.055"></div>
+    <div class="btns pl"><button id="newPlates">New plates</button></div>
+    <div class="note pl">Convergent margins build orogens, divergent margins rift.
+      Ocean–continent gives a trench and an arc offset inboard — the signature of
+      subduction, not the mechanism: nothing is consumed and margins never migrate.</div>
+
+    <div class="grp">Impacts</div>
+    <div class="row"><label>Bombardment <b id="vImp">0.00</b></label>
+      <input id="imp" type="range" min="0" max="1" step="0.01" value="0"></div>
+    <div class="row"><label>Min radius <b id="vIMin">0.030</b></label>
+      <input id="imin" type="range" min="0.01" max="0.10" step="0.002" value="0.03"></div>
+    <div class="row"><label>Max radius <b id="vIMax">0.090</b></label>
+      <input id="imax" type="range" min="0.02" max="0.30" step="0.005" value="0.09"></div>
+    <div class="btns"><button id="strike">Strike now</button></div>
+    <div class="note">Bowl and central peak excavated, the same volume laid back down as
+      rim and an r⁻³ ejecta blanket. Ejecta lands as sediment. A fresh basin is a closed
+      drainage sink — watch the rim breach and the floor fill.</div>
   </div>
+
+  <!-- ── RIGHT · erosion and fluids ─────────────────────────────────── -->
+  <div id="right" class="panel">
+    <h2>Erosion</h2>
+    <div class="grp">Water</div>
+    <div class="row"><label>Rain rate <b id="vRain">1.00</b></label>
+      <input id="rain" type="range" min="0" max="3" step="0.02" value="1"></div>
+    <div class="row"><label>Evaporation <b id="vEvap">0.020</b></label>
+      <input id="evap" type="range" min="0.002" max="0.1" step="0.002" value="0.02"></div>
+    <div class="row"><label>Inertia <b id="vIner">0.35</b></label>
+      <input id="iner" type="range" min="0" max="0.95" step="0.01" value="0.35"></div>
+    <div class="row"><label>Sea level <b id="vSea">0.000</b></label>
+      <input id="sea" type="range" min="-0.02" max="0.02" step="0.0005" value="0"></div>
+
+    <div class="grp">Rock</div>
+    <div class="row"><label>Erodibility <b id="vEro">0.50</b></label>
+      <input id="ero" type="range" min="0" max="1.5" step="0.01" value="0.5"></div>
+    <div class="row"><label>Deposition <b id="vDep">0.35</b></label>
+      <input id="dep" type="range" min="0" max="1" step="0.01" value="0.35"></div>
+    <div class="row"><label>Rock hardness <b id="vHard">2.20</b></label>
+      <input id="hard" type="range" min="1" max="8" step="0.05" value="2.2"></div>
+    <div class="row"><label>Hillslope creep <b id="vDiff">0.30</b></label>
+      <input id="diff" type="range" min="0" max="2" step="0.01" value="0.3"></div>
+    <div class="row"><label>Talus angle <b id="vRep">0.70</b></label>
+      <input id="rep" type="range" min="0.1" max="3" step="0.02" value="0.7"></div>
+
+    <div class="grp">Fluids</div>
+    <div class="note">2D fluid on the same cubed-sphere atlas — № 02's PIC/FLIP reusing
+      this experiment's halo and metric. Not built yet.</div>
+  </div>
+
+  <!-- ── BOTTOM · verification and readout ──────────────────────────── -->
+  <div id="bottom" class="panel">
+    <div class="cell wide"><div class="row"><label>Init</label>
+      <select id="init">
+        <option value="0" selected>Planet — fBm relief</option>
+        <option value="1">Flat test — uniform shell</option>
+        <option value="2">Isotropy test — corner vs face bump</option>
+      </select></div></div>
+    <div class="cell"><div class="row"><label>Verify</label></div>
+      <div class="btns">
+        <button id="tFlat">Flat</button>
+        <button id="tIso">Isotropy</button>
+        <button id="tMass">Mass</button>
+      </div></div>
+    <div id="diag">idle</div>
+    <div id="hint">Drag <b>orbit</b> · scroll <b>zoom</b></div>
+    <div id="hud"></div>
+  </div>
+
 </div>
-
-<div id="hint">Drag <b>orbit</b> · scroll <b>zoom</b></div>
-<div id="hud"></div>
 <div id="err"><div></div></div>
 
 <script>
@@ -208,6 +291,8 @@ const P = {
   inertia:0.35, evaporation:0.02, creep:0.3, repose:0.7,
   sea:0.0, dt:1.0,
   shade:0, water:1, shadow:1, spin:1, initMode:0,
+  source:0, plateN:22, bwidth:0.045, contFrac:0.42, arcOff:0.055,
+  bombard:0.0, impMin:0.030, impMax:0.090,
   steps:300, pixScale:0.85
 };
 
@@ -224,6 +309,7 @@ let ALLOW_K = 0.6;          // max fraction of the drop to the lowest neighbour 
 const SPLAT_GAIN = 1.0e4;   // keeps per-droplet contributions out of half-float sub-normals
 let CAP_K = 60.0;           // sediment-capacity constant — sets the load a droplet can hold
 let   seed = 1337;
+let   plateSeed = 4.71;     // rerolled independently, so new plates keep the same terrain noise
 
 /* ───────────────────────────── GL helpers ───────────────────────────── */
 function sh(type, src){
@@ -357,6 +443,89 @@ float ridged(vec3 p, int oct){
 }
 `;
 
+/* ─────────────────────────── Euler-pole plates ───────────────────────────
+   Euler's rotation theorem: a rigid body moving on a sphere about a fixed
+   centre is rotating about some axis. A tectonic plate therefore *is* a
+   rotation about an axis through the planet's centre — its Euler pole. Not an
+   approximation; it is why this model only exists on a sphere.
+
+   Plates partition the sphere by Voronoi over seed directions. The two nearest
+   seeds give the boundary for free: half the difference of the geodesic
+   distances is the distance to their bisector, so no jump-flooding pass is
+   needed to find how far a cell sits from its plate margin.
+
+   Everything here is evaluated ONCE, at init, into the uplift texture. The
+   per-step cost is identical to the noise field it replaces.                */
+const PLATES = `
+uniform int   uPlateN;
+uniform float uPSeed, uBWidth, uContFrac, uArcOff;
+
+// Fibonacci lattice for even spacing, jittered so the result is not suspiciously regular
+vec3 plateSeedDir(int i){
+  float k = float(i) + 0.5, n = float(uPlateN);
+  float z = 1.0 - 2.0*k/n;
+  float r = sqrt(max(0.0, 1.0 - z*z));
+  float th = 3.14159265*(1.0 + sqrt(5.0))*k + uPSeed*7.0;
+  vec3 j = vec3(hash11(float(i)*1.7 + uPSeed),
+                hash11(float(i)*3.3 + uPSeed),
+                hash11(float(i)*5.1 + uPSeed)) - 0.5;
+  return normalize(vec3(r*cos(th), r*sin(th), z) + j*0.33);
+}
+// angular velocity vector ω·ω̂ — surface speed is ω·sin(Δ) from the pole
+vec3 plateOmega(int i){
+  vec3 a = normalize(vec3(hash11(float(i)*11.1 + uPSeed),
+                          hash11(float(i)*13.7 + uPSeed),
+                          hash11(float(i)*17.3 + uPSeed))*2.0 - 1.0);
+  return a*(0.35 + 1.0*hash11(float(i)*19.9 + uPSeed));
+}
+// 1 = continental (buoyant, cannot subduct), 0 = oceanic
+float plateCont(int i){ return step(hash11(float(i)*23.7 + uPSeed), uContFrac); }
+
+void nearestPlates(vec3 p, out int i1, out int i2, out float d1, out float d2){
+  d1 = 9.0; d2 = 9.0; i1 = 0; i2 = 0;
+  for(int i=0;i<64;i++){
+    if (i >= uPlateN) break;
+    float d = acos(clamp(dot(p, plateSeedDir(i)), -1.0, 1.0));
+    if (d < d1){ d2 = d1; i2 = i1; d1 = d; i1 = i; }
+    else if (d < d2){ d2 = d; i2 = i; }
+  }
+}
+
+// signed vertical response at p, in the same arbitrary units as the noise field
+float plateUplift(vec3 p, out float convOut, out float contOut){
+  int i1, i2; float d1, d2;
+  nearestPlates(p, i1, i2, d1, d2);
+  float db = 0.5*(d2 - d1);                       // distance to the bisector
+  contOut = plateCont(i1);
+
+  vec3 s1 = plateSeedDir(i1), s2 = plateSeedDir(i2);
+  vec3 t1 = normalize(s1 - p*dot(p,s1));          // unit tangent toward each seed
+  vec3 t2 = normalize(s2 - p*dot(p,s2));
+  vec3 nrm = normalize(t2 - t1);                  // across the margin, plate 1 → plate 2
+
+  // relative motion is itself a rotation: poles subtract as vectors
+  vec3 dv = cross(plateOmega(i1), p) - cross(plateOmega(i2), p);
+  float conv = dot(dv, nrm);                      // > 0 convergent, < 0 divergent
+  convOut = conv;
+
+  float w    = max(uBWidth, 1e-3);
+  float band = exp(-(db*db)/(2.0*w*w));
+  float c1 = contOut, c2 = plateCont(i2);
+
+  if (conv <= 0.0) return conv*band*0.55;         // rift: narrow, subsiding
+
+  if (c1 > 0.5 && c2 > 0.5) return conv*band;     // continent–continent: collision plateau
+  if (c1 < 0.5 && c2 < 0.5) return conv*band*0.55;// ocean–ocean: island arc
+
+  // ocean–continent. The oceanic side gets a trench, the continental side an arc
+  // offset inboard. This is the *signature* of subduction, not the mechanism —
+  // nothing is consumed here and the margin never migrates.
+  if (c1 < 0.5) return -conv*band*0.85;                          // trench
+  float x = (db - uArcOff)/w;
+  return conv*exp(-0.5*x*x)*1.05;                                // volcanic arc
+}
+`;
+
 const VS_QUAD = `#version 300 es
 void main(){
   vec2 v = vec2((gl_VertexID<<1)&2, gl_VertexID&2);
@@ -406,12 +575,23 @@ void main(){
 const FS_UPLIFT = `#version 300 es
 precision highp float; precision highp sampler2DArray;
 ${COMMON}
-uniform int uFace; uniform float uBelt, uSharp, uSeed; uniform int uFlat;
+${PLATES}
+uniform int uFace; uniform float uBelt, uSharp, uSeed; uniform int uFlat, uSource;
 out vec4 o;
 void main(){
   if (uFlat == 1){ o = vec4(1.0, 0.0, 0.0, 1.0); return; }   // flat test: uniform source term
   vec2 s = fragToS(gl_FragCoord.xy);
   vec3 d = normalize(faceToDir(uFace, s));
+
+  if (uSource == 1){
+    float conv, cont;
+    float u = plateUplift(d, conv, cont);
+    // a little interior relief so plate interiors are not billiard-smooth
+    u += (fbm(d*3.1 + uPSeed*0.53, 4) - 0.5)*0.22;
+    o = vec4(u, 0.0, 0.0, 1.0);
+    return;
+  }
+
   vec3 q = d*uBelt*3.0 + uSeed;
   // domain-warped ridged fBm: long sinuous belts rather than isotropic blobs
   vec3 w = vec3(fbm(q*0.7+11.3,3), fbm(q*0.7+41.7,3), fbm(q*0.7+77.1,3)) - 0.5;
@@ -426,7 +606,8 @@ void main(){
 const FS_INIT = `#version 300 es
 precision highp float; precision highp sampler2DArray;
 ${COMMON}
-uniform int uFace; uniform float uSeed; uniform int uMode;
+${PLATES}
+uniform int uFace; uniform float uSeed; uniform int uMode, uSource;
 out vec4 o;
 void main(){
   vec2 s = fragToS(gl_FragCoord.xy);
@@ -436,6 +617,16 @@ void main(){
     vec3 q = d*2.2 + uSeed;
     vec3 w = vec3(fbm(q+3.1,3), fbm(q+13.7,3), fbm(q+29.3,3)) - 0.5;
     rock = (fbm(q + w*0.9, 6) - 0.5) * 0.030;
+    if (uSource == 1){
+      // Continents ride high because their crust is thick and light. Standing in
+      // for isostasy, which this model does not have — see ROADMAP item 4.
+      int i1, i2; float d1, d2;
+      nearestPlates(d, i1, i2, d1, d2);
+      float db = 0.5*(d2 - d1);
+      float blend = smoothstep(0.0, max(uBWidth*1.6, 1e-3), db);   // soften the margin
+      float c1 = plateCont(i1), c2 = plateCont(i2);
+      rock = rock*0.55 + mix(mix(c1,c2,0.5), c1, blend)*0.026 - 0.013;
+    }
   } else if (uMode == 1){
     rock = 0.010;                       // flat test — a perfectly uniform shell
   } else {
@@ -761,10 +952,76 @@ void main(){
   o = vec4(me.x, sed, 0.0, 1.0);
 }`;
 
+/* ─────────────────── impact: one crater, mass-conserving ───────────────────
+   Bowl + central peak excavated from the surface, the identical volume laid
+   back down as a rim and an ejecta blanket falling off as r⁻³. Balanced
+   analytically on the locally-flat approximation:
+
+     bowl      V = π·D·R²/2                 depth D over radius R
+     peak      V = π·P·s²                   height P, width s
+     blanket   V = 2π·E·R²·(1 − R/Rmax)     rim height E out to Rmax
+
+   so E = (D·R²/2 − P·s²) / (2·R²·(1 − R/Rmax)). Curvature makes this
+   approximate on a sphere; the mass audit reports what it actually costs.
+
+   Excavation takes sediment before rock; ejecta lands as sediment, which is
+   what a breccia blanket is.                                                */
+const FS_IMPACT = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${HALO}
+uniform sampler2DArray uT;
+uniform int uFace;
+uniform vec3 uCentre;
+uniform float uRad, uDepth, uPeak, uEjecta;
+out vec4 o;
+
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec4 h; if (haloFill(uT, s, uFace, h)){ o = h; return; }
+
+  ivec3 t = ivec3(gl_FragCoord.xy, uFace);
+  vec4 me = texelFetch(uT, t, 0);
+  vec3 d = normalize(faceToDir(uFace, s));
+
+  float a    = acos(clamp(dot(d, uCentre), -1.0, 1.0));   // angular distance
+  float R    = uRad;
+  float Rmax = R*3.0;
+  if (a > Rmax){ o = me; return; }
+
+  float D  = uDepth;
+  float ps = R*0.22;                                       // central-peak width
+  float P  = uPeak;
+  float E  = uEjecta;      // solved on the CPU against sin(a)·da, taper included
+
+  float dh;
+  if (a < R){
+    float x = a/R;
+    dh = -D*(1.0 - x*x);                                   // parabolic bowl
+    dh += P*exp(-(a*a)/(ps*ps));                           // central peak
+    dh += E*smoothstep(0.75, 1.0, x)*0.9;                  // raised rim
+  } else {
+    float x = a/R;
+    dh = E*pow(x, -3.0)*smoothstep(Rmax, R, a);            // ejecta blanket
+  }
+
+  float rock = me.x, sed = me.y;
+  if (dh < 0.0){
+    float take = -dh;                                      // sediment goes first
+    float fromSed = min(take, sed);
+    sed  -= fromSed;
+    rock -= (take - fromSed);
+  } else {
+    sed += dh;                                             // ejecta is loose
+  }
+  o = vec4(rock, max(sed, 0.0), 0.0, 1.0);
+}`;
+
 /* ─────────────────── render: raymarch the displaced shell ─────────────────── */
 const FS_RENDER = `#version 300 es
 precision highp float; precision highp sampler2DArray;
 ${COMMON}
+${PLATES}
 uniform sampler2DArray uT, uF, uU;
 uniform vec3 uEye, uFwd, uRight, uUp, uSun;
 uniform vec2 uRes;
@@ -855,6 +1112,23 @@ vec3 palette(vec3 p, vec3 n, vec2 h, float q, float up){
     return mix(vec3(0.05,0.06,0.09), vec3(0.35,0.78,1.0), f);
   }
   if (uShade == 3) return mix(vec3(0.06,0.07,0.10), vec3(1.0,0.55,0.30), clamp(up,0.0,1.0));
+  if (uShade == 5){
+    vec3 dd = normalize(p);
+    int i1, i2; float d1, d2;
+    nearestPlates(dd, i1, i2, d1, d2);
+    float db = 0.5*(d2 - d1);
+    // hashed RGB clusters around mid-grey and reads as one colour; spread the hue
+    // instead so neighbouring plates are always separable
+    float hue = hash11(float(i1)*3.1 + uPSeed + 1.0);
+    vec3 rgb = clamp(abs(mod(hue*6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    bool cont = plateCont(i1) > 0.5;
+    // continental crust warm and bright, oceanic cool and dark — the split that
+    // decides what happens when two of these meet
+    vec3 base = cont ? mix(rgb, vec3(1.0,0.82,0.52), 0.40)*0.95
+                     : mix(rgb, vec3(0.16,0.34,0.62), 0.62)*0.55;
+    float margin = 1.0 - smoothstep(0.0, 0.030, db);
+    return mix(base, vec3(1.0,0.98,0.94), margin*margin);
+  }
   if (uShade == 4){
     int f; vec2 s; dirToFace(normalize(p), f, s);
     vec3 cols[6];
@@ -1017,6 +1291,7 @@ const pDropB  = prog(VS_QUAD, FS_DROPB);
 const pSplat  = prog(VS_SPLAT, FS_SPLAT);
 const pApply  = prog(VS_QUAD, FS_APPLY);
 const pTalus  = prog(VS_QUAD, FS_TALUS);
+const pImpact = prog(VS_QUAD, FS_IMPACT);
 const pRender = prog(VS_QUAD, FS_RENDER);
 const pDSeed  = prog(VS_QUAD, FS_DSEED);
 
@@ -1078,6 +1353,13 @@ function setGrid(p){
   gl.uniform1f(U(p,'uN'), N);
   gl.uniform1f(U(p,'uNT'), NT);
 }
+function setPlates(p){
+  gl.uniform1i(U(p,'uPlateN'), P.plateN);
+  gl.uniform1f(U(p,'uPSeed'), plateSeed);
+  gl.uniform1f(U(p,'uBWidth'), P.bwidth);
+  gl.uniform1f(U(p,'uContFrac'), P.contFrac);
+  gl.uniform1f(U(p,'uArcOff'), P.arcOff);
+}
 function drawQuad(){ gl.drawArrays(gl.TRIANGLES, 0, 3); }
 
 function fieldPass(p, target, setup){
@@ -1114,6 +1396,8 @@ function buildUplift(flat){
   gl.uniform1f(U(pUpl,'uSharp'), P.sharp);
   gl.uniform1f(U(pUpl,'uSeed'), seed*0.0013);
   gl.uniform1i(U(pUpl,'uFlat'), flat ? 1 : 0);
+  gl.uniform1i(U(pUpl,'uSource'), P.source);
+  setPlates(pUpl);
   gl.viewport(0,0,NT,NT);
   for(let f=0; f<6; f++){ bindLayer(fb, Uf, f); gl.uniform1i(U(pUpl,'uFace'), f); drawQuad(); }
 
@@ -1129,6 +1413,8 @@ function buildTerrain(){
   gl.useProgram(pInit); setGrid(pInit);
   gl.uniform1f(U(pInit,'uSeed'), seed*0.0031);
   gl.uniform1i(U(pInit,'uMode'), P.initMode);
+  gl.uniform1i(U(pInit,'uSource'), P.source);
+  setPlates(pInit);
   gl.viewport(0,0,NT,NT);
   for(const t of T) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.uniform1i(U(pInit,'uFace'), f); drawQuad(); }
   for(const t of F) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
@@ -1281,6 +1567,56 @@ function substep(dt){
   frameNo++; simTime += dt;
 }
 
+/* ═══════════════════════════ impacts ═══════════════════════════ */
+function strike(dir, radius, depth){
+  if (!dir){
+    const z = Math.random()*2 - 1, th = Math.random()*2*Math.PI, r = Math.sqrt(Math.max(0,1-z*z));
+    dir = [r*Math.cos(th), r*Math.sin(th), z];
+  }
+  if (radius === undefined){
+    // power law: small strikes are common, large ones rare
+    const u = Math.random();
+    radius = P.impMin + (P.impMax - P.impMin)*Math.pow(u, 2.4);
+  }
+  if (depth === undefined) depth = radius*0.22;    // depth/diameter ≈ 1:9, as observed
+
+  // Solve the ejecta height E so removed volume equals deposited volume, on the
+  // sphere's own area element 2π·sin(a)·da and including the outer taper. Doing
+  // it analytically on a flat plane, as the first version did, lost ~0.04 % of
+  // the planet's volume per strike because the taper cuts blanket the balance
+  // assumed was there.
+  const R = radius, Rmax = R*3.0, ps = R*0.22;
+  const peak = (R > 0.035) ? depth*0.45 : 0.0;
+  const smoothstep = (a,b,x) => { const t = Math.min(1, Math.max(0, (x-a)/(b-a))); return t*t*(3-2*t); };
+  const M = 4000;
+  let bowl = 0, peakV = 0, rimC = 0, blanketC = 0;
+  for(let i=0;i<M;i++){
+    const a = (i+0.5)/M*Rmax, da = Rmax/M, w = 2*Math.PI*Math.sin(a)*da;
+    const x = a/R;
+    if (a < R){
+      bowl  += depth*(1 - x*x)*w;
+      peakV += peak*Math.exp(-(a*a)/(ps*ps))*w;
+      rimC  += smoothstep(0.75, 1.0, x)*0.9*w;
+    } else {
+      blanketC += Math.pow(x, -3)*smoothstep(Rmax, R, a)*w;
+    }
+  }
+  const ejecta = (bowl - peakV)/Math.max(rimC + blanketC, 1e-12);
+
+  gl.disable(gl.BLEND);
+  gl.useProgram(pImpact); setGrid(pImpact);
+  gl.uniform1i(U(pImpact,'uT'), unit(0, T[cur]));
+  gl.uniform3f(U(pImpact,'uCentre'), dir[0], dir[1], dir[2]);
+  gl.uniform1f(U(pImpact,'uRad'), radius);
+  gl.uniform1f(U(pImpact,'uDepth'), depth);
+  gl.uniform1f(U(pImpact,'uPeak'), peak);
+  gl.uniform1f(U(pImpact,'uEjecta'), ejecta);
+  gl.viewport(0,0,NT,NT);
+  for(let f=0; f<6; f++){ bindLayer(fb, T[1-cur], f); gl.uniform1i(U(pImpact,'uFace'), f); drawQuad(); }
+  cur = 1-cur;
+  return { radius, depth };
+}
+
 /* ═══════════════════════════ camera ═══════════════════════════ */
 const cam = { yaw:0.7, pitch:0.35, dist:2.9, tYaw:0.7, tPitch:0.35, tDist:2.9 };
 let dragging = false, lastX = 0, lastY = 0;
@@ -1339,6 +1675,7 @@ function render(){
   gl.uniform1f(U(pRender,'uSea'), P.sea);
   gl.uniform1f(U(pRender,'uR'), R0);
   gl.uniform1f(U(pRender,'uHmax'), HMAX);
+  setPlates(pRender);
   gl.uniform1i(U(pRender,'uShade'), P.shade);
   gl.uniform1i(U(pRender,'uWater'), P.water);
   gl.uniform1i(U(pRender,'uShadow'), P.shadow);
@@ -1558,8 +1895,34 @@ slider('rep','vRep','repose');
 slider('sea','vSea','sea',1,v=>v.toFixed(4));
 slider('spd','vSpd','dt');
 
+slider('imp','vImp','bombard');
+slider('imin','vIMin','impMin',1,v=>v.toFixed(3));
+slider('imax','vIMax','impMax',1,v=>v.toFixed(3));
+$('strike').onclick = () => { const s = strike(); note(`<b>impact</b>  radius ${s.radius.toFixed(3)} rad `
+  + `(${(s.radius*6371).toFixed(0)} km)\ndepth ${s.depth.toFixed(4)}`); };
+
+slider('pn','vPN','plateN',1,v=>v.toFixed(0));
+slider('bw','vBW','bwidth',1,v=>v.toFixed(3));
+slider('cf','vCF','contFrac',1,v=>v.toFixed(2));
+slider('ao','vAO','arcOff',1,v=>v.toFixed(3));
+
 $('belt').addEventListener('change', () => buildUplift(false));
 $('sharp').addEventListener('change', () => buildUplift(false));
+// plate geometry also sets the starting continent/ocean split, so terrain rebuilds too
+const rebuildPlates = () => { buildUplift(false); buildTerrain(); seedDroplets(); frameNo = 0; massRef = null; };
+['pn','bw','cf','ao'].forEach(id => $(id).addEventListener('change', rebuildPlates));
+$('newPlates').onclick = () => { plateSeed = Math.random()*97; rebuildPlates(); };
+
+// only the controls belonging to the active source are shown
+function syncSource(){
+  const plates = P.source === 1;
+  document.querySelectorAll('.pl').forEach(e => e.style.display = plates ? '' : 'none');
+  document.querySelectorAll('.nz').forEach(e => e.style.display = plates ? 'none' : '');
+  $('gNoise').style.display = plates ? 'none' : '';
+  $('gPlate').style.display = plates ? '' : 'none';
+}
+$('source').onchange = e => { P.source = parseInt(e.target.value); syncSource(); rebuildPlates(); };
+syncSource();
 
 $('shade').onchange = e => P.shade = parseInt(e.target.value);
 $('water').onchange = e => P.water = e.target.checked ? 1 : 0;
@@ -1585,6 +1948,8 @@ function frame(){
   if (P.spin && !dragging) cam.tYaw += 0.0012;
   if (!paused && P.dt > 0){
     substep(P.dt);
+    // bombardment: expected strikes per step, so the slider reads as a rate
+    if (P.bombard > 0 && Math.random() < P.bombard*0.004) strike();
   }
   render();
 

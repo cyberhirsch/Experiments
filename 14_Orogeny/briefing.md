@@ -6,7 +6,36 @@ Tectonic uplift raises relief, rivers cut it back down, sediment fills the basin
 builds deltas at sea level. Because uplift and erosion balance, the simulation has no
 end state: it runs indefinitely rather than decaying to a smooth sphere.
 
-*Status: **v001 built** — `Orogeny_v001.html`, single file, WebGL2, no dependencies.*
+*Status: **v002 built** — still in `Orogeny_v001.html`, single file, WebGL2, no
+dependencies. v001 was droplet erosion on a noise uplift field; v002 adds the four-panel
+instrument layout, Euler-pole plate tectonics and mass-conserving impacts. See
+[ROADMAP.md](ROADMAP.md).*
+
+---
+
+## v002 additions
+
+**Four-panel layout.** Top: viewing, resolution, simulation. Left: tectonics and impacts.
+Right: erosion, with a Fluids slot. Bottom: verification and readout. A pointer-transparent
+CSS grid over the canvas, so the container never eats a drag and each panel does.
+
+**Euler-pole plates** — selectable as the uplift source. Euler's rotation theorem makes a
+rigid plate on a sphere *exactly* a rotation about an axis through the centre, so plate
+motion is `v(p) = ω·(ω̂ × p)` and surface speed is `ω·sin Δ` from the pole. Relative motion
+between two plates is itself a rotation: poles subtract as vectors. Voronoi partition, and
+the two nearest seeds hand you the margin for free — half the difference of the geodesic
+distances is the distance to their bisector, so no jump-flooding pass was needed.
+Convergence drives orogens, divergence rifts, and per-plate crust type gives trenches with
+inboard arcs at ocean–continent margins. Evaluated once at init into the same uplift
+texture the noise field fills, so the per-step cost is unchanged.
+
+**Impacts** — bowl and central peak excavated, the same volume returned as rim and an r⁻³
+ejecta blanket, landing as sediment. The ejecta scale is solved numerically against
+`2π·sin(a)·da` at strike time rather than analytically on a flat plane; that correction
+took the drift per crater from −0.156 % to −0.0003 %.
+
+Both are logged with their measurements in [ROADMAP.md](ROADMAP.md) and
+[DESIGN_OPTIONS.md](DESIGN_OPTIONS.md).
 
 ---
 

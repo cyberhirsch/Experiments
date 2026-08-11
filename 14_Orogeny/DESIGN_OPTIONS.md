@@ -167,11 +167,25 @@ Without a source term the planet flattens and the experiment dies.
      separately raising the capacity constant **240×**, moved equilibrium relief by under
      0.1 %; the balance is set by coverage alone. Scaling the uplift rate by it makes the
      balance hold at every grid and droplet count instead of needing a per-setting re-tune.
-2. **Euler-pole plates, static boundaries** — v002. Plate motion *is* a rigid rotation
+2. **Euler-pole plates, static boundaries** ✅ **v002**. Plate motion *is* a rigid rotation
    about an Euler pole, so this is the model that only exists on a sphere. Voronoi plates
-   with angular velocity `ω`; boundary uplift = convergence rate `−(Δv·n̂)`. Convergent →
+   with angular velocity `ω`; boundary uplift = convergence rate `Δv·n̂`. Convergent →
    orogeny, divergent → rift. Plates do not advect, boundaries do not migrate: ~90% of the
-   payoff for ~10% of the cost of rung 3. This is where the experiment earns its name.
+   payoff for ~10% of the cost of rung 3.
+   - **Margins for free** ✅ — the two nearest Voronoi seeds give distance-to-bisector as
+     `(d₂−d₁)/2`, so no jump-flooding distance pass was needed.
+   - **Per-plate crust type** ✅ — asymmetric response at ocean–continent margins (trench
+     on the oceanic side, arc offset inboard), collision plateau continent–continent.
+     The signature of subduction, not the mechanism.
+   - **Continental base elevation** ✅ — continents start above ocean floor, standing in
+     for the isostasy this model does not have.
+   - *Measured:* margins 7.0 % of the sphere, 3.8 % convergent / 3.2 % divergent; field
+     mean −0.002 before the mean-zero correction, i.e. convergence and divergence nearly
+     balance unaided. Relief settles ~0.039 radii over 10,000 steps, drift −0.054 %.
+   - ❌ **Hashed RGB for the plate diagnostic view** — clustered around mid-grey and read
+     as a single colour across the whole globe. Replaced with a hue sweep plus a
+     warm/cool continental–oceanic split, and margins widened from 0.014 to 0.030 rad
+     because at 1 px they vanished under any downsampling.
 3. **Full tectonics with advection** — v003+. Crust carried by plates, boundaries
    migrating, plates splitting/merging, crust age and subduction (cf. Cortial 2019).
    Genuinely a second experiment's worth of work.
@@ -230,6 +244,37 @@ Without a source term the planet flattens and the experiment dies.
 Default dropped from 1024² to **512²** so first run is comfortable; 262 k droplets (512²)
 by default. Ping-pong doubles the field cost. Memory-safe rebuild from № 11: out-of-memory
 falls back to the last good size rather than black-screening.
+
+---
+
+## 12. Asteroid impacts ✅ v002
+
+- **Mass-conserving crater** ✅ — parabolic bowl + central peak above the
+  simple-to-complex size, the identical volume returned as a raised rim and an r⁻³ ejecta
+  blanket out to 3R. Excavation takes sediment before rock; ejecta lands as sediment,
+  which is what a breccia blanket is. Depth/diameter ≈ 1:9.
+- **Ejecta scale solved numerically** ✅ — at strike time, on the sphere's own area element
+  `2π·sin(a)·da`, with the outer taper included.
+  - ❌ First version balanced the volumes analytically on a locally-flat plane. The taper
+    cuts blanket the balance assumed was there, so every strike lost **0.04 % of the
+    planet**: −0.156 % drift for one large crater, −1.04 % after 25. The numeric solve
+    took that to **−0.0003 %** per crater and −0.0006 % after 40.
+- **Bombardment rate** ✅ as a slider, with a power-law size distribution (small common,
+  large rare) and a "strike now" button.
+- *Known:* after heavy bombardment the erosion loop itself drifts more — −0.54 % over the
+  next 2,000 steps against −0.02 % / 10,000 on undamaged terrain — because fresh rims are
+  steep enough to drive the talus and grant clamps hard. A loss, not a source.
+- *Resolution floor:* ~18 km cells at 6 × 512² and ~8 cells needed to read as a crater put
+  the smallest honest impact at ~150 km. Basin-scale, not a cratered surface.
+
+## 13. Panel layout ✅ v002
+
+- **Four panels on a pointer-transparent CSS grid** ✅ — container never eats a drag, each
+  panel does. Rows `auto / 1fr / auto` so the side panels take exactly the height between
+  the top bar and the footer. Every control id preserved from v001, so the wiring survived
+  the move untouched.
+- Verified: single-row top bar and 960 px of clear globe at 1440×900; at 1280×720 the top
+  wraps to two rows and the side panels scroll.
 
 ---
 
