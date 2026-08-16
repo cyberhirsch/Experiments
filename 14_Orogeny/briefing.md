@@ -70,6 +70,115 @@ because the test writes a uniform uplift field and the plate rebuild then overwr
 mid-run. The test now pins the source for its duration. My first instinct was to blame a
 stale page load; re-testing showed a real ordering bug.
 
+## v003.1 — two features that were never actually running
+
+**The margin scan could not reach the features it draws.** The uplift rebuild found its
+margin by scanning ±5 cells at stride 1. At 6 × 512² a cell is 0.0031 rad while the belt
+is 0.045 and the arc offset 0.056 — fifteen and eighteen cells out. So the Gaussian only
+decayed from 1.000 to 0.944 before hitting the hard edge of the window, and the arc's peak
+lay outside it entirely. Source coverage measured **10.84 % of the sphere for every value
+of `bwidth` and every value of `arcOff`**: both sliders moved nothing, and the volcanic
+arc that is the entire point of the ocean–continent asymmetry did not exist. Neither
+failed loudly — the belt looked like a belt, so nothing suggested the width control was
+disconnected from it.
+
+Now a two-tier scan: stride 1 out to 5 cells for the exact near field, then the same
+window strided for direction only and a stride-1 march back in for exact distance.
+Coverage moves 36 → 80 → 99 % with `bwidth`. The scan also used to clamp to the layer,
+truncating against the face edge — harmless at ±5, a groove along all twelve cube edges at
+±60 — so out-of-face offsets now route through the direction, nearest.
+
+**Ridges were trenches.** The divergent branch summed −0.55·|conv|·band of rift against
++0.30 of crust creation. The graben won, so spreading centres *thinned* the crust while
+the comment above them called that term the one that legitimately adds mass. A mid-ocean
+ridge is the shallowest part of an ocean basin. Rewritten with the two length scales it
+needs — a broad positive swell carrying a narrow axial graben — 1,491 of 2,946 ocean–ocean
+crossings now show the ridge profile, against 761 with subduction off.
+
+**Which broke the budget, twice over.** Letting the belt reach its designed width
+multiplied the source's mean-|u| by 2.74× on its own, and the crust budget went −0.42 % →
+**+3.97 %** over 6,000 steps. The source is now normalised by its own mean-|u|, so belt
+width sets shape and not amount: **+1.37 %**. And `upliftFromField` turned out never to
+have measured its own field — `UMEAN` was inherited from the noise path, so drifting mode
+with subduction *off*, the regime that exists to demonstrate strict conservation, had been
+subtracting a stale constant. Measured now: **−0.161 %** over 6,000 steps.
+
+The remaining +1.37 % is unenforced, and its sign has flipped from consumption-dominated
+to creation-dominated. Closing it properly is the plate-area bookkeeping already on the
+roadmap.
+
+## v004 — the plate field becomes a velocity
+
+Two visual complaints turned into one architectural change.
+
+**Straight edges.** A spherical Voronoi boundary is a great-circle arc — exactly straight —
+so every margin was a polygon edge, and no amount of seed jitter changes that, because
+jitter moves the seed and not the shape of the bisector. Warping the lookup *direction*
+bends them, and doing it inside `nearestPlates` means every consumer inherits it from one
+place. A ridged mask on the orogenic branches only turns the continuous welt into a chain
+of massifs; trenches and rifts really are continuous, so they are left alone.
+
+**Motion vectors.** The plate field stops being a label and becomes `v = ω × p`, blended
+across each margin, and the uplift comes from **−∇·v** — the areal strain rate, so
+subduction and spreading are one quantity from a four-tap difference. `ω × p` rather than a
+constant vector per plate, because rigid motion on a sphere *is* a rotation and a constant
+vector would shear every plate interior.
+
+This retires the whole margin scan for the new source, and fixes the belt-width coupling at
+the root: blending over width `w` gives `|∇·v| ~ conv/2w`, so total consumption is
+convergence × margin length **independent of `w`**. The old Gaussian band's integral scaled
+with `w`, which is the entire reason the source needed normalising a version earlier.
+Seeds move under their own pole, so the Voronoi drifts analytically — no id field, no
+advection step to compound, and margin distance stays exact at any range.
+
+*The gotcha, including a wrong turn.* ∮∇·v dA is exactly zero on a closed surface, and it
+measured **−4.93 %**. My first explanation was that the edge normal sat in each cell's own
+tangent plane rather than at the shared midpoint. That was wrong, and the fix changed the
+number by nothing at all — which is what pushed me to build a control with an exact answer:
+*one plate is a rigid rotation, and a rotation is divergence-free everywhere*. It showed a
+background |∇·v| of 0.18 against a true value of zero. The real causes were that the edge
+*lengths* were centre-to-centre distances rather than the cell's actual edges, and the edge
+*normal* pointed centre-to-centre — which is not perpendicular to the edge, because the
+equiangular grid is not orthogonal away from a face centre. Rebuilding both from the
+shared corners took the rigid-plate background to **0.00057** and closure to **0.0001 %**.
+
+Creation and destruction now balance to machine precision by construction. That was the
+argument for the architecture; it is now a property of it rather than a claim about it.
+
+## v004b — the crust rides the plate
+
+The rock moves now. A crater drifts with its plate instead of sitting still in space while
+the margins slide past it. Semi-Lagrangian backtrace along the local flow, bilinear —
+thickness is continuous, and nearest sampling would freeze sub-cell motion exactly the way
+the v003 plate advection locked up. Against a stationary copy the field differs by 11.65 %;
+against its own analytically backtraced self, by 3.50 %. With advection off it does not
+move at all (0.01 %), which is also the proof that it never did before.
+
+Three wrong turns, none of which inspection would have caught:
+
+**Banking motion helps cost, not accuracy.** I asserted a sub-cell resample smears as badly
+as a full one. Bilinear error goes as t(1−t), so small hops are individually gentle: 80
+passes retained 99.52 % of the field's spread against 99.56 % for 17. Banking stayed, for
+4.7× fewer GPU passes.
+
+**Pure backtracing loses 56 % of the crust.** It moves crust without compressing it, so
+converging plates pack it into less area at unchanged thickness. The rigid-plate control
+again: under a divergence-free flow the same code conserved to 0.000 %, which located the
+fault in the flow rather than the scheme.
+
+**And the textbook fix for that was also wrong.** Scaling the column by exp(−∇·v·Δt) is the
+conservative form, and it too measured 0.000 % under rigid rotation — but `tc` is a *signed
+deviation from a datum*, not an absolute thickness, and oceanic crust is negative.
+Multiplying a negative column by a factor below one moves it toward zero, which *adds*
+signed volume. Thinning oceanic crust at a trench made the planet gain mass: +14.4 % at
+default drift, +45.5 % at maximum. Gating by crust type cannot repair a sign error in what
+the variable means. The term sits in the shader, disabled, with the reasoning next to it.
+
+Shipped with compression off, leaving `tc·∇·v` to the divergence source where it already
+lived: relief 0.0347 against 0.0348 with advection disabled, budget +0.386 % at drift 0.5
+and −0.112 % at drift 2.0. Doing it properly wants `tc` measured up from a datum thickness,
+which is what a crust-age field would supply.
+
 ---
 
 ## Where it sits in the collection

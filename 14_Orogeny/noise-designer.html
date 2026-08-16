@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>№ 14 — Orogeny · Noise designer</title>
+<style>
+  :root{
+    --bg:#05070a; --ink:#e6ecf2; --dim:#7a8794; --accent:#8fc8e8; --line:rgba(230,236,242,0.10);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:var(--bg);color:var(--ink);
+    font-family:'JetBrains Mono',ui-monospace,monospace;overflow:hidden}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #ui{position:fixed;inset:0;z-index:10;display:grid;gap:12px;padding:12px;
+    grid-template-columns:236px minmax(0,1fr) 236px;grid-template-rows:auto minmax(0,1fr);
+    pointer-events:none}
+  .panel{pointer-events:auto;background:rgba(5,7,10,0.72);border:1px solid var(--line);
+    backdrop-filter:blur(8px);padding:13px 15px;overflow-y:auto;min-height:0}
+  .panel::-webkit-scrollbar{width:4px}
+  .panel::-webkit-scrollbar-thumb{background:var(--line)}
+  #top{grid-column:1/-1;grid-row:1;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;padding:11px 15px 12px}
+  #left{grid-column:1;grid-row:2}
+  #right{grid-column:3;grid-row:2}
+  .brand{flex:0 0 auto;margin-right:4px}
+  .brand h1{font-family:Georgia,'Cormorant Garamond',serif;font-style:italic;font-weight:400;
+    font-size:19px;letter-spacing:.02em;color:var(--accent);line-height:1.15}
+  .brand .sub{font-size:8px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim)}
+  .panel h2{font-family:Georgia,'Cormorant Garamond',serif;font-style:italic;font-weight:400;
+    font-size:15px;letter-spacing:.02em;color:var(--accent);margin-bottom:12px}
+  .grp{font-size:8.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);
+    border-top:1px solid var(--line);padding-top:11px;margin:16px 0 4px;opacity:.75}
+  .grp:first-of-type{border-top:0;padding-top:0;margin-top:0}
+  .note{font-size:8.5px;line-height:1.7;letter-spacing:.06em;color:var(--dim);opacity:.62;margin:6px 0 2px}
+  .row{margin:11px 0}
+  .row label{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+  .row label b{color:var(--ink);font-weight:400}
+  input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:var(--line);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+    background:var(--accent);cursor:pointer}
+  input[type=text]{width:100%;background:rgba(5,7,10,0.9);border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:10px;padding:6px 8px;outline:none}
+  select{width:100%;background:rgba(5,7,10,0.9);border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:10px;letter-spacing:.1em;padding:6px 8px;outline:none;cursor:pointer}
+  select:hover{border-color:var(--accent)}
+  select:disabled{opacity:.4;cursor:not-allowed}
+  select:focus{border-color:var(--accent)}
+  /* An expanded listbox rather than a popup: on Windows the native popup is an
+     OS widget that swallows arrow keys, so `change` only fires on Enter. With
+     size>1 the list lives in the page, arrows move the selection, and change
+     fires on every step — which is what makes auditioning presets work. */
+  select[size]{height:auto;padding:2px;overflow-y:auto;cursor:default}
+  select[size] option{padding:4px 7px;cursor:pointer}
+  select[size] option:checked{background:var(--accent);color:#05070a}
+  .stepwrap{display:flex;gap:6px;align-items:stretch}
+  .stepwrap select{flex:1}
+  .stepwrap button{flex:0 0 auto;min-width:0;padding:4px 9px;font-size:11px;letter-spacing:0}
+  .chk{display:flex;align-items:center;gap:8px;margin:11px 0}
+  .chk input{width:auto;accent-color:var(--accent)}
+  .chk label{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin:0;cursor:pointer}
+  .btns{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  button{flex:1;background:transparent;border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:9px;letter-spacing:.2em;text-transform:uppercase;padding:8px 10px;cursor:pointer;
+    transition:.25s;white-space:nowrap;min-width:70px}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.active{border-color:var(--accent);color:var(--accent)}
+  .preset{display:flex;align-items:center;gap:6px;margin:6px 0;font-size:9.5px}
+  .preset .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+  .preset .nm:hover{color:var(--accent)}
+  .preset button{flex:0 0 auto;padding:4px 7px;font-size:8px;min-width:0}
+  a.back{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);text-decoration:none;
+    border:1px solid var(--line);padding:8px 10px;display:inline-block}
+  a.back:hover{border-color:var(--accent);color:var(--accent)}
+  #stub{font-size:9px;line-height:1.7;color:var(--dim);opacity:.75;padding:8px 0}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="ui">
+  <div id="top" class="panel">
+    <div class="brand">
+      <h1>Noise designer</h1>
+      <div class="sub">№ 14 Orogeny · procedural noise catalog</div>
+    </div>
+    <div class="row" style="min-width:160px">
+      <label>Mode</label>
+      <div class="btns" style="margin-top:0">
+        <button id="modeComposable" class="active">Composable</button>
+        <button id="modeSpecial">Special</button>
+      </div>
+    </div>
+    <div class="row" style="min-width:140px">
+      <label>View scale <b id="vScale"></b></label>
+      <input type="range" id="scale" min="0.3" max="12" step="0.1" value="3">
+    </div>
+    <div class="row" style="min-width:150px">
+      <label>View</label>
+      <select id="view">
+        <option value="0">Flat — height ramp</option>
+        <option value="1" selected>Relief — shaded</option>
+        <option value="2">Relief + height tint</option>
+      </select>
+    </div>
+    <div class="row" style="min-width:130px">
+      <label>Relief height <b id="vRelief"></b></label>
+      <input type="range" id="relief" min="0.005" max="0.6" step="0.005" value="0.12">
+    </div>
+    <div class="row" style="min-width:130px">
+      <label>Light <b id="vLight"></b></label>
+      <input type="range" id="light" min="0" max="6.283" step="0.02" value="2.3">
+    </div>
+    <a class="back" href="Orogeny_v003.html" target="_blank" rel="opener" style="margin-left:auto">← Back to Orogeny</a>
+  </div>
+
+  <div id="left" class="panel">
+    <h2>Generator</h2>
+    <div class="note">Click a list, then <b>↑ ↓</b> to audition — each step renders. The
+      <b>‹ ›</b> buttons do the same for the popup selects, which cannot receive arrow keys
+      while their popup is open.</div>
+    <div id="composablePanel"></div>
+    <div id="specialPanel" style="display:none"></div>
+  </div>
+
+  <div id="right" class="panel">
+    <h2>Presets</h2>
+    <div class="row"><input type="text" id="presetName" placeholder="preset name"></div>
+    <div class="btns">
+      <button id="saveNew">Save as new</button>
+      <button id="saveOver" disabled>Update</button>
+    </div>
+    <div class="grp">Storage</div>
+    <div class="btns">
+      <button id="pickFolder">Preset folder…</button>
+    </div>
+    <div class="note" id="storeNote"></div>
+
+    <div class="grp">Saved</div>
+    <div id="presetList"></div>
+    <div class="note">Saved presets sync live into Orogeny's terrain-noise selector in any tab open on this
+      origin.</div>
+  </div>
+</div>
+
+<script src="noise-lib.js"></script>
+<script src="presets-builtin.js"></script>
+<script src="preset-store.js"></script>
+<script>
+const N = window.OrogenyNoise;
+const $ = id => document.getElementById(id);
+const STORE_KEY = 'orogeny.noisePresets';
+
+/* ═══════════════════════════ WebGL2 bootstrap ═══════════════════════════ */
+const canvas = $('c');
+const gl = canvas.getContext('webgl2', {antialias:false, depth:false, alpha:false});
+if (!gl){ document.body.innerHTML = '<div style="padding:40px;color:#e6ecf2">WebGL2 is required.</div>'; throw new Error('no webgl2'); }
+const extCBF = gl.getExtension('EXT_color_buffer_float');
+
+function sh(type, src){
+  const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) + '\n' + src);
+  return s;
+}
+function prog(vsSrc, fsSrc){
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, vsSrc));
+  gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fsSrc));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+const VS_QUAD = `#version 300 es
+void main(){
+  vec2 pos[3] = vec2[3](vec2(-1.0,-1.0), vec2(3.0,-1.0), vec2(-1.0,3.0));
+  gl_Position = vec4(pos[gl_VertexID], 0.0, 1.0);
+}`;
+function drawQuad(){ gl.drawArrays(gl.TRIANGLES, 0, 3); }
+
+/* ─── composable-noise tile preview ───
+   One program PER (base, combinator, modifier-flags) combination, compiled on
+   demand and cached. The earlier single mega-shader branched on all 9 bases and
+   8 combinators at runtime; the compiler inlined every branch, and the result
+   was large enough to take down the GPU process — link threw, and every later
+   WebGL2 context in the browser failed with it. See the header of noise-lib.js.
+   Specializing through the preprocessor keeps each program small.            */
+const tileProgs = new Map();
+function tileProgramFor(np, view){
+  const key = N.glslKey(np) + '|v' + view;
+  if (tileProgs.has(key)) return tileProgs.get(key);
+  /* View is a #define, not a uniform. Relief needs two extra evalNoise calls
+     for the gradient; compiling both paths into one program would put three
+     copies in every shader whether shaded or not — the same multiply-by-N
+     mistake that took the GPU down before. */
+  const src = `#version 300 es
+precision highp float;
+#define OG_VIEW ${view}
+${N.glslForParams(np)}
+uniform vec2 uRes;
+uniform float uScale, uReliefH, uLightAz;
+uniform NoiseParams uNP;
+out vec4 o;
+
+vec3 ramp(float t){
+  t = clamp(t, 0.0, 1.0);
+  return mix(vec3(0.02,0.05,0.09), vec3(0.56,0.78,0.91), t);
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy/uRes.xy - 0.5);
+  uv.x *= uRes.x/uRes.y;
+  vec3 p = vec3(uv*uScale, 0.0);
+  float v = evalNoise(p, uNP);
+
+#if OG_VIEW == 0
+  o = vec4(ramp(v*0.5+0.5), 1.0);
+#else
+  /* Central-ish differences over one screen pixel in field units, so the
+     shading stays scale-invariant as you zoom. */
+  float e = uScale/uRes.y;
+  float vx = evalNoise(p + vec3(e,0.0,0.0), uNP);
+  float vy = evalNoise(p + vec3(0.0,e,0.0), uNP);
+  vec3 n = normalize(vec3(-(vx-v)*uReliefH/e, -(vy-v)*uReliefH/e, 1.0));
+  vec3 L = normalize(vec3(cos(uLightAz), sin(uLightAz), 0.75));
+  float dif = max(dot(n, L), 0.0);
+  float amb = 0.30 + 0.20*n.z;
+  #if OG_VIEW == 1
+    vec3 base = vec3(0.62, 0.70, 0.78);
+  #else
+    vec3 base = ramp(v*0.5+0.5) + 0.10;   // relief over the height ramp
+  #endif
+  o = vec4(base*(amb + 0.85*dif), 1.0);
+#endif
+}`;
+  let p = null;
+  try { p = prog(VS_QUAD, src); }
+  catch(e){ console.error('noise program failed for ' + key, e); }
+  tileProgs.set(key, p);          // cache failures too, so we retry only once
+  return p;
+}
+
+/* ─── diamond-square: precompute on CPU, display as a texture ─── */
+const FS_HEIGHTTEX = `#version 300 es
+precision highp float; precision highp sampler2D;
+uniform sampler2D uTex; uniform vec2 uRes;
+out vec4 o;
+void main(){
+  vec2 uv = gl_FragCoord.xy/uRes.xy;
+  float v = texture(uTex, uv).r;
+  vec3 lo = vec3(0.02,0.05,0.09), hi = vec3(0.56,0.78,0.91);
+  o = vec4(mix(lo, hi, clamp(v,0.0,1.0)), 1.0);
+}`;
+const pHeightTex = prog(VS_QUAD, FS_HEIGHTTEX);
+let dsTex = null;
+
+function diamondSquare(size, roughness, seed){
+  const n = size; const h = new Float32Array(n*n);
+  let s = seed >>> 0 || 1;
+  const rnd = () => { s ^= s<<13; s ^= s>>>17; s ^= s<<5; s>>>=0; return (s % 100000)/100000; };
+  const get = (x,y) => h[((y%n+n)%n)*n + ((x%n+n)%n)];
+  const set = (x,y,v) => { if (x>=0&&y>=0&&x<n&&y<n) h[y*n+x] = v; };
+  set(0,0,rnd()); set(n-1,0,rnd()); set(0,n-1,rnd()); set(n-1,n-1,rnd());
+  let step = n-1, scale = roughness;
+  while (step > 1){
+    const half = step/2;
+    for (let y=half; y<n; y+=step) for (let x=half; x<n; x+=step){
+      const avg = (get(x-half,y-half)+get(x+half,y-half)+get(x-half,y+half)+get(x+half,y+half))/4;
+      set(x,y, avg + (rnd()*2-1)*scale);
+    }
+    for (let y=0; y<n; y+=half) for (let x=(y/half%2==0)?half:0; x<n; x+=step){
+      const avg = (get(x-half,y)+get(x+half,y)+get(x,y-half)+get(x,y+half))/4;
+      set(x,y, avg + (rnd()*2-1)*scale);
+    }
+    step = half; scale *= Math.pow(2, -roughness);
+  }
+  let mn=1e9, mx=-1e9; for (let i=0;i<h.length;i++){ mn=Math.min(mn,h[i]); mx=Math.max(mx,h[i]); }
+  const range = Math.max(mx-mn, 1e-6);
+  for (let i=0;i<h.length;i++) h[i] = (h[i]-mn)/range;
+  return h;
+}
+function uploadHeightTex(size, data){
+  if (dsTex) gl.deleteTexture(dsTex);
+  dsTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, dsTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, size, size, 0, gl.RED, gl.FLOAT, data);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+
+/* ─── reaction-diffusion: Gray-Scott ping-pong ─── */
+const RD_SIZE = 256;
+const FS_RDSEED = `#version 300 es
+precision highp float;
+uniform vec2 uRes;
+out vec4 o;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233)))*43758.5453); }
+void main(){
+  vec2 uv = gl_FragCoord.xy/uRes.xy;
+  float v = 0.0;
+  for(int i=0;i<6;i++){
+    vec2 c = vec2(hash(vec2(float(i),1.0)), hash(vec2(float(i),2.0)));
+    float d = distance(uv, c);
+    v += smoothstep(0.05, 0.0, d);
+  }
+  o = vec4(1.0, clamp(v,0.0,1.0), 0.0, 1.0);
+}`;
+const FS_RDSTEP = `#version 300 es
+precision highp float; precision highp sampler2D;
+uniform sampler2D uT; uniform vec2 uRes;
+uniform float uFeed, uKill, uDiffA, uDiffB;
+out vec4 o;
+void main(){
+  vec2 uv = gl_FragCoord.xy/uRes.xy;
+  vec2 px = 1.0/uRes;
+  vec2 c = texture(uT, uv).xy;
+  vec2 lap = texture(uT, uv+vec2(px.x,0)).xy + texture(uT, uv-vec2(px.x,0)).xy
+           + texture(uT, uv+vec2(0,px.y)).xy + texture(uT, uv-vec2(0,px.y)).xy - 4.0*c;
+  float uv_ = c.x*c.y*c.y;
+  float du = uDiffA*lap.x - uv_ + uFeed*(1.0-c.x);
+  float dv = uDiffB*lap.y + uv_ - (uKill+uFeed)*c.y;
+  o = vec4(clamp(c.x+du,0.0,1.0), clamp(c.y+dv,0.0,1.0), 0.0, 1.0);
+}`;
+const FS_RDVIEW = `#version 300 es
+precision highp float; precision highp sampler2D;
+uniform sampler2D uT;
+out vec4 o;
+void main(){
+  vec2 uv = gl_FragCoord.xy/vec2(textureSize(uT,0));
+  float v = texture(uT, uv).y;
+  vec3 lo = vec3(0.02,0.05,0.09), hi = vec3(0.56,0.78,0.91);
+  o = vec4(mix(lo, hi, clamp(v*2.2,0.0,1.0)), 1.0);
+}`;
+const pRdSeed = prog(VS_QUAD, FS_RDSEED);
+const pRdStep = prog(VS_QUAD, FS_RDSTEP);
+const pRdView = prog(VS_QUAD, FS_RDVIEW);
+let rdTex = [], rdFbo, rdCur = 0;
+function rdInit(){
+  rdFbo = gl.createFramebuffer();
+  rdTex = [0,1].map(() => {
+    const t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RG32F, RD_SIZE, RD_SIZE, 0, gl.RG, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    return t;
+  });
+}
+function rdBind(t){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, rdFbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+  gl.viewport(0,0,RD_SIZE,RD_SIZE);
+}
+function rdSeed(){
+  rdBind(rdTex[0]);
+  gl.useProgram(pRdSeed); gl.uniform2f(gl.getUniformLocation(pRdSeed,'uRes'), RD_SIZE, RD_SIZE);
+  drawQuad(); rdCur = 0;
+}
+function rdStep(p){
+  rdBind(rdTex[1-rdCur]);
+  gl.useProgram(pRdStep);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, rdTex[rdCur]);
+  gl.uniform1i(gl.getUniformLocation(pRdStep,'uT'), 0);
+  gl.uniform2f(gl.getUniformLocation(pRdStep,'uRes'), RD_SIZE, RD_SIZE);
+  gl.uniform1f(gl.getUniformLocation(pRdStep,'uFeed'), p.rdFeed);
+  gl.uniform1f(gl.getUniformLocation(pRdStep,'uKill'), p.rdKill);
+  gl.uniform1f(gl.getUniformLocation(pRdStep,'uDiffA'), p.rdDiffA);
+  gl.uniform1f(gl.getUniformLocation(pRdStep,'uDiffB'), p.rdDiffB);
+  drawQuad(); rdCur = 1-rdCur;
+}
+rdInit();
+
+/* ─── blue noise / Poisson-disk: dart-throwing scatter ─── */
+const FS_POINT = `#version 300 es
+precision highp float;
+out vec4 o;
+void main(){
+  vec2 d = gl_PointCoord - 0.5;
+  if (dot(d,d) > 0.25) discard;
+  o = vec4(0.56,0.78,0.91,1.0);
+}`;
+const VS_POINT = `#version 300 es
+layout(location=0) in vec2 aPos;
+uniform vec2 uRes;
+void main(){
+  gl_Position = vec4(aPos*2.0-1.0, 0.0, 1.0);
+  gl_PointSize = 4.0;
+}`;
+const pPoint = prog(VS_POINT, FS_POINT);
+let ptBuf = gl.createBuffer(), ptCount = 0;
+function poissonDisk(radius, seed, maxPts){
+  let s = seed >>> 0 || 1;
+  const rnd = () => { s ^= s<<13; s ^= s>>>17; s ^= s<<5; s>>>=0; return (s % 100000)/100000; };
+  const pts = []; const cell = radius/Math.SQRT2;
+  const gw = Math.ceil(1/cell), grid = new Array(gw*gw).fill(-1);
+  const gi = (x,y) => Math.floor(y/cell)*gw + Math.floor(x/cell);
+  const active = [];
+  const first = [rnd(), rnd()]; pts.push(first); active.push(0); grid[gi(first[0],first[1])] = 0;
+  let tries = 0;
+  while (active.length && pts.length < maxPts && tries < maxPts*60){
+    tries++;
+    const ai = active[Math.floor(rnd()*active.length)];
+    const base = pts[ai]; let placed = false;
+    for (let k=0;k<20;k++){
+      const ang = rnd()*Math.PI*2, rad = radius*(1+rnd());
+      const nx = base[0]+Math.cos(ang)*rad, ny = base[1]+Math.sin(ang)*rad;
+      if (nx<0||ny<0||nx>1||ny>1) continue;
+      let ok = true;
+      const gx = Math.floor(nx/cell), gy = Math.floor(ny/cell);
+      for (let yy=Math.max(0,gy-2); yy<=Math.min(gw-1,gy+2) && ok; yy++)
+        for (let xx=Math.max(0,gx-2); xx<=Math.min(gw-1,gx+2) && ok; xx++){
+          const pi = grid[yy*gw+xx]; if (pi<0) continue;
+          const dx = pts[pi][0]-nx, dy = pts[pi][1]-ny;
+          if (dx*dx+dy*dy < radius*radius) ok = false;
+        }
+      if (ok){ const idx = pts.length; pts.push([nx,ny]); active.push(idx); grid[gi(nx,ny)] = idx; placed = true; break; }
+    }
+    if (!placed) active.splice(active.indexOf(ai), 1);
+  }
+  return pts;
+}
+function uploadPoints(pts){
+  const arr = new Float32Array(pts.length*2);
+  for (let i=0;i<pts.length;i++){ arr[i*2]=pts[i][0]; arr[i*2+1]=pts[i][1]; }
+  gl.bindBuffer(gl.ARRAY_BUFFER, ptBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+  ptCount = pts.length;
+}
+
+/* ═══════════════════════════ state + catalog-driven UI ═══════════════════════════ */
+const state = {
+  mode: 'composable',
+  np: N.defaultParams(),
+  specialKind: 'reactionDiffusion',
+  special: { rdFeed:N.PARAM_SCHEMA.rdFeed.default, rdKill:N.PARAM_SCHEMA.rdKill.default,
+             rdDiffA:N.PARAM_SCHEMA.rdDiffA.default, rdDiffB:N.PARAM_SCHEMA.rdDiffB.default,
+             rdSteps:N.PARAM_SCHEMA.rdSteps.default,
+             dsSeed:N.PARAM_SCHEMA.dsSeed.default, dsRoughness:N.PARAM_SCHEMA.dsRoughness.default,
+             dsSize:N.PARAM_SCHEMA.dsSize.default,
+             bnRadius:N.PARAM_SCHEMA.bnRadius.default, bnSeed:N.PARAM_SCHEMA.bnSeed.default },
+  scale: 3,
+  view: 1, reliefH: 0.12, lightAz: 2.3,
+  currentPresetId: null,
+};
+
+/* ─── stepping through a list and rendering each entry ───
+   Three mechanisms, because no single one covers every case:
+
+   1. The base list is an expanded listbox (size>1). Arrow keys are handled in
+      the page and fire `change` per step, so it previews as you move.
+   2. Popup selects get a keydown handler. This only receives arrows while the
+      popup is CLOSED — on Windows an open native popup is an OS widget that
+      swallows them, and `change` fires only on Enter. Nothing in the page can
+      change that, which is why (3) exists.
+   3. Explicit prev/next buttons, which always work regardless of popup state. */
+function step(sel, d){
+  const i = Math.max(0, Math.min(sel.options.length - 1, sel.selectedIndex + d));
+  if (i === sel.selectedIndex) return;
+  sel.selectedIndex = i;
+  sel.dispatchEvent(new Event('change', { bubbles:true }));   // runs sel.onchange
+}
+function wireStepper(sel){
+  sel.addEventListener('keydown', e => {
+    let d = 0;
+    if      (e.key === 'ArrowDown' || e.key === 'ArrowRight') d =  1;
+    else if (e.key === 'ArrowUp'   || e.key === 'ArrowLeft')  d = -1;
+    else if (e.key === 'PageDown') d =  5;
+    else if (e.key === 'PageUp')   d = -5;
+    else if (e.key === 'Home')     d = -sel.options.length;
+    else if (e.key === 'End')      d =  sel.options.length;
+    else return;
+    // an expanded listbox already handles up/down natively and fires change
+    if (sel.size > 1 && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) return;
+    e.preventDefault();
+    step(sel, d);
+  });
+  return sel;
+}
+function stepWrap(sel){
+  wireStepper(sel);
+  const w = document.createElement('div'); w.className = 'stepwrap';
+  const prev = document.createElement('button'); prev.textContent = '‹';
+  const next = document.createElement('button'); next.textContent = '›';
+  prev.title = 'Previous (also ← / ↑ when focused)';
+  next.title = 'Next (also → / ↓ when focused)';
+  prev.onclick = () => step(sel, -1);
+  next.onclick = () => step(sel, +1);
+  w.appendChild(prev); w.appendChild(sel); w.appendChild(next);
+  return w;
+}
+
+function renderControl(container, key, obj, onChange){
+  const schema = N.PARAM_SCHEMA[key]; if (!schema) return;
+  const row = document.createElement('div'); row.className = 'row';
+  if (schema.type === 'select'){
+    const lab = document.createElement('label'); lab.textContent = schema.label; row.appendChild(lab);
+    const sel = document.createElement('select');
+    schema.options.forEach(([v,t]) => { const o = document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); });
+    sel.value = obj[key];
+    sel.onchange = () => { obj[key] = parseInt(sel.value); onChange(); };
+    row.appendChild(stepWrap(sel));
+  } else {
+    const lab = document.createElement('label');
+    const b = document.createElement('b'); b.textContent = (+obj[key]).toFixed(schema.step < 1 ? 2 : 0);
+    lab.textContent = schema.label + ' '; lab.appendChild(b); row.appendChild(lab);
+    const inp = document.createElement('input'); inp.type = 'range';
+    inp.min = schema.min; inp.max = schema.max; inp.step = schema.step; inp.value = obj[key];
+    inp.oninput = () => { obj[key] = parseFloat(inp.value); b.textContent = obj[key].toFixed(schema.step < 1 ? 2 : 0); onChange(); };
+    row.appendChild(inp);
+  }
+  container.appendChild(row);
+}
+
+function buildComposablePanel(){
+  const root = $('composablePanel'); root.innerHTML = '';
+
+  const baseGrp = document.createElement('div'); baseGrp.className = 'grp'; baseGrp.textContent = 'Base';
+  root.appendChild(baseGrp);
+  /* Listed from BASE_VARIANTS, not BASE_KINDS: the cellular family is twelve
+     first-class entries here rather than one entry hiding an F-index select. */
+  const baseSel = document.createElement('select');
+  /* Expanded listbox, not a popup: arrows then step the selection inside the
+     page and fire change on every step, so each base renders as you pass it. */
+  baseSel.size = Math.min(10, N.BASE_VARIANTS.length);
+  baseSel.dataset.focus = 'base';
+  N.BASE_VARIANTS.forEach(v => { const o = document.createElement('option'); o.value=v.key; o.textContent=v.label; baseSel.appendChild(o); });
+  const baseInfo = N.variantFor(state.np);
+  baseSel.value = baseInfo.key;
+  baseSel.onchange = () => {
+    const v = N.BASE_VARIANTS.find(x => x.key === baseSel.value);
+    state.np.base = v.base;
+    state.np.fIndex = v.fIndex|0;
+    state._focus = 'base';          // survive the rebuild below, so arrowing continues
+    buildComposablePanel(); render();
+  };
+  wireStepper(baseSel);
+  const baseRow = document.createElement('div'); baseRow.className = 'row'; baseRow.appendChild(baseSel);
+  root.appendChild(baseRow);
+  if (baseInfo.note){ const n = document.createElement('div'); n.className = 'note'; n.textContent = baseInfo.note; root.appendChild(n); }
+  renderControl(root, 'freq', state.np, render);
+  // metric rebuilds the panel: the Minkowski exponent appears only for that metric
+  baseInfo.params.forEach(k => renderControl(root, k, state.np,
+    k === 'metric' ? () => { buildComposablePanel(); render(); } : render));
+  if (baseInfo.base === 4 && state.np.metric === 4) renderControl(root, 'minkowskiP', state.np, render);
+
+  const combGrp = document.createElement('div'); combGrp.className = 'grp'; combGrp.textContent = 'Combinator';
+  root.appendChild(combGrp);
+  const combSel = document.createElement('select');
+  combSel.dataset.focus = 'comb';
+  N.COMBINATORS.forEach(c => { const o = document.createElement('option'); o.value=c.id; o.textContent=c.label; combSel.appendChild(o); });
+  combSel.value = state.np.combinator;
+  combSel.onchange = () => {
+    state.np.combinator = parseInt(combSel.value);
+    state._focus = 'comb';
+    buildComposablePanel(); render();
+  };
+  const combRow = document.createElement('div'); combRow.className = 'row'; combRow.appendChild(stepWrap(combSel));
+  root.appendChild(combRow);
+  const combInfo = N.COMBINATORS.find(c => c.id === state.np.combinator);
+  combInfo.params.forEach(k => renderControl(root, k, state.np, render));
+
+  const modGrp = document.createElement('div'); modGrp.className = 'grp'; modGrp.textContent = 'Modifiers';
+  root.appendChild(modGrp);
+  N.MODIFIERS.forEach(m => {
+    const chk = document.createElement('div'); chk.className = 'chk';
+    const inp = document.createElement('input'); inp.type = 'checkbox'; inp.id = 'mod_'+m.key;
+    inp.checked = !!state.np[m.onKey];
+    const lab = document.createElement('label'); lab.htmlFor = inp.id; lab.textContent = m.label;
+    chk.appendChild(inp); chk.appendChild(lab); root.appendChild(chk);
+    if (state.np[m.onKey]){
+      if (m.note){ const n = document.createElement('div'); n.className = 'note'; n.textContent = m.note; root.appendChild(n); }
+      m.params.forEach(k => renderControl(root, k, state.np, render));
+    }
+    inp.onchange = () => {
+      state.np[m.onKey] = inp.checked ? 1 : 0;
+      state._focus = null;          // don't yank focus to a select on a checkbox toggle
+      buildComposablePanel(); render();
+    };
+  });
+
+  /* Final tone stage. Marble, wood, strata and the threshold family are all
+     this one select over an ordinary fBm — they are compositions, not
+     separate generators, which is why they are here and not in the base list. */
+  const remapGrp = document.createElement('div'); remapGrp.className = 'grp'; remapGrp.textContent = 'Remap';
+  root.appendChild(remapGrp);
+  const remapSel = document.createElement('select');
+  remapSel.dataset.focus = 'remap';
+  N.REMAP_MODES.forEach(r => { const o = document.createElement('option'); o.value=r.id; o.textContent=r.label; remapSel.appendChild(o); });
+  remapSel.value = state.np.remapMode;
+  remapSel.onchange = () => {
+    state.np.remapMode = parseInt(remapSel.value);
+    state._focus = 'remap';
+    buildComposablePanel(); render();
+  };
+  const remapRow = document.createElement('div'); remapRow.className = 'row'; remapRow.appendChild(stepWrap(remapSel));
+  root.appendChild(remapRow);
+  const remapInfo = N.REMAP_MODES.find(r => r.id === state.np.remapMode);
+  remapInfo.params.forEach(k => renderControl(root, k, state.np, render));
+
+  /* Rebuilding the panel destroys the element the user was arrowing through.
+     Restore focus to its replacement so the key chain is not broken. */
+  if (state._focus){
+    const el = root.querySelector('[data-focus="' + state._focus + '"]');
+    if (el) el.focus({ preventScroll:true });
+  }
+}
+
+function buildSpecialPanel(){
+  const root = $('specialPanel'); root.innerHTML = '';
+  const grp = document.createElement('div'); grp.className = 'grp'; grp.textContent = 'Kind';
+  root.appendChild(grp);
+  const sel = document.createElement('select');
+  sel.dataset.focus = 'special';
+  N.SPECIAL_KINDS.forEach(k => { const o = document.createElement('option'); o.value=k.key; o.textContent=k.label; sel.appendChild(o); });
+  sel.value = state.specialKind;
+  sel.onchange = () => {
+    state.specialKind = sel.value;
+    state._focusSpecial = true;
+    buildSpecialPanel(); render();
+  };
+  const row = document.createElement('div'); row.className = 'row'; row.appendChild(stepWrap(sel));
+  root.appendChild(row);
+  if (state._focusSpecial) sel.focus({ preventScroll:true });
+  const info = N.SPECIAL_KINDS.find(k => k.key === state.specialKind);
+  if (info.note){ const n = document.createElement('div'); n.className = 'note'; n.textContent = info.note; root.appendChild(n); }
+  if (info.stub){
+    const s = document.createElement('div'); s.id = 'stub'; s.textContent = 'Not implemented — catalog entry only.';
+    root.appendChild(s);
+    return;
+  }
+  info.params.forEach(k => renderControl(root, k, state.special, render));
+  if (info.key === 'reactionDiffusion'){
+    const btns = document.createElement('div'); btns.className = 'btns';
+    const runBtn = document.createElement('button'); runBtn.textContent = 'Reseed + run';
+    /* Chunked across frames on purpose. Running all rdSteps (up to 4000 full
+       256² passes) in one JS tick keeps the GPU busy long enough to trip the
+       Windows TDR watchdog, which resets the driver and loses the context —
+       the same failure mode as the oversized shader, from a different cause. */
+    runBtn.onclick = () => { rdSeed(); rdPending = state.special.rdSteps; };
+    const animBtn = document.createElement('button'); animBtn.textContent = 'Animate';
+    animBtn.onclick = () => { rdAnimating = !rdAnimating; animBtn.classList.toggle('active', rdAnimating); };
+    btns.appendChild(runBtn); btns.appendChild(animBtn); root.appendChild(btns);
+  }
+  if (info.key === 'diamondSquare'){
+    const btns = document.createElement('div'); btns.className = 'btns';
+    const genBtn = document.createElement('button'); genBtn.textContent = 'Generate';
+    genBtn.onclick = () => {
+      const size = state.special.dsSize;
+      const h = diamondSquare(size, state.special.dsRoughness, state.special.dsSeed);
+      uploadHeightTex(size, h);
+    };
+    btns.appendChild(genBtn); root.appendChild(btns);
+  }
+  if (info.key === 'blueNoise'){
+    const btns = document.createElement('div'); btns.className = 'btns';
+    const genBtn = document.createElement('button'); genBtn.textContent = 'Scatter';
+    genBtn.onclick = () => uploadPoints(poissonDisk(state.special.bnRadius, state.special.bnSeed, 4000));
+    btns.appendChild(genBtn); root.appendChild(btns);
+  }
+}
+
+let rdAnimating = false;
+let rdPending = 0;              // steps still owed by a "Reseed + run", drained in frame()
+const RD_CHUNK = 40;            // passes per frame — bounded GPU work per tick
+
+/* ═══════════════════════════ presets ═══════════════════════════
+   Backed by preset-store.js: a folder of .json files when one has been picked,
+   localStorage otherwise. Everything below is async because the folder backend
+   is; the localStorage path resolves immediately. */
+const store = window.OrogenyPresets.create({
+  kind: 'noise', lsKey: STORE_KEY,
+  onChange: () => refreshPresetList(),
+});
+let presetCache = [];
+
+function describeStore(){
+  const s = store.state, el = $('storeNote');
+  if (s.mode === 'folder'){
+    el.innerHTML = 'Folder <b>' + s.folderName + '</b> — one .json per preset.'
+      + (s.migrated ? ' Copied ' + s.migrated + ' preset(s) across from browser storage.' : '');
+  } else if (s.needsGrant){
+    el.innerHTML = 'Folder <b>' + s.folderName + '</b> remembered. Click <b>Preset folder…</b> to re-grant '
+      + 'access — the handle survives, the permission does not.';
+  } else if (!s.supported){
+    el.innerHTML = window.isSecureContext
+      ? 'Browser storage. Folders need the File System Access API — Chrome, Edge or Opera.'
+      : 'Browser storage. Folders need a secure context: serve this over <b>http://localhost</b>, not file://.';
+  } else {
+    el.textContent = 'Browser storage. Pick a folder to keep presets as files you can version and share.';
+  }
+  if (s.lastError) el.innerHTML += '<br>' + s.lastError;
+}
+
+async function refreshPresetList(){
+  const B = window.OrogenyBuiltinPresets;
+  const saved = await store.list();
+  presetCache = B ? B.merge(B.noise, saved) : saved;
+  const root = $('presetList'); root.innerHTML = '';
+  presetCache.forEach(p => {
+    const row = document.createElement('div'); row.className = 'preset';
+    const nm = document.createElement('div'); nm.className = 'nm';
+    nm.textContent = p.name + (p.builtin ? ' · built-in' : '');
+    nm.title = p.builtin ? 'Load (compiled in; save to make your own copy)' : 'Load';
+    nm.onclick = () => {
+      state.mode = p.mode || 'composable';
+      state.np = Object.assign(N.defaultParams(), p.np || {});
+      state.specialKind = p.specialKind || state.specialKind;
+      state.special = Object.assign(state.special, p.special || {});
+      state.currentPresetId = p.id; $('presetName').value = p.name; $('saveOver').disabled = false;
+      setMode(state.mode); buildComposablePanel(); buildSpecialPanel(); render();
+    };
+    row.appendChild(nm);
+    // a compiled-in preset has no file to delete; saving over its id shadows it
+    if (!p.builtin){
+      const del = document.createElement('button'); del.textContent = '✕';
+      del.onclick = async () => { await store.remove(p.id); refreshPresetList(); };
+      row.appendChild(del);
+    }
+    root.appendChild(row);
+  });
+  describeStore();
+}
+
+function currentPreset(id){
+  return { id, name: $('presetName').value.trim(), mode: state.mode, np: state.np,
+           specialKind: state.specialKind, special: state.special };
+}
+$('saveNew').onclick = async () => {
+  const p = currentPreset(undefined);
+  if (!p.name) p.name = 'preset ' + (presetCache.length + 1);
+  const saved = await store.save(p);
+  state.currentPresetId = saved.id; $('presetName').value = saved.name; $('saveOver').disabled = false;
+  refreshPresetList();
+};
+$('saveOver').onclick = async () => {
+  if (!state.currentPresetId) return;
+  const prev = presetCache.find(x => x.id === state.currentPresetId);
+  const p = currentPreset(state.currentPresetId);
+  if (!p.name) p.name = prev ? prev.name : 'preset';
+  await store.save(p);
+  refreshPresetList();
+};
+$('pickFolder').onclick = async () => {
+  try {
+    if (store.state.needsGrant) await store.reconnect();
+    if (store.state.mode !== 'folder') await store.chooseFolder();
+  } catch(e){
+    // an aborted picker is a normal outcome, not an error worth shouting about
+    if (e && e.name !== 'AbortError') store.state.lastError = e.message || String(e);
+  }
+  refreshPresetList();
+};
+
+/* ═══════════════════════════ mode + render loop ═══════════════════════════ */
+function setMode(m){
+  state.mode = m;
+  $('modeComposable').classList.toggle('active', m === 'composable');
+  $('modeSpecial').classList.toggle('active', m === 'special');
+  $('composablePanel').style.display = m === 'composable' ? '' : 'none';
+  $('specialPanel').style.display = m === 'special' ? '' : 'none';
+}
+$('modeComposable').onclick = () => setMode('composable');
+$('modeSpecial').onclick = () => setMode('special');
+$('scale').oninput = e => { state.scale = parseFloat(e.target.value); $('vScale').textContent = state.scale.toFixed(1); render(); };
+$('vScale').textContent = state.scale.toFixed(1);
+$('view').onchange = e => { state.view = parseInt(e.target.value); render(); };
+wireStepper($('view'));
+$('relief').oninput = e => { state.reliefH = parseFloat(e.target.value); $('vRelief').textContent = state.reliefH.toFixed(3); render(); };
+$('vRelief').textContent = state.reliefH.toFixed(3);
+$('light').oninput = e => { state.lightAz = parseFloat(e.target.value); $('vLight').textContent = state.lightAz.toFixed(2); render(); };
+$('vLight').textContent = state.lightAz.toFixed(2);
+
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  canvas.width = Math.max(1, Math.floor(canvas.clientWidth*dpr));
+  canvas.height = Math.max(1, Math.floor(canvas.clientHeight*dpr));
+}
+window.addEventListener('resize', () => { resize(); render(); });
+
+function render(){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,canvas.width,canvas.height);
+  if (state.mode === 'composable'){
+    const pTile = tileProgramFor(state.np, state.view);
+    if (!pTile){ gl.clearColor(0.10,0.03,0.03,1); gl.clear(gl.COLOR_BUFFER_BIT); return; }
+    gl.useProgram(pTile);
+    gl.uniform2f(gl.getUniformLocation(pTile,'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(gl.getUniformLocation(pTile,'uScale'), state.scale);
+    gl.uniform1f(gl.getUniformLocation(pTile,'uReliefH'), state.reliefH);
+    gl.uniform1f(gl.getUniformLocation(pTile,'uLightAz'), state.lightAz);
+    N.uploadNoiseParams(gl, pTile, 'uNP', state.np);
+    drawQuad();
+  } else if (state.specialKind === 'diamondSquare' && dsTex){
+    gl.useProgram(pHeightTex);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dsTex);
+    gl.uniform1i(gl.getUniformLocation(pHeightTex,'uTex'), 0);
+    gl.uniform2f(gl.getUniformLocation(pHeightTex,'uRes'), canvas.width, canvas.height);
+    drawQuad();
+  } else if (state.specialKind === 'reactionDiffusion'){
+    gl.useProgram(pRdView);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, rdTex[rdCur]);
+    gl.uniform1i(gl.getUniformLocation(pRdView,'uT'), 0);
+    drawQuad();
+  } else if (state.specialKind === 'blueNoise'){
+    gl.clearColor(0.02,0.05,0.09,1); gl.clear(gl.COLOR_BUFFER_BIT);
+    if (ptCount > 0){
+      gl.useProgram(pPoint);
+      gl.bindBuffer(gl.ARRAY_BUFFER, ptBuf);
+      gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+      gl.drawArrays(gl.POINTS, 0, ptCount);
+    }
+  } else {
+    gl.clearColor(0.02,0.05,0.09,1); gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+}
+
+function frame(){
+  const onRD = state.mode === 'special' && state.specialKind === 'reactionDiffusion';
+  if (rdPending > 0){
+    const n = Math.min(RD_CHUNK, rdPending);
+    for (let i=0;i<n;i++) rdStep(state.special);
+    rdPending -= n;
+    render();
+  } else if (rdAnimating && onRD){
+    for (let i=0;i<4;i++) rdStep(state.special);
+    render();
+  }
+  requestAnimationFrame(frame);
+}
+
+resize(); rdSeed(); buildComposablePanel(); buildSpecialPanel(); render(); frame();
+store.ready().then(refreshPresetList);
+</script>
+</body>
+</html>

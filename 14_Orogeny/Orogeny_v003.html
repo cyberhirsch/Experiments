@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>№ 14 — Orogeny · v001 S² Droplet</title>
+<title>№ 14 — Orogeny · v003 S² Crust · Drift · Subduction</title>
 <style>
   :root{
     --bg:#05070a; --ink:#e6ecf2; --dim:#7a8794; --accent:#8fc8e8; --line:rgba(230,236,242,0.10);
@@ -64,6 +64,10 @@
   button:hover{border-color:var(--accent);color:var(--accent)}
   button:disabled{opacity:.35;cursor:not-allowed}
   button:disabled:hover{border-color:var(--line);color:var(--ink)}
+  a.back{flex:1;display:block;text-align:center;background:transparent;border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:9px;letter-spacing:.2em;text-transform:uppercase;padding:8px 10px;cursor:pointer;
+    transition:.25s;text-decoration:none;white-space:nowrap}
+  a.back:hover{border-color:var(--accent);color:var(--accent)}
   #diag{flex:1 1 260px;font-size:9px;line-height:1.75;color:var(--dim);white-space:pre-wrap;
     border-left:1px solid var(--line);padding-left:11px;min-height:14px;max-height:112px;overflow-y:auto}
   #diag b{color:var(--accent);font-weight:400}
@@ -95,7 +99,7 @@
   <div id="top" class="panel">
     <div class="brand">
       <h1>Orogeny</h1>
-      <div class="sub">№ 14 · v003 — crust · drift · subduction</div>
+      <div class="sub">№ 14 · v004 — crust · drift · motion vectors</div>
     </div>
     <div class="cell wide"><div class="row"><label>Shading</label>
       <select id="shade">
@@ -104,12 +108,14 @@
         <option value="2">Discharge — drainage network</option>
         <option value="3">Uplift field</option>
         <option value="5">Plates — id &amp; margins</option>
+        <option value="6">Motion vectors — heading &amp; speed</option>
+        <option value="7">Pressure — compression &amp; extension</option>
         <option value="4">Face id — seam check</option>
       </select></div></div>
     <div class="cell">
       <div class="chk"><input id="water" type="checkbox" checked><label for="water">Oceans</label></div>
       <div class="chk"><input id="shadow" type="checkbox" checked><label for="shadow">Shadows</label></div>
-      <div class="chk"><input id="spin" type="checkbox" checked><label for="spin">Rotate</label></div>
+      <div class="chk"><input id="spin" type="checkbox"><label for="spin">Rotate</label></div>
     </div>
     <div class="cell wide"><div class="row"><label>Grid (per face)</label>
       <select id="grid">
@@ -147,9 +153,10 @@
     <div class="grp">Uplift</div>
     <div class="row"><label>Source</label>
       <select id="source">
-        <option value="0" selected>Noise belts</option>
+        <option value="0">Noise belts</option>
         <option value="1">Plates — static margins</option>
         <option value="2">Plates — drifting + subduction</option>
+        <option value="3" selected>Motion vectors — divergence driven</option>
       </select></div>
     <div class="row"><label>Uplift rate <b id="vUp">0.55</b></label>
       <input id="up" type="range" min="0" max="2" step="0.01" value="0.55"></div>
@@ -168,11 +175,29 @@
       <input id="bw" type="range" min="0.012" max="0.12" step="0.001" value="0.045"></div>
     <div class="row pl"><label>Continental frac <b id="vCF">0.42</b></label>
       <input id="cf" type="range" min="0" max="1" step="0.01" value="0.42"></div>
-    <div class="row pl"><label>Arc offset <b id="vAO">0.055</b></label>
-      <input id="ao" type="range" min="0" max="0.15" step="0.002" value="0.055"></div>
-    <div class="row pl"><label>Drift rate <b id="vDrift">0.50</b></label>
-      <input id="drift" type="range" min="0" max="2" step="0.01" value="0.5"></div>
+    <div class="row pl"><label>Arc offset <b id="vAO">0.056</b></label>
+      <input id="ao" type="range" min="0" max="0.15" step="0.002" value="0.056"></div>
+    <div class="row pl"><label>Boundary warp <b id="vWarp">0.18</b></label>
+      <input id="warp" type="range" min="0" max="0.45" step="0.01" value="0.18"></div>
+    <div class="row pl"><label>Orogen break-up <b id="vRough">0.55</b></label>
+      <input id="rough" type="range" min="0" max="1" step="0.01" value="0.55"></div>
+    <div class="row pl"><label>Blend · convergent <b id="vBC">0.00</b></label>
+      <input id="blendC" type="range" min="0" max="2" step="0.05" value="0"></div>
+    <div class="row pl"><label>Blend · divergent <b id="vBD">0.00</b></label>
+      <input id="blendD" type="range" min="0" max="2" step="0.05" value="0"></div>
+    <div class="row pl"><label>Pressure edge <b id="vPE">0.00</b></label>
+      <input id="pEdge" type="range" min="0" max="1" step="0.01" value="0"></div>
+    <div class="row pl"><label>Extension gain <b id="vPX">3.0</b></label>
+      <input id="pExt" type="range" min="1" max="8" step="0.1" value="3"></div>
+    <div class="row pl"><label>Pressure reach <b id="vEL">0.030</b></label>
+      <input id="echoL" type="range" min="0.002" max="0.10" step="0.002" value="0.030"></div>
+    <div class="row pl"><label>Plate speed <b id="vPS">0.50</b></label>
+      <input id="plateSpeed" type="range" min="0" max="2" step="0.01" value="0.5"></div>
+    <div class="row pl"><label>Motion evolution <b id="vDrift">0.00</b></label>
+      <input id="drift" type="range" min="0" max="2" step="0.01" value="0"></div>
     <div class="chk pl"><input id="subduct" type="checkbox" checked><label for="subduct">Subduction</label></div>
+    <div class="chk pl"><input id="advect" type="checkbox" checked><label for="advect">Crust rides the plate</label></div>
+    <div class="chk pl"><input id="gradFlip" type="checkbox" checked><label for="gradFlip">Gradient on far side</label></div>
     <div class="btns pl"><button id="newPlates">New plates</button></div>
     <div class="note pl">Convergent margins build orogens, divergent margins rift.
       Ocean–continent gives a trench and an arc offset inboard — the signature of
@@ -184,16 +209,25 @@
     <div class="note">Fraction of a thickness change that shows at the surface. 1 = rigid
       crust, no rebound. True Airy is 0.152 — erode a kilometre off a range and it
       rebounds 850 m, which is why ranges persist.</div>
+    <div class="row pl"><label>Fold height <b id="vOroH">0.020</b></label>
+      <input id="oroH" type="range" min="0" max="0.08" step="0.002" value="0.02"></div>
+    <div class="note pl">Mountain displacement baked straight into the crust wherever the
+      pressure is high — present at once rather than grown by uplift over thousands of steps.</div>
 
     <div class="grp">Impacts</div>
     <div class="chk"><input id="onImp" type="checkbox" checked><label for="onImp">Impacts active</label></div>
-    <div class="row"><label>Bombardment <b id="vImp">0.00</b></label>
-      <input id="imp" type="range" min="0" max="1" step="0.01" value="0"></div>
+    <div class="row"><label>Bombardment <b id="vImp">50</b></label>
+      <input id="imp" type="range" min="0" max="100" step="1" value="50"></div>
     <div class="row"><label>Min radius <b id="vIMin">0.030</b></label>
       <input id="imin" type="range" min="0.01" max="0.10" step="0.002" value="0.03"></div>
     <div class="row"><label>Max radius <b id="vIMax">0.090</b></label>
       <input id="imax" type="range" min="0.02" max="0.30" step="0.005" value="0.09"></div>
-    <div class="btns"><button id="strike">Strike now</button></div>
+    <div class="row"><label>Crater preset</label>
+      <select id="craterPreset"><option value="">Classic (built-in)</option></select></div>
+    <div class="btns">
+      <button id="strike">Strike now</button>
+      <button id="openImpDesigner">Design craters…</button>
+    </div>
     <div class="note">Bowl and central peak excavated, the same volume laid back down as
       rim and an r⁻³ ejecta blanket. Ejecta lands as sediment. A fresh basin is a closed
       drainage sink — watch the rim breach and the floor fill.</div>
@@ -202,7 +236,7 @@
   <!-- ── RIGHT · erosion and fluids ─────────────────────────────────── -->
   <div id="right" class="panel">
     <h2>Erosion</h2>
-    <div class="chk"><input id="onEro" type="checkbox" checked><label for="onEro">Erosion active</label></div>
+    <div class="chk"><input id="onEro" type="checkbox"><label for="onEro">Erosion active</label></div>
     <div class="grp">Water</div>
     <div class="row"><label>Rain rate <b id="vRain">1.00</b></label>
       <input id="rain" type="range" min="0" max="3" step="0.02" value="1"></div>
@@ -211,7 +245,7 @@
     <div class="row"><label>Inertia <b id="vIner">0.35</b></label>
       <input id="iner" type="range" min="0" max="0.95" step="0.01" value="0.35"></div>
     <div class="row"><label>Sea level <b id="vSea">0.000</b></label>
-      <input id="sea" type="range" min="-0.02" max="0.02" step="0.0005" value="0"></div>
+      <input id="sea" type="range" min="-0.02" max="0.02" step="0.0005" value="-0.02"></div>
 
     <div class="grp">Rock</div>
     <div class="row"><label>Erodibility <b id="vEro">0.50</b></label>
@@ -232,10 +266,14 @@
 
   <!-- ── BOTTOM · verification and readout ──────────────────────────── -->
   <div id="bottom" class="panel">
+    <!-- Init is also the preset picker: built-in modes first, then anything
+         saved in the noise designer. Orogen folding is hardcoded and has no
+         controls here; the preset folder is set in the designer. -->
     <div class="cell wide"><div class="row"><label>Init</label>
       <select id="init">
         <option value="0" selected>Planet — fBm relief</option>
-        <option value="1">Flat test — uniform shell</option>
+        <option value="3">Planet — warped ridge</option>
+        <option value="1">Off — flat shell</option>
         <option value="2">Isotropy test — corner vs face bump</option>
       </select></div></div>
     <div class="cell"><div class="row"><label>Verify</label></div>
@@ -243,6 +281,10 @@
         <button id="tFlat">Flat</button>
         <button id="tIso">Isotropy</button>
         <button id="tMass">Mass</button>
+      </div></div>
+    <div class="cell"><div class="row"><label>Noise</label></div>
+      <div class="btns">
+        <a class="back" id="openNoiseDesigner" href="noise-designer.html" target="_blank" rel="opener">Design noise…</a>
       </div></div>
     <div id="diag">idle</div>
     <div id="hint">Drag <b>orbit</b> · scroll <b>zoom</b></div>
@@ -252,6 +294,10 @@
 </div>
 <div id="err"><div></div></div>
 
+<script src="noise-lib.js"></script>
+<script src="presets-builtin.js"></script>
+<script src="preset-store.js"></script>
+<script src="impact-designer.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════════════
    № 14 — OROGENY  ·  v001  ·  seamless planetary erosion on S²
@@ -303,12 +349,29 @@ const P = {
   uplift:0.55, belt:1.6, sharp:0.62,
   rain:1.0, erodibility:0.5, deposition:0.35, hardness:2.2,
   inertia:0.35, evaporation:0.02, creep:0.3, repose:0.7,
-  sea:0.0, dt:1.0,
-  shade:0, water:1, shadow:1, spin:1, initMode:0,
-  source:0, plateN:22, bwidth:0.045, contFrac:0.42, arcOff:0.055,
-  bombard:0.0, impMin:0.030, impMax:0.090,
-  isoK:0.35, drift:0.5, subduct:1,
-  tectonics:1, impacts:1, erosion:1,
+  sea:-0.02, dt:1.0,
+  // Opens on the pressure view, not spinning, with erosion off: the tectonic
+  // field is what is being worked on, and rotation plus erosion both obscure it.
+  shade:0, water:1, shadow:1, spin:0, initMode:0,   // opens on terrain, not the pressure debug view
+  nFreq:2.2, nWarp:0.9, nAmp:0.030, nOct:6,   // shared by both planet inits
+  oroAmp:0.6,                                  // fold-noise strength on the uplift RATE
+  oroH:0.020,                                  // fold displacement baked straight into the crust
+  source:3, plateN:22, bwidth:0.045, contFrac:0.42, arcOff:0.056,
+  warp:0.18, rough:0.55, advect:1, comp:0, newk:1, macc:1,
+  // foldAmp is in the SOURCE's units, where belt values run to ~3, so it has to
+  // be large to register; 1.6 was invisible. See DESIGN_OPTIONS §23.
+  // Near-sharp on both margin types. The per-type separation is wired but does
+  // NOT yet behave — see the task list — so convergent is pinned almost as
+  // sharp as divergent rather than relying on the asymmetry.
+  blendC:0.0, blendD:0.0,   // sharp margins; width comes from the echo, not the blend
+  pEdge:0.0, pExt:3.0,
+  echoL:0.030, echoV:0.06, backside:0.12, gradFlip:1,  // orogen reach off a sharp margin, and its speed scaling
+  strainK:6.0, foldAmp:14.0, foldFreq:26.0, thinK:1.0,   // see DESIGN_OPTIONS: currently ineffective, 500 was worse
+  bombard:50, impMin:0.030, impMax:0.090,
+  // 0 = the motion-vector field is frozen: seeds do not migrate, so plate
+  // geometry is static and only the response to it evolves.
+  isoK:0.35, drift:0.0, plateSpeed:0.5, subduct:1,
+  tectonics:1, impacts:1, erosion:0,
   steps:300, pixScale:0.85
 };
 
@@ -326,6 +389,23 @@ const SPLAT_GAIN = 1.0e4;   // keeps per-droplet contributions out of half-float
 let CAP_K = 60.0;           // sediment-capacity constant — sets the load a droplet can hold
 const DRIFT_SCALE = 2.0e-5; // slider 1.0 → this much rotation per step
 const PLATE_EVERY = 50;     // margins move far slower than the framerate
+const SRC_REF     = 0.0341; // area-weighted mean-|u| the erosion constants are tuned against
+const OMEGA_MAX   = 1.35;   // largest |ω| plateOmega can draw: 0.35 + 1.0·hash
+/* Surface height of crust minted at a spreading gap, divided by isoK at upload
+   because the stored quantity is the column and the surface derives from it.
+
+   MEASURED, not chosen: this is the value at which injection neither adds nor
+   removes crust, given what the uplift source already builds at a ridge. It
+   lands at −0.0063 against an ambient abyssal floor of −0.0117 — a crest 5.4 mm
+   above the plain, which is what a mid-ocean ridge is. Mass-neutrality and the
+   right physics coincide, and the reason they do is that it leaves the uplift
+   source as the single authority on ridge topography; injection only resets
+   identity, giving the new ground zero sediment and oceanic type. Guessing
+   −0.008 instead cost 0.45 points of crust budget. */
+const NEW_CRUST_H = -0.0063;
+/* Abyssal datum. Measured from a settled run, not chosen: mean surface of
+   quiet oceanic crust away from margins. Extension relaxes toward it. */
+const OCEAN_H     = -0.0117;
 let   seed = 1337;
 let   plateSeed = 4.71;     // rerolled independently, so new plates keep the same terrain noise
 
@@ -494,10 +574,81 @@ float ridged(vec3 p, int oct){
    per-step cost is identical to the noise field it replaces.                */
 const PLATES = `
 uniform int   uPlateN;
-uniform float uPSeed, uBWidth, uContFrac, uArcOff;
+uniform float uPSeed, uBWidth, uContFrac, uArcOff, uWarp, uRough, uPTime, uCTime;
 
+/* Two seeds on a sphere are separated by a GREAT-CIRCLE ARC — a spherical
+   Voronoi boundary is exactly straight, and no amount of jitter on the seed
+   positions changes that, because jitter moves the seed and not the shape of
+   the bisector. Every margin was therefore a polygon edge.
+
+   Warping the lookup direction bends them. Everything that asks "which plate is
+   here" asks through nearestPlates, so warping inside it keeps the plate field,
+   the initial continents and the plate overlay in exact agreement for free —
+   and the drifting mode inherits it too, since FS_PLINIT seeds the id field
+   from this same function.
+
+   Two octaves: the low one cuts embayments and promontories at the scale of a
+   plate, the high one crenulates the edge itself. Large amplitudes will strand
+   fragments of one plate inside another, which is a microplate and is welcome;
+   they are carried at the parent plate's rate. */
+vec3 plateWarp(vec3 p){
+  if (uWarp <= 0.0) return p;
+  vec3 lo = vec3(fbm(p*2.3 + 19.1 + uPSeed, 4),
+                 fbm(p*2.3 + 47.3 + uPSeed, 4),
+                 fbm(p*2.3 + 83.7 + uPSeed, 4)) - 0.5;
+  vec3 hi = vec3(fbm(p*6.7 +  5.7 + uPSeed, 3),
+                 fbm(p*6.7 + 31.9 + uPSeed, 3),
+                 fbm(p*6.7 + 67.3 + uPSeed, 3)) - 0.5;
+  return normalize(p + (lo + hi*0.38)*uWarp);
+}
+
+/* A margin drawn as one smooth Gaussian runs as a continuous welt, which reads
+   as a wall rather than a mountain belt. Real ranges are chains of massifs with
+   gaps, en-echelon offsets and re-entrants. This is the same ridged-fBm
+   treatment the noise-belt source already uses, applied to the belt envelope of
+   the OROGENIC branches only — trenches and rifts really are continuous.
+
+   It removes uplift rather than adding it, so the total source magnitude drops;
+   SRC_NORM absorbs that, which is the point of normalising by mean-|u|. */
+/* Position in the plate's OWN frame — p rotated back by everything that plate
+   has turned through, the exact inverse of what plateSeedDir does to the seeds.
+
+   Any pattern evaluated here is nailed to the rock instead of to space, and
+   rotates with it for free. Evaluating at the world position instead means the
+   crust slides through a stationary pattern, which is the same class of mistake
+   as advecting with a blended velocity: it looks fine until the rock moves. */
+vec3 plateOmega(int i);            // defined below; matPos and beltRough precede it
+vec3 matPos(vec3 p, int id){
+  // uCTime, not uPTime: this frame is attached to the ROCK, so it follows how
+  // far the crust has travelled, not how far the seeds have wandered.
+  if (uCTime == 0.0) return p;
+  vec3 w = plateOmega(id);
+  float th = -length(w)*uCTime, c = cos(th), sn = sin(th);
+  vec3 n = normalize(w);
+  return normalize(p*c + cross(n, p)*sn + n*dot(n, p)*(1.0 - c));
+}
+
+float beltRough(vec3 p0, int id){
+  vec3 p = matPos(p0, id);
+  if (uRough <= 0.0) return 1.0;
+  // Few octaves and a threshold biased ABOVE the mean. Averaging many octaves
+  // pulls ridged fBm toward its mean, so a symmetric remap of 4 octaves barely
+  // reached zero and the belt only lost 7 % of its volume — a texture, not a
+  // break-up. Two octaves keep the contrast and the high threshold puts real
+  // gaps in, which is what separates a chain of massifs from a continuous welt.
+  float r = ridged(p*7.0 + uPSeed*0.31, 2);
+  return mix(1.0, smoothstep(0.46, 0.86, r), uRough);
+}
+
+// angular velocity vector ω·ω̂ — surface speed is ω·sin(Δ) from the pole
+vec3 plateOmega(int i){
+  vec3 a = normalize(vec3(hash11(float(i)*11.1 + uPSeed),
+                          hash11(float(i)*13.7 + uPSeed),
+                          hash11(float(i)*17.3 + uPSeed))*2.0 - 1.0);
+  return a*(0.35 + 1.0*hash11(float(i)*19.9 + uPSeed));
+}
 // Fibonacci lattice for even spacing, jittered so the result is not suspiciously regular
-vec3 plateSeedDir(int i){
+vec3 plateSeedDir0(int i){
   float k = float(i) + 0.5, n = float(uPlateN);
   float z = 1.0 - 2.0*k/n;
   float r = sqrt(max(0.0, 1.0 - z*z));
@@ -507,17 +658,31 @@ vec3 plateSeedDir(int i){
                 hash11(float(i)*5.1 + uPSeed)) - 0.5;
   return normalize(vec3(r*cos(th), r*sin(th), z) + j*0.33);
 }
-// angular velocity vector ω·ω̂ — surface speed is ω·sin(Δ) from the pole
-vec3 plateOmega(int i){
-  vec3 a = normalize(vec3(hash11(float(i)*11.1 + uPSeed),
-                          hash11(float(i)*13.7 + uPSeed),
-                          hash11(float(i)*17.3 + uPSeed))*2.0 - 1.0);
-  return a*(0.35 + 1.0*hash11(float(i)*19.9 + uPSeed));
+/* Rigid plates are rotations, so the SEEDS move analytically — rotate each seed
+   under its own pole and the whole Voronoi drifts with it, margins and triple
+   junctions included. No id field, no advection pass, no margin scan, and the
+   distance to the margin stays exact and unbounded at any range.
+
+   The catch, written down rather than hidden: a Voronoi cell shrinks as its
+   neighbours close in but never empties, because a seed always owns the points
+   nearest itself. Oceans narrow; they do not shut. Real topology change needs
+   seeds that can be retired, which is the plate-topology item on the roadmap. */
+vec3 plateSeedDir(int i){
+  vec3 s = plateSeedDir0(i);
+  if (uPTime == 0.0) return s;
+  vec3 w = plateOmega(i);
+  float th = length(w)*uPTime, c = cos(th), sn = sin(th);
+  vec3 n = normalize(w);
+  return normalize(s*c + cross(n, s)*sn + n*dot(n, s)*(1.0 - c));
 }
 // 1 = continental (buoyant, cannot subduct), 0 = oceanic
 float plateCont(int i){ return step(hash11(float(i)*23.7 + uPSeed), uContFrac); }
 
-void nearestPlates(vec3 p, out int i1, out int i2, out float d1, out float d2){
+/* d1, d2 come back measured in WARPED space, so the bisector distance derived
+   from them — and with it the local belt width — stretches and pinches along a
+   margin instead of holding one value. That is a side effect, and a welcome one. */
+void nearestPlates(vec3 p0, out int i1, out int i2, out float d1, out float d2){
+  vec3 p = plateWarp(p0);
   d1 = 9.0; d2 = 9.0; i1 = 0; i2 = 0;
   for(int i=0;i<64;i++){
     if (i >= uPlateN) break;
@@ -550,15 +715,16 @@ float plateUplift(vec3 p, out float convOut, out float contOut){
 
   if (conv <= 0.0) return conv*band*0.55;         // rift: narrow, subsiding
 
-  if (c1 > 0.5 && c2 > 0.5) return conv*band;     // continent–continent: collision plateau
-  if (c1 < 0.5 && c2 < 0.5) return conv*band*0.55;// ocean–ocean: island arc
+  float rg = beltRough(p, i1);                        // orogens break up, trenches do not
+  if (c1 > 0.5 && c2 > 0.5) return conv*band*rg;     // continent–continent: collision plateau
+  if (c1 < 0.5 && c2 < 0.5) return conv*band*0.55*rg;// ocean–ocean: island arc
 
   // ocean–continent. The oceanic side gets a trench, the continental side an arc
   // offset inboard. This is the *signature* of subduction, not the mechanism —
   // nothing is consumed here and the margin never migrates.
   if (c1 < 0.5) return -conv*band*0.85;                          // trench
   float x = (db - uArcOff)/w;
-  return conv*exp(-0.5*x*x)*1.05;                                // volcanic arc
+  return conv*exp(-0.5*x*x)*1.05*rg;                             // volcanic arc
 }
 `;
 
@@ -714,99 +880,852 @@ void main(){
    Margin distance comes from a local scan for a differing id rather than a
    blur or a jump-flood, so this stays one pass. It is rebuilt every
    PLATE_EVERY steps — margins move far slower than the framerate, the same
-   amortisation the connectivity sweep uses in № 11.                          */
+   amortisation the connectivity sweep uses in № 11.
+
+   The scan is two-tier, because the features it has to draw are much further
+   out than an affordable stride-1 window reaches. At 512² a cell is 0.0031 rad
+   while the belt is 0.045 and the arc offset 0.055 — fifteen and eighteen cells.
+   A single ±5 window (the first version) never saw either: the Gaussian only
+   decayed from 1.000 to 0.944 before hitting the hard edge of the window, so
+   the belt was a 5-cell stripe, uBWidth was inert, and the volcanic arc — whose
+   peak lies outside the window entirely — did not exist.
+
+     tier 1   stride 1 out to uScanR cells   exact, and where the normal matters
+     tier 2   stride uScanK over the same 13×13 window, for DIRECTION only,
+              then a stride-1 march back along it to recover exact distance
+
+   Tier 2 can miss a strip of foreign plate narrower than uScanK that lies
+   entirely outside tier 1; margins here separate large Voronoi plates, so that
+   costs a slightly overestimated distance at a few triple junctions and nothing
+   else. A jump-flood would remove the caveat at the price of log₂N extra passes
+   and a seam-aware ping-pong — see DESIGN_OPTIONS.                             */
 const FS_UPFIELD = `#version 300 es
 precision highp float; precision highp sampler2DArray;
 ${COMMON}
 ${PLATES}
 uniform sampler2DArray uPL;
-uniform int uFace, uSubduct; uniform float uScanR;
+uniform int uFace, uSubduct; uniform float uScanR, uScanK;
 out vec4 o;
+
+/* Nearest-sample the id at a cell offset from interior coord s0. Inside the
+   face this is a plain texelFetch; outside it goes through the direction, so
+   the scan crosses cube seams instead of stopping at them. The old scan
+   clamped to the layer, which truncated it against the face edge — invisible
+   at ±5, a seam artefact along every edge once the window reaches ±60.
+   Nearest, not fetchDir's bilinear: blending ids 3 and 8 invents plate 5.5. */
+int idOff(vec2 s0, vec2 off){
+  vec2 sq = s0 + off/uN;
+  if (sq.x > 0.0 && sq.x < 1.0 && sq.y > 0.0 && sq.y < 1.0)
+    return int(texelFetch(uPL, ivec3(ivec2(floor(sq*uN + 1.0)), uFace), 0).x + 0.5);
+  int f; vec2 s2; dirToFace(normalize(faceToDir(uFace, sq)), f, s2);
+  ivec2 i = clamp(ivec2(floor(s2*uN + 1.0)), ivec2(0), ivec2(int(uNT)-1));
+  return int(texelFetch(uPL, ivec3(i, f), 0).x + 0.5);
+}
 
 void main(){
   vec2 s = fragToS(gl_FragCoord.xy);
   vec3 p = normalize(faceToDir(uFace, s));
-  ivec3 t = ivec3(gl_FragCoord.xy, uFace);
-  int me = int(texelFetch(uPL, t, 0).x + 0.5);
+  int me = int(texelFetch(uPL, ivec3(gl_FragCoord.xy, uFace), 0).x + 0.5);
 
-  // nearest differing id within the scan window, and which plate it is
   int   other = -1;
   float best  = 1e9;
-  ivec2 bestOff = ivec2(0);
+  vec2  bestOff = vec2(0.0);
+
   int R = int(uScanR);
   for(int dy=-6; dy<=6; dy++){
     for(int dx=-6; dx<=6; dx++){
       if (abs(dx) > R || abs(dy) > R) continue;
-      ivec3 q = t + ivec3(dx, dy, 0);
-      if (q.x < 0 || q.y < 0 || q.x >= int(uNT) || q.y >= int(uNT)) continue;
-      int id = int(texelFetch(uPL, q, 0).x + 0.5);
+      int id = idOff(s, vec2(dx, dy));
       if (id == me) continue;
       float d = length(vec2(dx, dy));
-      if (d < best){ best = d; other = id; bestOff = ivec2(dx, dy); }
+      if (d < best){ best = d; other = id; bestOff = vec2(dx, dy); }
+    }
+  }
+
+  if (other < 0){
+    for(int dy=-6; dy<=6; dy++){
+      for(int dx=-6; dx<=6; dx++){
+        vec2 off = vec2(dx, dy)*uScanK;
+        int id = idOff(s, off);
+        if (id == me) continue;
+        float d = length(off);
+        if (d < best){ best = d; other = id; bestOff = off; }
+      }
+    }
+    if (other >= 0){                               // refine: march in at stride 1
+      vec2 dir = bestOff/max(best, 1e-6);
+      for(int i=1; i<=64; i++){
+        float t = uScanR + float(i);
+        if (t >= best) break;
+        int id = idOff(s, dir*t);
+        if (id != me){ best = t; bestOff = dir*t; other = id; break; }
+      }
     }
   }
   if (other < 0){ o = vec4(0.0, 0.0, 0.0, 1.0); return; }   // plate interior
 
   // margin normal from the direction to the differing cell, in world tangent
-  vec2 s2 = fragToS(gl_FragCoord.xy + vec2(bestOff));
+  vec2 s2 = s + bestOff/uN;
   vec3 q3 = normalize(faceToDir(uFace, s2));
   vec3 nrm = normalize(q3 - p*dot(p, q3));
 
   vec3 dv   = cross(plateOmega(me), p) - cross(plateOmega(other), p);
   float conv = dot(dv, nrm);                       // > 0 convergent
 
-  float cellArc = 1.5708/uN;
-  float db   = best*cellArc;                       // distance to the margin
+  // the true angle, not best×(π/2N): the equiangular cell arc varies 1.41×
+  // across a face, and the arc offset is now far enough out for that to show
+  float db   = acos(clamp(dot(p, q3), -1.0, 1.0));
   float w    = max(uBWidth, 1e-3);
   float band = exp(-(db*db)/(2.0*w*w));
   float cMe = plateCont(me), cOt = plateCont(other);
 
   float u;
   if (conv <= 0.0){
-    // divergent. Oceanic crust is created here — this is the one term that
-    // legitimately adds mass, balanced (roughly) by consumption at trenches.
-    u = conv*band*0.55;
-    if (uSubduct == 1 && cMe < 0.5) u += -conv*band*0.30;
+    /* Divergent, and it needs TWO length scales rather than one.
+
+       Written as a single band the graben simply won the arithmetic: the rift
+       term gave −0.55·|conv|·band against +0.30 for crust creation, so the sum
+       was −0.25 and spreading centres THINNED the crust. Ridges came out as
+       trenches, and the reported budget counted creation as a loss.
+
+       A ridge is the shallowest part of an ocean basin — the crust there is
+       young and hot, so it floats high — with a narrow axial graben notched
+       into the crest. That is a broad positive swell of width w carrying a
+       narrow negative of width ~w/4, which is what this now is. The proper
+       version of this falls out of a crust-AGE field for free (depth ∝ √age)
+       and is ROADMAP item 3; this is the two-line stand-in.
+
+       Creation stays gated on subduction, because with it off the source is
+       forced mean-zero and adding crust here would break the strict
+       conservation that regime exists to demonstrate. */
+    float wa    = max(0.22*w, 1e-4);
+    float axial = exp(-(db*db)/(2.0*wa*wa));
+    if (uSubduct == 1 && cMe < 0.5)
+      u = conv*axial*0.30 - conv*band*0.80;        // ridge swell, notched on axis
+    else
+      u = conv*band*0.55;                          // continental rift, or no subduction
   } else if (cMe > 0.5 && cOt > 0.5){
-    u = conv*band;                                 // collision: both thicken
+    u = conv*band*beltRough(p, me);                    // collision: both thicken
   } else if (cMe < 0.5 && cOt < 0.5){
-    u = conv*band*0.55;                            // island arc
+    u = conv*band*0.55*beltRough(p, me);               // island arc
   } else if (cMe < 0.5){
     // oceanic side of an ocean–continent margin: consumed
     u = -conv*band*(uSubduct == 1 ? 1.25 : 0.85);
   } else {
     float x = (db - uArcOff)/w;
-    u = conv*exp(-0.5*x*x)*1.05;                   // continental side: the arc
+    u = conv*exp(-0.5*x*x)*1.05*beltRough(p, me);      // continental side: the arc
   }
   o = vec4(u, 0.0, 0.0, 1.0);
 }`;
 
-/* ─────────────────── pass 0c: initial terrain ─────────────────── */
-const FS_INIT = `#version 300 es
+/* ══════════════ motion-vector source (source 3) ══════════════
+   The plate field stops being a label and becomes a VELOCITY. Three passes:
+
+     A  FS_VFIELD   v(p) = ω × p, blended across each margin      → VF
+     B  FS_DIVERGE  finite-volume divergence of VF                → DVF
+     C  FS_UPDIV    crust-type rules applied to that divergence   → Uf
+
+   Why this is better than the margin scan it replaces, and not merely different:
+
+   **Divergence is the mechanism.** −∇·v is the areal strain rate: negative
+   divergence means crust is being compressed and has to go somewhere (up as
+   thickening, or down as a slab), positive means the surface is opening and new
+   crust fills it. That is subduction and spreading stated as one quantity,
+   obtained from a four-tap finite difference. No scan for a differing id, no
+   scan radius, no two-tier window, no quantised margin normal — the entire
+   §18 apparatus is retired for this source.
+
+   **The belt width stops being a magnitude.** Blending v across the margin over
+   a width w makes |∇·v| ~ conv/2w, so a narrower shear zone gives a stronger,
+   more concentrated source with the SAME integral. Total consumption is
+   convergence × margin length regardless of w, which is the physically correct
+   invariant, and is exactly what the old Gaussian band got wrong — its integral
+   scaled with w, which is why SRC_NORM had to exist.
+
+   **The velocity field is the thing crust advection needs.** Task #2 reads VF
+   directly.
+
+   Not modelled yet: the strike-slip component, which is the antisymmetric part
+   of the same four-tap and costs nothing extra to obtain (task #4).           */
+const FS_VFIELD = `#version 300 es
 precision highp float; precision highp sampler2DArray;
 ${COMMON}
 ${PLATES}
-uniform int uFace; uniform float uSeed; uniform int uMode, uSource;
+uniform int uFace; uniform float uBlendC, uBlendD;
 out vec4 o;
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 p = normalize(faceToDir(uFace, s));
+  int i1, i2; float d1, d2;
+  nearestPlates(p, i1, i2, d1, d2);
+  float db = 0.5*(d2 - d1);
+
+  // ω × p, so the interior of every plate is a RIGID rotation. A constant
+  // vector per plate would shear the interior and the plate would stop being a
+  // plate — the property the whole model rests on.
+  vec3 v1 = cross(plateOmega(i1), p);
+  vec3 v2 = cross(plateOmega(i2), p);
+
+  // Both are ⊥ p, so any blend of them is still tangent. At the bisector the
+  // blend reaches ½(v1+v2) from either side, which is what makes the field
+  // continuous across the margin rather than a step — and a step would put a
+  // one-cell delta function in the divergence instead of a shear zone.
+  /* tanh, NOT smoothstep. Both are continuous across the margin — from either
+     side db → 0 gives ½(v1+v2) — but the divergence is the GRADIENT of this
+     blend, and smoothstep has zero derivative at its endpoints. That put a dead
+     line of zero divergence exactly along every margin, with the real peak
+     displaced to db = w/2 on both sides: a double band with a neutral stripe
+     down the middle of it.
+
+     Measured with smoothstep: mean |∇·v| was 1.81 on the axis, rising to 6.40 at
+     8 cells out against a 14.7-cell belt — the axis carried less than a third of
+     what its own flanks did. That is not just ugly, it starved the ridge axis of
+     the extension that drives crust creation and thinning.
+
+     tanh has its maximum slope at zero, so the divergence peaks where the plates
+     actually meet and decays outward. It asymptotes rather than saturating at w,
+     which is harmless: tanh(3) = 0.995. */
+  /* Convergent and divergent margins get their own shear-zone widths, and either
+     can be switched off entirely. The sign is knowable BEFORE blending — it comes
+     from the plate velocities and the margin normal, not from the divergence the
+     blend produces — so there is no circularity here.
+
+     Width 0 means no blend at all: the velocity steps across the margin and the
+     divergence collapses to a one-cell spike. That is the delta function this
+     blend exists to avoid, so it is a diagnostic setting rather than a physical
+     one — but it shows exactly where a margin is, which a 15-cell smear cannot. */
+  vec3 sd2 = plateSeedDir(i2);
+  vec3 nrm = normalize(sd2 - p*dot(p, sd2));
+  float conv = dot(v1 - v2, nrm);                  // > 0 converging
+  float bw = max(uBWidth, 1e-3)*(conv > 0.0 ? uBlendC : uBlendD);
+  float t = bw > 1e-6 ? tanh(db/bw) : 1.0;         // t = 1 → pure v1, discontinuous
+  o = vec4(mix(0.5*(v1 + v2), v1, t), float(i1));
+}`;
+
+const FS_DIVERGE = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+uniform sampler2DArray uVF, uA;
+uniform int uFace; uniform float uR;
+out vec4 o;
+void main(){
+  ivec3 t = ivec3(gl_FragCoord.xy, uFace);
+  vec2  s = fragToS(gl_FragCoord.xy);
+  vec3 pC = normalize(faceToDir(uFace, s));
+  vec3 vC = texelFetch(uVF, t, 0).xyz;
+  float A  = texelFetch(uA, t, 0).x/(uR*uR);   // angular area, to match the edge lengths
+  float d  = 1.0/uN, hd = 0.5/uN;
+
+  /* Edge lengths from the cell CORNERS, not from the metric texture.
+
+     uM stores centre-to-centre distances, which is the right kind of quantity
+     and the wrong one: the flux through the east face needs the length of that
+     face, which runs north–south, while the centre-to-centre distance runs
+     east–west. They differ by exactly the local anisotropy of the equiangular
+     metric — worst at the cube corners — so the error is spatially structured
+     and does not cancel. Using uM put a background |∇·v| of 0.052 on a single
+     rigid plate, where the exact answer is zero everywhere, and left global
+     closure at −4.9 %.
+
+     Corners are shared with the neighbouring cell exactly, so telescoping
+     survives: cell E's west edge is spanned by the same two corner points. */
+  vec3 c00 = normalize(faceToDir(uFace, s + vec2(-hd,-hd)));
+  vec3 c10 = normalize(faceToDir(uFace, s + vec2( hd,-hd)));
+  vec3 c01 = normalize(faceToDir(uFace, s + vec2(-hd, hd)));
+  vec3 c11 = normalize(faceToDir(uFace, s + vec2( hd, hd)));
+  vec3 ca[4], cb[4];
+  ca[0]=c10; cb[0]=c11;      // E
+  ca[1]=c00; cb[1]=c01;      // W
+  ca[2]=c01; cb[2]=c11;      // N
+  ca[3]=c00; cb[3]=c10;      // S
+
+  /* Finite VOLUME: Σ (v·n̂) L over the four edges, divided by the cell area.
+     Every ingredient comes from the shared CORNERS, so the neighbour computes
+     the identical flux with the opposite sign and the sum over the closed
+     sphere telescopes.
+
+     The normal is n̂ = p̂ × t̂, built from the EDGE TANGENT. The obvious choice —
+     the direction from this cell's centre to the neighbour's — is wrong,
+     because the equiangular grid is NOT orthogonal: the ξ and η coordinate
+     curves meet well off 90° away from a face centre, so centre-to-centre is
+     not perpendicular to the edge between them. That left a background |∇·v| of
+     0.18 on a single rigid plate, where a rotation is divergence-free and the
+     exact answer is zero at every point. */
+  float flux = 0.0;
+  vec2 offs[4]; offs[0]=vec2(d,0.0); offs[1]=vec2(-d,0.0); offs[2]=vec2(0.0,d); offs[3]=vec2(0.0,-d);
+  ivec2 ioff[4]; ioff[0]=ivec2(1,0); ioff[1]=ivec2(-1,0); ioff[2]=ivec2(0,1); ioff[3]=ivec2(0,-1);
+  for(int k=0;k<4;k++){
+    ivec2 q = t.xy + ioff[k];
+    vec3 vN = (q.x < 0 || q.y < 0 || q.x >= int(uNT) || q.y >= int(uNT))
+              ? vC : texelFetch(uVF, ivec3(q, uFace), 0).xyz;
+    vec3 pN = normalize(faceToDir(uFace, s + offs[k]));
+    vec3 pM = normalize(faceToDir(uFace, s + offs[k]*0.5));
+
+    vec3 e  = cb[k] - ca[k];
+    float L = length(e);
+    vec3 n  = normalize(cross(pM, e/L));
+    if (dot(n, pN - pC) < 0.0) n = -n;                // outward from THIS cell
+    flux += dot(0.5*(vC + vN), n) * L;
+  }
+  o = vec4(flux/max(A, 1e-20), 0.0, 0.0, 1.0);
+}`;
+
+/* ══════════ directional pressure propagation ══════════
+   The margin is a razor line — with the blend off, the divergence is a one-cell
+   spike. Width has to come from somewhere, and the previous attempt (a decay
+   applied when the source was read) had no direction of its own: it faded
+   equally every way from the line, so sidedness had to be faked with a
+   "faster plate wins" test, which only reached 1.4×.
+
+   Instead, march the pressure along the velocity field:
+
+       P(x) = max( P(x),  P(x + v̂·step) · decay )
+
+   Each cell samples TOWARD the margin and inherits what it finds. Step-doubling
+   reaches 2^K cells in K passes.
+
+   ❌ I first claimed the one-sidedness would fall out of the velocity field for
+   free — that the subducting plate's v̂ points away from the margin so nothing
+   would propagate there. That is wrong, and measured wrong: the ratio between
+   sides came out 1.01–1.08, essentially symmetric. At a CONVERGENT margin both
+   plates move toward it — that is what convergent means — so v̂ points at the
+   margin from both sides and both march inland. Direction of travel cannot tell
+   overriding from subducting.
+
+   The discriminator is buoyancy, and it is applied HERE rather than at read
+   time: continental crust always overrides oceanic, and between like types the
+   faster plate does. The gradient's shape still comes from marching; only which
+   side receives it is decided by a test.
+
+   max() rather than a sum, so a cell takes the strongest margin reaching it
+   rather than accumulating several — two margins in range should not add up to
+   a mountain range twice as high. */
+const FS_PGSEED = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+uniform sampler2DArray uDV;
+uniform int uFace;
+out vec4 o;
+void main(){
+  /* Split the signed divergence into two magnitudes on the spot.
+       .x compression — gets marched downstream, so it is what all the
+          high-pressure shaping acts on.
+       .y extension   — passed through untouched, and never propagated. It is
+          the thin sharp line, and it stays that way by construction rather
+          than by being left alone on purpose. */
+  float pr = -texelFetch(uDV, ivec3(gl_FragCoord.xy, uFace), 0).x;
+  o = vec4(max(pr, 0.0), max(-pr, 0.0), 0.0, 1.0);
+}`;
+
+const FS_PGPROP = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+uniform sampler2DArray uPG, uVF;
+uniform int uFace; uniform float uStep, uDecay, uBack, uGradFlip;
+out vec4 o;
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 p = normalize(faceToDir(uFace, s));
+  vec3 v = texelFetch(uVF, ivec3(gl_FragCoord.xy, uFace), 0).xyz;
+  vec2 me = texelFetch(uPG, ivec3(gl_FragCoord.xy, uFace), 0).xy;
+  float cur = me.x;                      // only HIGH pressure marches
+
+  float sp = length(v);
+  if (sp > 1e-12){
+    float a = uStep*(1.5708/uN);                       // step, in radians
+    vec3 q = normalize(p*cos(a) + (v/sp)*sin(a));      // downstream, toward the margin
+
+    // am I the overriding plate? continental beats oceanic; like beats like on speed
+    int i1, i2; float d1, d2;
+    nearestPlates(p, i1, i2, d1, d2);
+    float c1 = plateCont(i1), c2 = plateCont(i2);
+    float sp1 = length(cross(plateOmega(i1), p));
+    float sp2 = length(cross(plateOmega(i2), p));
+    float over = (c1 > 0.5 && c2 < 0.5) ? 1.0
+               : (c1 < 0.5 && c2 > 0.5) ? 0.0
+               : step(sp2, sp1);
+    /* Which plate carries the gradient. I had this on the plate that overrides —
+       continental over oceanic, faster over slower — on the reasoning that the
+       arc and the thickening sit on the overriding side. Reported as facing the
+       wrong way, so the default is now the other side, with a switch rather than
+       a hardcode because the two readings differ by exactly one flip. */
+    over = mix(over, 1.0 - over, uGradFlip);
+    // uBack leaves a little on the subducting side rather than nothing at all —
+    // a trench has a small outer rise, and a hard zero reads as a cut
+    cur = max(cur, fetchDir(uPG, q).x*uDecay*mix(uBack, 1.0, over));
+  }
+  o = vec4(cur, me.y, 0.0, 1.0);         // .y carried through untouched
+}`;
+
+const FS_UPDIV_SRC = (NOISE_GLSL) => `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+${NOISE_GLSL || ''}
+uniform sampler2DArray uDV, uSF, uT, uPG;
+uniform int uFace, uSubduct;
+uniform float uFoldAmp, uFoldFreq, uOceanTc, uThinK, uPExt, uEchoL, uEchoV;
+uniform float uOroAmp;
+${NOISE_GLSL ? 'uniform NoiseParams uNP;' : ''}
+out vec4 o;
+
+/* The selected terrain-noise preset, injected into the OROGEN. Evaluated at the
+   MATERIAL position, like the fold texture, so the pattern is nailed to the rock
+   and rides the plate rather than sitting still in space while the crust slides
+   under it.
+
+   Applied multiplicatively on the belt-roughness term and only on the three
+   UPLIFT branches — never the trench, which is a hole and has no business
+   carrying mountain texture. Clamped at zero so a large amplitude cannot invert
+   the sign of the uplift and quietly excavate an orogen. */
+float orogenNoise(vec3 p0, int id){
+${NOISE_GLSL ? `  if (uOroAmp <= 0.0) return 0.0;
+  return evalNoise(matPos(p0, id), uNP)*uOroAmp;` : '  return 0.0;'}
+}
+float beltGain(vec3 p0, int id, float rg){
+  return max(rg*(1.0 + orogenNoise(p0, id)), 0.0);
+}
+
+/* Crumpling. Three things, all borrowed in mechanism from World Orogen's
+   fold-belt subsystem (GPL v3 — read for method, no code taken):
+
+   1. blend smooth fBm → RIDGED noise as the belt strengthens. Ridged noise is
+      creased and sharp-crested; plain fBm is lumpy and never reads as folded.
+   2. raise the frequency inside belts, so an orogen carries visibly finer
+      texture than the ground around it.
+   3. elongate the sampling domain along the stored fold axis, so ridges run
+      parallel to the margin instead of forming isotropic blobs.
+
+   Evaluated at the MATERIAL position, so the pattern is nailed to the rock and
+   rides with it.
+
+   ADDITIVE, and applied wherever strain exists rather than only on the orogenic
+   branches. Multiplying it into the uplift was the obvious form and it failed:
+   strain is carried, so it spreads across 15.8 % of the sphere, while u is
+   concentrated in the shear zone where |∇·v| is large. The product is non-zero
+   only at the margin itself, so folds appeared in a thin line instead of across
+   the belt — high-frequency content in the SOURCE rose 39 %, and the terrain's
+   own roughness rose 3 %. Additive, driven by strain alone, corrugates the whole
+   orogen and keeps corrugating it long after the margin has moved on.
+
+   Zero-mean by construction, so the crust budget is untouched.
+
+   Resolution floor, stated rather than hidden: at 512² a cell is ~18 km, so the
+   tightest fold representable is ~4 cells ≈ 72 km against real fold-and-thrust
+   wavelengths of 10–30 km. This reads as ranges within an orogen, not as
+   individual folds. */
+float foldTerm(vec3 p0, int id){
+  if (uFoldAmp <= 0.0) return 0.0;
+  vec4 sf = texelFetch(uSF, ivec3(gl_FragCoord.xy, uFace), 0);
+  float belt = clamp(sf.x, 0.0, 1.0);
+  if (belt < 0.02) return 0.0;
+
+  vec3 m = matPos(p0, id);
+  vec3 x = m*uFoldFreq*(1.0 + belt*1.5);        // finer texture inside the belt
+  vec3 ax = sf.yzw;
+  if (length(ax) > 1e-6){                        // squash along the fold axis
+    ax = normalize(ax);
+    x -= ax*dot(x, ax)*(1.0 - 1.0/5.7);          // ≈ their tuned 0.85/0.15 ratio
+  }
+  /* DOMAIN-WARPED ridged noise, not bare ridged fBm. This is the difference
+     between crease-lines and lumps: warping the sample position by a second
+     noise field before taking the ridge is what produces long sinuous branching
+     ridges with en-echelon offsets, which is what a fold belt looks like.
+
+     The generator is not new — the noise-belt source in this same file has used
+     it since v001, and its own comment says "long sinuous belts rather than
+     isotropic blobs". Reaching for the unwarped generator here is very likely
+     why the first fold attempt read as roughness rather than folding. */
+  vec3 wv = vec3(fbm(x*0.7 + 11.3, 3), fbm(x*0.7 + 41.7, 3), fbm(x*0.7 + 77.1, 3)) - 0.5;
+  float r = ridged(x + wv*1.4, 4);
+  float tex = mix(fbm(x, 3), r, belt);
+  return uFoldAmp*belt*(tex - 0.5)*2.0;
+}
+
+float strainAt(vec3 dir){                    // + convergent, − divergent
+  int f; vec2 s; dirToFace(normalize(dir), f, s);
+  ivec2 i = clamp(ivec2(floor(s*uN + 1.0)), ivec2(0), ivec2(int(uNT)-1));
+  return -texelFetch(uDV, ivec3(i, f), 0).x;
+}
+
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 p = normalize(faceToDir(uFace, s));
+  int i1, i2; float d1, d2;
+  nearestPlates(p, i1, i2, d1, d2);
+  float db = 0.5*(d2 - d1);
+  float w  = max(uBWidth, 1e-3);
+  float cMe = plateCont(i1), cOt = plateCont(i2);
+
+  float sL = -texelFetch(uDV, ivec3(gl_FragCoord.xy, uFace), 0).x;   // local strain
+  vec2  pg = texelFetch(uPG, ivec3(gl_FragCoord.xy, uFace), 0).xy;  // .x high, .y low
+
+  /* The arc sits inboard of the margin, OUTSIDE the shear zone, where the local
+     strain is already zero — so its amplitude has to come from the margin
+     itself. The margin distance is analytic here, so the nearest margin point is
+     just p walked along the geodesic toward the second seed by that distance.
+     One lookup, no search. */
+  vec3 s2 = plateSeedDir(i2);
+  vec3 t2 = normalize(s2 - p*dot(p, s2));
+  vec3 pm = normalize(p*cos(db) + t2*sin(db));
+  float sM = strainAt(pm);                                            // strain AT the margin
+
+  float rg = beltRough(p, i1);
+  float u;
+
+  if (pg.x <= pg.y){                                 // LOW pressure dominates here
+    /* LOW PRESSURE — the plate is being pulled apart, so the column thins toward
+       ocean floor. Stated as a relaxation toward the abyssal datum at a rate set
+       by the extension, rather than as a fixed swell-plus-graben profile: thick
+       continental crust rifts and subsides a long way, crust already at ocean
+       depth barely changes, and both end up on the same continuous scale with no
+       hole for isostasy to divide by. A rift becomes a basin becomes an ocean. */
+    float tc = texelFetch(uT, ivec3(gl_FragCoord.xy, uFace), 0).z;
+    u = (uOceanTc - tc)*pg.y*uThinK*uPExt;    // sharp, local, never propagated
+  } else {
+    /* HIGH PRESSURE — read the propagated field.
+
+       All the shaping happened upstream in FS_PGPROP, which marched the sharp
+       margin spike along the velocity field. So this is a plain lookup, and the
+       one-sidedness is already baked in: the overriding plate carries a gradient
+       fading inland, the subducting plate carries none. No side test, no
+       "faster wins" heuristic — both are gone with the echo.
+
+       The trench is the exception and stays keyed to the sharp source: it sits
+       ON the subducting side, which by construction has no propagated pressure,
+       and it should be narrow anyway. */
+    float trench = exp(-db/max(uEchoL*0.22, 1e-5));
+
+    float bg = beltGain(p, i1, rg);                               // rg + preset noise
+    if (cMe > 0.5 && cOt > 0.5)      u = pg.x*bg;                 // collision
+    else if (cMe < 0.5 && cOt < 0.5) u = pg.x*0.55*bg;            // island arc
+    else if (cMe < 0.5)              u = -pg.x*trench*(uSubduct == 1 ? 1.25 : 0.85);
+    else                             u = pg.x*1.05*bg;            // continental arc
+  }
+  // Folded crust stays folded whether or not it is still at a margin.
+  o = vec4(u + foldTerm(p, i1), 0.0, 0.0, 1.0);
+}`;
+
+/* ══════════════ crust advection ══════════════
+   Carries the crust along the plate velocity, so a feature rides its plate
+   instead of sitting still in space while the margins slide past underneath it.
+   An impact crater now drifts toward a trench and is consumed there.
+
+   Semi-Lagrangian, bilinear, backtraced along the LOCAL flow: a is the angle
+   the crust at this point has covered, and the geodesic step p·cos a − v̂·sin a
+   is exact wherever the field is a rigid rotation, which is everywhere except
+   the shear zones.
+
+   BILINEAR, unlike the plate id field's nearest sampling. An id is a label and
+   blending two of them invents a plate; thickness and sediment are continuous,
+   and nearest would freeze sub-cell motion exactly the way the v003 advection
+   locked up. The price is that every resample smears — measured at 99.56 % of
+   the field's spread retained over 4,000 steps and 17 passes, so the smearing
+   is real but slow.
+
+   h is NOT advected. It is derived — h = uIsoK·tc — so it is recomputed from
+   the carried thickness, which also stops the two drifting out of sync.
+
+   The continuity equation is  ∂tc/∂t + v·∇tc + tc·∇·v = S.  The backtrace
+   covers v·∇tc. The compression term tc·∇·v is left to the divergence-driven
+   uplift source, which is where it already lived.
+
+   The obvious-looking alternative is coded below and is DISABLED (uComp = 0),
+   because it is wrong for this variable and the reason is worth keeping:
+
+     Along a trajectory D(tc)/Dt = −tc·∇·v, so scaling the carried column by
+     exp(−∇·v·Δt) ought to be exactly conservative — and under a divergence-free
+     flow it measured 0.000 % over 400 passes. But **tc is a signed deviation
+     from a datum, not an absolute thickness**: oceanic crust sits BELOW it and
+     carries negative tc. Multiplying a negative column by a factor under one
+     moves it toward zero, which ADDS signed volume. Thinning oceanic crust at a
+     trench made the planet gain mass — advection alone went to +14.4 % at the
+     default drift and +45.5 % at maximum, in the wrong direction and for a
+     reason no amount of gating fixes.
+
+     Doing it properly needs an absolute column, tc measured up from a datum
+     thickness rather than about zero, which changes what the variable means
+     everywhere. That is task #3's territory, where crust age supplies a real
+     thickness. See ROADMAP.
+
+   Measured with compression off, 6,000 steps: relief 0.0347 against 0.0348 with
+   advection disabled entirely, and budget +0.386 % at drift 0.5, −0.112 % at
+   drift 2.0. The transport is doing its job without disturbing the balance.   */
+/* Shared by the forward pass and the MacCormack combine, so the two cannot
+   disagree about where a parcel came from or whether it tore. */
+const ADVH = `
+uniform sampler2DArray uT, uVF, uDV;
+uniform int uFace, uSubduct; uniform float uAdv, uComp, uNewTc, uNewK;
+
+// exact geodesic step along a tangent velocity; t < 0 traces backward
+vec3 geoStep(vec3 p, vec3 v, float t){
+  float sp = length(v);
+  if (sp < 1e-12) return p;
+  float a = sp*t;
+  return normalize(p*cos(a) + (v/sp)*sin(a));
+}
+// nearest plate id at a direction. NEAREST, never fetchDir — that is bilinear,
+// and blending ids 3 and 8 would invent plate 5.5.
+int plateAt(vec3 d){
+  int f; vec2 sc; dirToFace(normalize(d), f, sc);
+  ivec2 i = clamp(ivec2(floor(sc*uN + 1.0)), ivec2(0), ivec2(int(uNT)-1));
+  return int(texelFetch(uVF, ivec3(i, f), 0).w + 0.5);
+}
+// fresh seafloor, for the gap a spreading margin opens
+vec4 newCrust(){ return vec4(isoH(uNewTc), 0.0, uNewTc, 0.0); }
+
+float divAt(vec3 d){
+  int f; vec2 sc; dirToFace(normalize(d), f, sc);
+  ivec2 i = clamp(ivec2(floor(sc*uN + 1.0)), ivec2(0), ivec2(int(uNT)-1));
+  return texelFetch(uDV, ivec3(i, f), 0).x;
+}
+`;
+
+/* The transport velocity is the RIGID per-plate rotation, NOT the blended field
+   in VF.xyz. That blend is C1-continuous across every margin — right for taking
+   a finite divergence, and wrong for moving rock. At bwidth 0.045 rad the shear
+   zone spans ~15 cells either side while a 150 km crater is ~8 cells in radius,
+   so a crater near a margin sat entirely inside a velocity gradient and was
+   pulled like taffy. Real plates have a DISCONTINUOUS velocity at the boundary;
+   that discontinuity is the fault, and it is what cuts.
+
+   Smooth field for the source term, discontinuous field for transport.
+
+   Inside a plate the gradient is then exactly zero, so a feature is carried with
+   no deformation at all and only interpolation error remains.                 */
+const FS_ADVECT = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+${ADVH}
+uniform sampler2DArray uSF;
+uniform float uStrainK;
+layout(location=0) out vec4 o;
+layout(location=1) out vec4 oSF;
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 p = normalize(faceToDir(uFace, s));
+  int myId = int(texelFetch(uVF, ivec3(gl_FragCoord.xy, uFace), 0).w + 0.5);
+
+  vec3 vr = cross(plateOmega(myId), p);
+
+  /* Never sample across a fault. The rock on the far side belongs to another
+     plate moving at another velocity, and reading it is precisely the
+     cross-boundary smearing this is meant to stop — so halve the step until the
+     source is back on our own side. Four tries reaches 1/16 of a hop, below
+     which the residual error is under a tenth of a cell.
+
+     This is a CLAMP, not a gap detector. I first wrote it as one, reasoning that
+     tracing back at a convergent margin always retreats into your own interior
+     so the test could only fire where a plate had pulled away. Measured: only
+     53 % of the cells it fired on were divergent, a coin flip, and their mean
+     divergence was −0.123 — convergent-leaning. Plate velocity at a margin is
+     mostly TANGENTIAL, so the trace slides along a curved boundary and crosses
+     it whichever way the margin is moving. New crust needs its own criterion,
+     below. */
+  float t = -uAdv;
+  vec3 src = geoStep(p, vr, t);
+  for (int k=0; k<4; k++){
+    if (plateAt(src) == myId) break;
+    t *= 0.5;
+    src = geoStep(p, vr, t);
+  }
+
+  vec4 q = fetchDir(uT, src);
+
+  float dvg = texelFetch(uDV, ivec3(gl_FragCoord.xy, uFace), 0).x;
+
+  /* Where the surface is opening it is opening onto new seafloor. The fraction
+     of this cell that is ground which did not exist a step ago is the areal
+     expansion, ∇·v·Δt — no threshold to tune: a ridge cell renews itself a
+     little each pass and converges on fresh crust.
+
+     Gated to OCEANIC crust. Ungated it also fired on the 780,000 cells with
+     merely weak positive divergence — most of them continental interior, which
+     does not turn into basalt — and each took a small step toward seafloor
+     thickness every pass. That leak cost 1.4 points of crust budget, and made
+     the mass-neutral injection value −0.0085, i.e. the global mean column,
+     which is not fresh seafloor by any reading. Continental rifting does end in
+     an ocean, but it thins the crust first; that belongs with crust age. */
+  q = mix(q, newCrust(), clamp(dvg*uAdv, 0.0, 1.0)*uNewK*(1.0 - q.w));
+
+  float ex = -dvg*uAdv;
+
+  /* Converging crust either thickens or is consumed, and buoyancy decides
+     which. Continental crust cannot sink, so it piles up. Oceanic crust goes
+     down the trench — at a rate set by the convergence AND by how much column
+     there is to consume, which is what gives the pair an equilibrium.
+
+     Compressing oceanic crust as if it were continental made relief run away:
+     0.035 before advection against 0.072 / 0.139 / 0.305 at drift 0.5 / 1 / 2,
+     past the HMAX shell the marcher brackets. Merely declining to thicken it
+     was not enough either — advection keeps delivering fresh crust to a trench
+     whose sink is a fixed rate, and the budget climbed to +1.9 %. The sink has
+     to scale with the column, like the source does.
+
+     Thinning is ungated: stretching thins oceanic and continental crust alike,
+     which is how a rift becomes a passive margin. */
+  if (ex > 0.0) ex = mix(-ex*float(uSubduct), ex, q.w);
+  ex *= uComp;
+
+  // Clamped because ∇·v peaks in the hundreds inside a shear zone, and the
+  // exponential of a large hop would not merely be inaccurate but unbounded.
+  // Past this much compression in one step the linearisation is void anyway.
+  float comp = exp(clamp(ex, -0.35, 0.35));
+  q.y *= comp;                               // sediment is a volume density too
+  q.z *= comp;
+  q.x = isoH(q.z);                           // derived, never carried on its own
+  o = q;
+
+  /* ── shortening strain, and the fold axis frozen into the rock ──
+     Carried on the same backtrace as the crust, because folds ARE the rock: a
+     belt has to keep its corrugation long after the collision that made it, and
+     keep it pointing the right way.
+
+     Accumulation is scaled by uAdv, so what builds up is convergence ×
+     displacement — shortening, which is the quantity folds actually record.
+
+     The axis is stored as a 3-vector in MATERIAL space rather than as an angle
+     in a local basis: angles wrap, and blending two of them during advection
+     produces nonsense at the seam where the basis flips. */
+  vec4 sf = fetchDir(uSF, src);
+  float sL = -dvg;                                   // + convergent
+  if (sL > 0.0 && uStrainK > 0.0){
+    float add = sL*uAdv*uStrainK;
+
+    // shortening runs across the margin, i.e. along the divergence gradient
+    vec3 e1, e2; basis(p, e1, e2);
+    float st = 1.5708/uN;
+    float gx = divAt(normalize(p + e1*st)) - divAt(normalize(p - e1*st));
+    float gy = divAt(normalize(p + e2*st)) - divAt(normalize(p - e2*st));
+    vec3 g = e1*gx + e2*gy;
+    if (length(g) > 1e-12){
+      vec3 shorten = normalize(g);
+      vec3 axis = normalize(cross(p, shorten));      // folds run ALONG the margin
+      vec3 axM = matPos(p + axis*1e-3, myId) - matPos(p, myId);
+      if (length(axM) > 1e-12){
+        axM = normalize(axM);
+        vec3 cur = (length(sf.yzw) > 1e-6) ? normalize(sf.yzw) : axM;
+        // fresh strain steers the stored axis; established belts resist
+        sf.yzw = normalize(mix(cur, axM, clamp(add*6.0, 0.0, 1.0)) + 1e-9);
+      }
+    }
+    sf.x = min(sf.x + add, 1.0);
+  }
+  // new ground carries no history
+  oSF = mix(sf, vec4(0.0), clamp(dvg*uAdv, 0.0, 1.0)*uNewK*(1.0 - q.w));
+}`;
+
+const FS_MACC = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+${ADVH}
+uniform sampler2DArray uTA;
+out vec4 o;
+
+// the range of the four texels a bilinear fetch at d would have used
+void stencilRange(vec3 d, out vec4 lo, out vec4 hi){
+  int f; vec2 sc; dirToFace(normalize(d), f, sc);
+  vec2 pp = sToUv(sc)*uNT - 0.5;
+  ivec2 i0 = ivec2(floor(pp)), mx = ivec2(int(uNT)-1);
+  vec4 a = texelFetch(uT, ivec3(clamp(i0,            ivec2(0), mx), f), 0);
+  vec4 b = texelFetch(uT, ivec3(clamp(i0+ivec2(1,0), ivec2(0), mx), f), 0);
+  vec4 c = texelFetch(uT, ivec3(clamp(i0+ivec2(0,1), ivec2(0), mx), f), 0);
+  vec4 e = texelFetch(uT, ivec3(clamp(i0+ivec2(1,1), ivec2(0), mx), f), 0);
+  lo = min(min(a,b), min(c,e));
+  hi = max(max(a,b), max(c,e));
+}
+
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 p = normalize(faceToDir(uFace, s));
+  int myId = int(texelFetch(uVF, ivec3(gl_FragCoord.xy, uFace), 0).w + 0.5);
+  vec3 vr = cross(plateOmega(myId), p);
+
+  // identical trace and identical fault clamp as the forward pass, or the two
+  // would disagree about where this parcel came from
+  float t = -uAdv;
+  vec3 src = geoStep(p, vr, t);
+  for (int k=0; k<4; k++){
+    if (plateAt(src) == myId) break;
+    t *= 0.5;
+    src = geoStep(p, vr, t);
+  }
+
+  vec4 qh = texelFetch(uTA, ivec3(gl_FragCoord.xy, uFace), 0);
+
+  // freshly minted seafloor has no history, so there is nothing to correct
+  float dvg = texelFetch(uDV, ivec3(gl_FragCoord.xy, uFace), 0).x;
+  if (clamp(dvg*uAdv, 0.0, 1.0)*uNewK*(1.0 - qh.w) > 0.02){ o = qh; return; }
+
+  vec4 qn = texelFetch(uT, ivec3(gl_FragCoord.xy, uFace), 0);
+  vec4 qt = fetchDir(uTA, geoStep(p, vr, -t));        // trace forward by the same amount
+  vec4 lo, hi; stencilRange(src, lo, hi);
+
+  o = clamp(qh + (qn - qt)*0.5, lo, hi);
+  o.x = isoH(o.z);
+}`;
+
+/* ─────────────────── pass 0c: initial terrain ─────────────────── */
+/* Built twice: once plain, and once per custom noise preset with the shared
+   noise library injected. NOISE_GLSL is '' for the built-in build, so the
+   uMode==4 branch and the NoiseParams uniform simply are not emitted — a
+   preset-free page compiles exactly the shader it did before. */
+const FS_INIT_SRC = (NOISE_GLSL) => `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+${NOISE_GLSL || ''}
+uniform int uFace; uniform float uSeed, uNFreq, uNWarp, uNAmp;
+uniform int uMode, uSource, uNOct;
+${NOISE_GLSL ? 'uniform NoiseParams uNP;' : ''}
+out vec4 o;
+
+/* Continents ride high because their crust is thick and light. Standing in for
+   isostasy, which this model does not have — see ROADMAP item 4. Factored out
+   so a custom-noise preset gets exactly the same continental split as the
+   built-in inits rather than a near-copy that drifts. */
+void applyContinents(vec3 d, inout float rock, out float cont){
+  cont = 0.0;
+  if (uSource >= 1){
+    int i1, i2; float d1, d2;
+    nearestPlates(d, i1, i2, d1, d2);
+    float db = 0.5*(d2 - d1);
+    float blend = smoothstep(0.0, max(uBWidth*1.6, 1e-3), db);   // soften the margin
+    float c1 = plateCont(i1), c2 = plateCont(i2);
+    rock = rock*0.55 + mix(mix(c1,c2,0.5), c1, blend)*0.026 - 0.013;
+    cont = mix(mix(c1,c2,0.5), c1, blend);
+  }
+}
+
 void main(){
   vec2 s = fragToS(gl_FragCoord.xy);
   vec3 d = normalize(faceToDir(uFace, s));
   float rock = 0.0, cont = 0.0;
-  if (uMode == 0){
-    vec3 q = d*2.2 + uSeed;
-    vec3 w = vec3(fbm(q+3.1,3), fbm(q+13.7,3), fbm(q+29.3,3)) - 0.5;
-    rock = (fbm(q + w*0.9, 6) - 0.5) * 0.030;
-    if (uSource == 1){
-      // Continents ride high because their crust is thick and light. Standing in
-      // for isostasy, which this model does not have — see ROADMAP item 4.
-      int i1, i2; float d1, d2;
-      nearestPlates(d, i1, i2, d1, d2);
-      float db = 0.5*(d2 - d1);
-      float blend = smoothstep(0.0, max(uBWidth*1.6, 1e-3), db);   // soften the margin
-      float c1 = plateCont(i1), c2 = plateCont(i2);
-      rock = rock*0.55 + mix(mix(c1,c2,0.5), c1, blend)*0.026 - 0.013;
-      cont = mix(mix(c1,c2,0.5), c1, blend);
-    }
+${NOISE_GLSL ? `  if (uMode == 4){
+    /* Custom preset from the noise designer. The preset carries its own
+       frequency, octaves, warp and remap, so the panel's Frequency / Warp /
+       Detail sliders do NOT apply here — only Relief, which scales the result.
+       evalNoise returns [-1,1] where the built-in path returns [0,1], hence
+       the halved scale instead of the -0.5 offset. */
+    rock = evalNoise(d, uNP)*0.5*uNAmp;
+    applyContinents(d, rock, cont);
+  } else ` : '  '}if (uMode == 0 || uMode == 3){
+    /* Both planet inits share one domain warp and differ only in the generator
+       they warp: fBm gives rounded relief, RIDGED gives creased sinuous ridge
+       lines with branching and en-echelon offsets. Warping the sample position
+       by a second noise field before taking the ridge is what produces those
+       long crease-lines — unwarped ridged noise is only lumps. */
+    vec3 q = d*uNFreq + uSeed;
+    vec3 w = vec3(fbm(q*0.7 +  3.1, 3),
+                  fbm(q*0.7 + 13.7, 3),
+                  fbm(q*0.7 + 29.3, 3)) - 0.5;
+    float g = (uMode == 3) ? ridged(q + w*uNWarp, uNOct)
+                           : fbm(q + w*uNWarp, uNOct);
+    rock = (g - 0.5)*uNAmp;
+    applyContinents(d, rock, cont);
   } else if (uMode == 1){
     rock = 0.010;                       // flat test — a perfectly uniform shell
   } else {
@@ -1159,6 +2078,9 @@ uniform sampler2DArray uT;
 uniform int uFace;
 uniform vec3 uCentre;
 uniform float uRad, uDepth, uPeak, uEjecta;
+/* crater shape — defaults below reproduce the original hardcoded constants
+   exactly; the impact designer exposes these as sliders. See impact-designer.js. */
+uniform float uBowlExp, uPeakWidthFrac, uRimStart, uRimEnd, uRimGain, uEjectaExp, uRMaxMult;
 out vec4 o;
 
 void main(){
@@ -1171,23 +2093,23 @@ void main(){
 
   float a    = acos(clamp(dot(d, uCentre), -1.0, 1.0));   // angular distance
   float R    = uRad;
-  float Rmax = R*3.0;
+  float Rmax = R*uRMaxMult;
   if (a > Rmax){ o = me; return; }
 
   float D  = uDepth;
-  float ps = R*0.22;                                       // central-peak width
+  float ps = R*uPeakWidthFrac;                             // central-peak width
   float P  = uPeak;
   float E  = uEjecta;      // solved on the CPU against sin(a)·da, taper included
 
   float dh;
   if (a < R){
     float x = a/R;
-    dh = -D*(1.0 - x*x);                                   // parabolic bowl
+    dh = -D*(1.0 - pow(x, uBowlExp));                      // bowl
     dh += P*exp(-(a*a)/(ps*ps));                           // central peak
-    dh += E*smoothstep(0.75, 1.0, x)*0.9;                  // raised rim
+    dh += E*smoothstep(uRimStart, uRimEnd, x)*uRimGain;     // raised rim
   } else {
     float x = a/R;
-    dh = E*pow(x, -3.0)*smoothstep(Rmax, R, a);            // ejecta blanket
+    dh = E*pow(x, uEjectaExp)*smoothstep(Rmax, R, a);       // ejecta blanket
   }
 
   float tc = me.z, sed = me.y;
@@ -1202,12 +2124,77 @@ void main(){
   o = vec4(isoH(tc), max(sed, 0.0), tc, me.w);
 }`;
 
+/* ══════════════ orogen fold displacement, baked not grown ══════════════
+   Uplift is a RATE: it can only ever accumulate, so a range built that way
+   takes thousands of steps to appear. Measured, the peak grew 9 % over 1200
+   steps — correct, and far too slow to watch.
+
+   This is the other mechanism. The fold displacement is a FUNCTION of the
+   current pressure field, so it is present the instant the pressure is. It is
+   written into the crust as a delta against whatever this pass wrote last
+   time, which is why FD is kept: applying the target directly every rebuild
+   would add it again and again and ramp without bound.
+
+   The pressure field is violently long-tailed — measured over 240k samples,
+   p90 = 0, p99 = 14.6, max = 300 — so a linear map would show nothing at all
+   outside a handful of texels. uThr/uSat smoothstep it instead; at 1 -> 25
+   that selects roughly the top 2-3 % of the sphere, which is the orogen. */
+const FS_FOLDTARGET_SRC = (NOISE_GLSL) => `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+${NOISE_GLSL || ''}
+uniform sampler2DArray uPG;
+uniform int uFace;
+uniform float uOroH, uThr, uSat;
+${NOISE_GLSL ? 'uniform NoiseParams uNP;' : ''}
+out vec4 o;
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 p = normalize(faceToDir(uFace, s));
+  float pg = texelFetch(uPG, ivec3(gl_FragCoord.xy, uFace), 0).x;
+  float w = smoothstep(uThr, uSat, pg);
+  float d = 0.0;
+${NOISE_GLSL ? `  if (w > 0.0){
+    int i1, i2; float d1, d2;
+    nearestPlates(p, i1, i2, d1, d2);
+    // material position, so the folding rides the crust rather than the rock
+    // sliding through a pattern nailed to space. [-1,1] mapped to [0,1]: folds
+    // only ever ADD relief, they never excavate.
+    float n = evalNoise(matPos(p, i1), uNP)*0.5 + 0.5;
+    d = w*uOroH*n;
+  }` : ''}
+  o = vec4(d, 0.0, 0.0, 1.0);
+}`;
+
+/* Apply the change since the last bake. Working in crustal thickness rather
+   than surface height keeps isostasy the single owner of the surface: h stays
+   isoH(tc), so nothing here can put the two out of step. */
+const FS_FOLDAPPLY = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${HALO}
+uniform sampler2DArray uT, uNew, uOld;
+uniform int uFace;
+out vec4 o;
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec4 hh; if (haloFill(uT, s, uFace, hh)){ o = hh; return; }
+  ivec3 t = ivec3(gl_FragCoord.xy, uFace);
+  vec4 me = texelFetch(uT, t, 0);
+  float dNew = texelFetch(uNew, t, 0).x;
+  float dOld = texelFetch(uOld, t, 0).x;
+  float tc = me.z + (dNew - dOld)/max(uIsoK, 1e-4);
+  o = vec4(isoH(tc), me.y, tc, me.w);
+}`;
+
 /* ─────────────────── render: raymarch the displaced shell ─────────────────── */
 const FS_RENDER = `#version 300 es
 precision highp float; precision highp sampler2DArray;
 ${COMMON}
 ${PLATES}
-uniform sampler2DArray uT, uF, uU;
+uniform sampler2DArray uT, uF, uU, uDV, uPG;
+uniform float uPThr, uPSoft, uPExt;
 uniform vec3 uEye, uFwd, uRight, uUp, uSun;
 uniform vec2 uRes;
 uniform float uTanFov, uSteps, uSea, uR, uHmax;
@@ -1313,6 +2300,60 @@ vec3 palette(vec3 p, vec3 n, vec2 h, float q, float up){
                      : mix(rgb, vec3(0.16,0.34,0.62), 0.62)*0.55;
     float margin = 1.0 - smoothstep(0.0, 0.030, db);
     return mix(base, vec3(1.0,0.98,0.94), margin*margin);
+  }
+  if (uShade == 7){
+    /* Pressure — the signed quantity the whole tectonic source is built on.
+       −∇·v: positive where plates converge and crust is being squeezed, negative
+       where they part and it is being pulled open.
+
+       Diverging map with a neutral midpoint, because the sign is the whole point
+       and zero must read as "nothing happening" rather than as a colour. Warm
+       for compression, cool for extension, and deliberately not red/green.
+
+       tanh, not a linear scale: |∇·v| peaks near 200 inside a shear zone while
+       plate interiors sit at ~0, so a linear ramp would show a few bright
+       filaments on a flat grey planet and hide the entire structure. */
+    // compression comes from the PROPAGATED field, extension from the raw one:
+    // otherwise this view shows a razor line and hides the gradient entirely,
+    // which is exactly what it did while the echo lived only in the source.
+    vec2 pgv = fetchDir(uPG, normalize(p)).xy;
+    float pr = pgv.x > pgv.y ? pgv.x : -pgv.y;   // one channel each
+    // extension is driven harder than compression: a rift is a narrow, violent
+    // thing next to a collision belt, and at equal gain it reads as the fainter
+    // of the two purely because it covers less ground
+    if (pr < 0.0) pr *= uPExt;
+    float t = tanh(pr/25.0);                        // −1 extension … +1 compression
+    /* Hard edge. Narrowing the blend alone cannot deliver one: the finite-volume
+       divergence averages ½(v_C+v_N) across every edge, so even a true velocity
+       step spreads into the neighbouring cells, and the ramp then fades it
+       further. A THRESHOLD is what makes a region have a boundary. */
+    t = sign(t)*smoothstep(uPThr, uPThr + max(uPSoft, 0.005), abs(t));
+    vec3 warm = vec3(0.86, 0.30, 0.16);             // compression, high pressure
+    vec3 cool = vec3(0.16, 0.46, 0.78);             // extension, low pressure
+    vec3 mid  = vec3(0.62, 0.62, 0.63);
+    vec3 c = t > 0.0 ? mix(mid, warm, t) : mix(mid, cool, -t);
+    // keep a little shading so the sphere still reads as a sphere
+    return c*(0.72 + 0.28*clamp(dot(n, normalize(p)), 0.0, 1.0));
+  }
+  if (uShade == 6){
+    // The motion field itself. Evaluated analytically rather than sampled from
+    // VF, so it stays correct for every source, not only source 3 — direction
+    // to hue, speed to value. Each plate reads as its own colour because each
+    // has its own Euler pole, and the blend across a margin is visible as the
+    // gradient between two of them: that gradient IS the shear zone whose
+    // divergence drives the uplift.
+    vec3 dd = normalize(p);
+    int i1, i2; float d1, d2;
+    nearestPlates(dd, i1, i2, d1, d2);
+    float db = 0.5*(d2 - d1);
+    vec3 v1 = cross(plateOmega(i1), dd), v2 = cross(plateOmega(i2), dd);
+    vec3 v  = mix(0.5*(v1 + v2), v1, smoothstep(0.0, max(uBWidth,1e-3), db));
+    float sp = length(v);
+    vec3 e1, e2; basis(dd, e1, e2);
+    float ang = atan(dot(v, e2), dot(v, e1));           // heading in the tangent plane
+    float hue = ang/6.2831853 + 0.5;
+    vec3 rgb = clamp(abs(mod(hue*6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    return rgb*(0.25 + 0.75*clamp(sp/1.2, 0.0, 1.0));
   }
   if (uShade == 4){
     int f; vec2 s; dirToFace(normalize(p), f, s);
@@ -1469,7 +2510,47 @@ void main(){
 /* ═══════════════════════════ programs ═══════════════════════════ */
 const pMetric = prog(VS_QUAD, FS_METRIC);
 const pUpl    = prog(VS_QUAD, FS_UPLIFT);
-const pInit   = prog(VS_QUAD, FS_INIT);
+const pInit   = prog(VS_QUAD, FS_INIT_SRC(''));
+/* One init program per custom noise preset, compiled on first use and cached.
+   omitShared drops the library's copies of hash13/vnoise/fbm/ridged, which
+   COMMON above already declares — they are byte-identical, so this is a
+   redefinition fix, not a behaviour change. */
+const customInitProgs = new Map();
+/* Declared here, not next to the UI wiring: buildTerrain() runs during init,
+   long before the control panel is hooked up, and a `let` in TDZ would throw. */
+/* Two noises, and only two.
+
+   INITIAL — the planet's starting relief, chosen in the Init selector. Built-in
+   fBm or ridged, one of the saved presets, or off entirely (flat shell) for
+   testing what tectonics builds on its own.
+
+   FOLDING — hardcoded. The compiled-in Mountains preset, baked into the
+   high-pressure region and nowhere else. No selector, because it is not a
+   choice: it is what an orogen looks like in this model. Change it by editing
+   presets-builtin.js.                                                        */
+let activeNoisePreset = null;     // starting terrain, planet-wide (FS_INIT)
+
+function noiseParamsNow(){
+  if (!activeNoisePreset) return null;
+  return Object.assign({}, activeNoisePreset, { freq: P.nFreq });
+}
+const OROGEN_PRESET = (function(){
+  const B = window.OrogenyBuiltinPresets;
+  const p = B && B.noise.find(x => x.defaultFor === 'orogen');
+  return p ? p.np : null;
+})();
+function orogenParamsNow(){ return OROGEN_PRESET; }
+function initProgramFor(np){
+  if (!np || !window.OrogenyNoise) return null;
+  const key = window.OrogenyNoise.glslKey(np);
+  if (customInitProgs.has(key)) return customInitProgs.get(key);
+  let p = null;
+  try {
+    p = prog(VS_QUAD, FS_INIT_SRC(window.OrogenyNoise.glslForParams(np, {omitShared:true})));
+  } catch(e){ console.error('custom terrain-noise program failed', e); }
+  customInitProgs.set(key, p);    // cache failures too, so we retry only once
+  return p;
+}
 const pStep   = prog(VS_QUAD, FS_STEP);
 const pDrop   = prog(VS_QUAD, FS_DROP);
 const pDropB  = prog(VS_QUAD, FS_DROPB);
@@ -1480,6 +2561,40 @@ const pImpact = prog(VS_QUAD, FS_IMPACT);
 const pPlInit = prog(VS_QUAD, FS_PLINIT);
 const pPlAdv  = prog(VS_QUAD, FS_PLADV);
 const pUpFld  = prog(VS_QUAD, FS_UPFIELD);
+const pVField = prog(VS_QUAD, FS_VFIELD);
+const pDiverge= prog(VS_QUAD, FS_DIVERGE);
+const pPgSeed = prog(VS_QUAD, FS_PGSEED);
+const pPgProp = prog(VS_QUAD, FS_PGPROP);
+const pUpDiv  = prog(VS_QUAD, FS_UPDIV_SRC(''));
+/* Same lazy-cache pattern as the init program: one uplift shader per noise
+   preset, compiled on first use, falling back to the plain one on failure. */
+const pFoldApply = prog(VS_QUAD, FS_FOLDAPPLY);
+const customFoldProgs = new Map();
+function foldTargetProgramFor(np){
+  if (!np || !window.OrogenyNoise) return null;
+  const key = window.OrogenyNoise.glslKey(np);
+  if (customFoldProgs.has(key)) return customFoldProgs.get(key);
+  let p = null;
+  try {
+    p = prog(VS_QUAD, FS_FOLDTARGET_SRC(window.OrogenyNoise.glslForParams(np, {omitShared:true})));
+  } catch(e){ console.error('fold-displacement program failed', e); }
+  customFoldProgs.set(key, p);
+  return p;
+}
+const customUpDivProgs = new Map();
+function upDivProgramFor(np){
+  if (!np || !window.OrogenyNoise) return null;
+  const key = window.OrogenyNoise.glslKey(np);
+  if (customUpDivProgs.has(key)) return customUpDivProgs.get(key);
+  let p = null;
+  try {
+    p = prog(VS_QUAD, FS_UPDIV_SRC(window.OrogenyNoise.glslForParams(np, {omitShared:true})));
+  } catch(e){ console.error('custom orogen-noise program failed', e); }
+  customUpDivProgs.set(key, p);
+  return p;
+}
+const pAdvect = prog(VS_QUAD, FS_ADVECT);
+const pMacc   = prog(VS_QUAD, FS_MACC);
 const pRender = prog(VS_QUAD, FS_RENDER);
 const pDSeed  = prog(VS_QUAD, FS_DSEED);
 
@@ -1490,13 +2605,19 @@ const fb2 = gl.createFramebuffer();
 
 /* ═══════════════════════════ resources ═══════════════════════════ */
 let T = [], F = [], S = null, M = null, MA = null, Uf = null, PL = [];   // field textures
+let PG = [], pgcur = 0;                 // propagated pressure, ping-ponged
+let FD = [], fdcur = 0;                 // fold displacement already baked into the crust
+let VF = null, DVF = null, TA = null;   // plate velocity, its divergence, advection scratch
+let SF = [];                            // (shortening strain, fold axis in material space)
 let DP = [], DV = [], DE = null;                     // droplet textures
-let cur = 0, NT = 0, AREF = 1, UMEAN = 0, plateAngle = 0;
+let cur = 0, NT = 0, AREF = 1, UMEAN = 0, plateAngle = 0, crustAngle = 0;
+let UMEAN_RAW = 0, SRC_NORM = 1;   // the field's own mean, and its magnitude normaliser
+let advAccum = 0, advPasses = 0;   // angle banked since the last crust resample
 let frameNo = 0, simTime = 0;
 
 function freeAll(){
-  [...T, ...F, ...PL, S, M, MA, Uf, ...DP, ...DV, DE].forEach(t => { if(t) gl.deleteTexture(t); });
-  T=[]; F=[]; PL=[]; S=null; M=null; MA=null; Uf=null; DP=[]; DV=[]; DE=null;
+  [...T, ...F, ...PL, ...SF, ...PG, S, M, MA, Uf, VF, DVF, TA, ...DP, ...DV, DE].forEach(t => { if(t) gl.deleteTexture(t); });
+  T=[]; F=[]; PL=[]; SF=[]; PG=[]; FD=[]; S=null; M=null; MA=null; Uf=null; VF=null; DVF=null; TA=null; DP=[]; DV=[]; DE=null;
 }
 
 function allocate(n, pd){
@@ -1522,6 +2643,28 @@ function allocate(n, pd){
   Uf =  tex2DArray(NT,NT,6, gl.R16F,    gl.RED,  gl.HALF_FLOAT, f);
   PL = [tex2DArray(NT,NT,6, gl.RG32F,   gl.RG,   gl.FLOAT, gl.NEAREST),   // plate id, crust type
         tex2DArray(NT,NT,6, gl.RG32F,   gl.RG,   gl.FLOAT, gl.NEAREST)];
+  // Plate velocity ω×p (xyz) with the owning plate id in w, and its divergence.
+  // 32-bit: the divergence is a difference of nearly equal velocities divided by
+  // a cell area, which is exactly the arrangement half-float cancels away.
+  VF  = tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f);
+  DVF = tex2DArray(NT,NT,6, gl.R32F,    gl.RED,  gl.FLOAT, gl.NEAREST);
+  // .x HIGH pressure (compression, propagated) · .y LOW pressure (extension,
+  // raw and sharp). Two channels so work on one cannot disturb the other.
+  PG  = [tex2DArray(NT,NT,6, gl.RG32F, gl.RG, gl.FLOAT, f),
+         tex2DArray(NT,NT,6, gl.RG32F, gl.RG, gl.FLOAT, f)];
+  // Fold displacement CURRENTLY BAKED INTO THE CRUST, in surface-height units.
+  // Kept so the bake can be applied as a delta against what is already there
+  // rather than added again every rebuild, which would ramp without limit.
+  FD  = [tex2DArray(NT,NT,6, gl.R32F, gl.RED, gl.FLOAT, f),
+         tex2DArray(NT,NT,6, gl.R32F, gl.RED, gl.FLOAT, f)];
+  // one scratch layer for the MacCormack round trip; the reverse trace is done
+  // inline in the combine pass so a second is not needed
+  TA  = tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f);
+  // (strain, fold axis xyz). The axis is a 3-vector in material space rather
+  // than an angle in a local basis: angles wrap, and blending two of them while
+  // advecting produces nonsense wherever the basis flips.
+  SF  = [tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f),
+         tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f)];
   DP = [tex2D(PD,PD, gl.RGBA32F), tex2D(PD,PD, gl.RGBA32F)];
   DV = [tex2D(PD,PD, gl.RGBA32F), tex2D(PD,PD, gl.RGBA32F)];
   DE =  tex2D(PD,PD, gl.RGBA32F);
@@ -1551,6 +2694,12 @@ function setPlates(p){
   gl.uniform1f(U(p,'uBWidth'), P.bwidth);
   gl.uniform1f(U(p,'uContFrac'), P.contFrac);
   gl.uniform1f(U(p,'uArcOff'), P.arcOff);
+  gl.uniform1f(U(p,'uWarp'), P.warp);
+  gl.uniform1f(U(p,'uRough'), P.rough);
+  // Only the motion-vector source moves its seeds; 1 is static by definition and
+  // 2 drifts by advecting its id field instead.
+  gl.uniform1f(U(p,'uPTime'), P.source === 3 ? plateAngle : 0);
+  gl.uniform1f(U(p,'uCTime'), P.source === 3 ? crustAngle : 0);
 }
 function drawQuad(){ gl.drawArrays(gl.TRIANGLES, 0, 3); }
 
@@ -1582,6 +2731,17 @@ function buildMetric(){
   gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, null, 0, 0);
   gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
 }
+/* Area-weighted mean and mean-|·| of the source field. The mean is what makes it
+   integrate to zero over the sphere; the mean-|·| is what sets its magnitude. */
+function fieldStats(){
+  const u = readAll(Uf), a = readAll(MA);
+  let su = 0, sa = 0, sabs = 0;
+  for(let f=0; f<6; f++) for(let j=1; j<=N; j++) for(let i=1; i<=N; i++){
+    const k = (j*NT+i)*4, w = a[f][k];
+    su += u[f][k]*w; sabs += Math.abs(u[f][k])*w; sa += w;
+  }
+  return { mean: su/sa, meanAbs: sabs/sa };
+}
 function buildUplift(flat){
   gl.useProgram(pUpl); setGrid(pUpl);
   gl.uniform1f(U(pUpl,'uBelt'), P.belt);
@@ -1594,22 +2754,72 @@ function buildUplift(flat){
   for(let f=0; f<6; f++){ bindLayer(fb, Uf, f); gl.uniform1i(U(pUpl,'uFace'), f); drawQuad(); }
 
   // area-weighted mean, so the source term integrates to zero over the sphere
-  const u = readAll(Uf), a = readAll(MA);
-  let su = 0, sa = 0;
-  for(let f=0; f<6; f++) for(let j=1; j<=N; j++) for(let i=1; i<=N; i++){
-    const k = (j*NT+i)*4; su += u[f][k]*a[f][k]; sa += a[f][k];
-  }
-  UMEAN = su/sa;
+  UMEAN = fieldStats().mean;
+  SRC_NORM = 1;              // these paths set their own scale; only the field path is normalised
+}
+/* Bake the fold displacement into the crust as a delta against the last bake.
+   Runs after every pressure rebuild, so the ranges track the orogen instead of
+   being laid down once and left behind by it. */
+const OROGEN_THR = 1.0, OROGEN_SAT = 25.0;   // from the measured pressure distribution
+function bakeFold(){
+  const np = orogenParamsNow();
+  const pT = np ? foldTargetProgramFor(np) : null;
+  if (!pT || !T.length || !FD.length) return;
+
+  gl.disable(gl.BLEND);
+  gl.useProgram(pT); setGrid(pT); setPlates(pT);
+  gl.uniform1i(U(pT,'uPG'), unit(0, PG[pgcur]));
+  gl.uniform1f(U(pT,'uOroH'), P.oroH);
+  gl.uniform1f(U(pT,'uThr'), OROGEN_THR);
+  gl.uniform1f(U(pT,'uSat'), OROGEN_SAT);
+  window.OrogenyNoise.uploadNoiseParams(gl, pT, 'uNP', np);
+  gl.viewport(0,0,NT,NT);
+  for(let f=0; f<6; f++){ bindLayer(fb, FD[1-fdcur], f); gl.uniform1i(U(pT,'uFace'), f); drawQuad(); }
+
+  gl.useProgram(pFoldApply); setGrid(pFoldApply);
+  gl.uniform1i(U(pFoldApply,'uT'),   unit(0, T[cur]));
+  gl.uniform1i(U(pFoldApply,'uNew'), unit(1, FD[1-fdcur]));
+  gl.uniform1i(U(pFoldApply,'uOld'), unit(2, FD[fdcur]));
+  for(let f=0; f<6; f++){ bindLayer(fb, T[1-cur], f); gl.uniform1i(U(pFoldApply,'uFace'), f); drawQuad(); }
+  cur = 1-cur; fdcur = 1-fdcur;
+}
+/* buildTerrain rewrites tc from scratch, so anything previously baked is gone
+   with it. The record has to be cleared too or the next bake would subtract a
+   displacement that is no longer in the crust and dig holes. */
+function clearFold(){
+  if (!FD.length) return;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.clearColor(0,0,0,0);
+  for(const t of FD) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.clear(gl.COLOR_BUFFER_BIT); }
+}
+// No strain and no fold axis on a fresh planet; both are things the run earns.
+function clearStrain(){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.clearColor(0,0,0,0);
+  for(const t of SF) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.clear(gl.COLOR_BUFFER_BIT); }
 }
 function buildTerrain(){
-  gl.useProgram(pInit); setGrid(pInit);
-  gl.uniform1f(U(pInit,'uSeed'), seed*0.0031);
-  gl.uniform1i(U(pInit,'uMode'), P.initMode);
-  gl.uniform1i(U(pInit,'uSource'), P.source);
-  setPlates(pInit);
+  /* A selected noise preset swaps in its own specialized program and mode 4.
+     If that program failed to compile we fall back to the built-in path rather
+     than rendering nothing — and say so, instead of failing silently. */
+  const npNow = noiseParamsNow();
+  const custom = npNow ? initProgramFor(npNow) : null;
+  const pI = custom || pInit;
+  gl.useProgram(pI); setGrid(pI);
+  gl.uniform1f(U(pI,'uSeed'), seed*0.0031);
+  gl.uniform1i(U(pI,'uMode'), custom ? 4 : P.initMode);
+  gl.uniform1f(U(pI,'uNFreq'), P.nFreq);
+  gl.uniform1f(U(pI,'uNWarp'), P.nWarp);
+  gl.uniform1f(U(pI,'uNAmp'), P.nAmp);
+  gl.uniform1i(U(pI,'uNOct'), P.nOct);
+  gl.uniform1i(U(pI,'uSource'), P.source);
+  if (custom) window.OrogenyNoise.uploadNoiseParams(gl, pI, 'uNP', npNow);
+  setPlates(pI);
   gl.viewport(0,0,NT,NT);
-  for(const t of T) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.uniform1i(U(pInit,'uFace'), f); drawQuad(); }
+  for(const t of T) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.uniform1i(U(pI,'uFace'), f); drawQuad(); }
   for(const t of F) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
+  clearFold();          // fresh crust carries no baked folding
+  if (P.source === 3) bakeFold();   // ...then put the current orogen straight back in
 }
 function seedDroplets(){
   gl.useProgram(pDSeed);
@@ -1646,23 +2856,187 @@ function advectPlates(){
   gl.viewport(0,0,NT,NT);
   for(let f=0; f<6; f++){ bindLayer(fb, PL[1], f); gl.uniform1i(U(pPlAdv,'uFace'), f); drawQuad(); }
 }
-function upliftFromField(){
+/* `measure` re-reads the field's statistics, which costs a full 6 × (N+2)²
+   readback and a pipeline stall. Do it when the geometry or the sliders change,
+   not on the periodic rebuild: margins migrate 5 % of cells in 6,000 steps, so
+   the mean is near-stationary between rebuilds — the same amortisation argument
+   as PLATE_EVERY itself. */
+function upliftFromField(measure){
   gl.disable(gl.BLEND);
   gl.useProgram(pUpFld); setGrid(pUpFld); setPlates(pUpFld);
   gl.uniform1i(U(pUpFld,'uPL'), unit(0, PL[1]));   // the drifted field
   gl.uniform1i(U(pUpFld,'uSubduct'), P.subduct);
+  // Reach far enough for the sliders to mean what they say. The belt is a
+  // Gaussian of σ = bwidth and the arc peaks at arcOff, so the field has to see
+  // arcOff + 2.5σ; at 512² that is ~55 cells against a stride-1 window's 5.
+  // Tier 1 stays exact out to 5; tier 2 strides so its ±6 window covers the rest.
+  const cellArc = 1.5708/N;
+  const need    = (P.arcOff + 2.5*P.bwidth)/cellArc;
   gl.uniform1f(U(pUpFld,'uScanR'), 5.0);
+  gl.uniform1f(U(pUpFld,'uScanK'), Math.max(1, Math.ceil(need/6)));
   gl.viewport(0,0,NT,NT);
   for(let f=0; f<6; f++){ bindLayer(fb, Uf, f); gl.uniform1i(U(pUpFld,'uFace'), f); drawQuad(); }
+
+  if (measure){
+    const st = fieldStats();
+    UMEAN_RAW = st.mean;
+    // Hold the total tectonic throughput fixed against belt width. Widening the
+    // belt widens every term at once, so before this the uBWidth slider set the
+    // AMOUNT of uplift as well as its shape — and the scan fix, by letting the
+    // belt reach its designed width, multiplied mean-|u| by 2.74× on its own.
+    SRC_NORM = SRC_REF/Math.max(st.meanAbs, 1e-9);
+  }
   // With subduction on, crust legitimately exchanges with the mantle — created
   // at ridges, consumed at trenches — so forcing the source term to zero mean
-  // would be wrong. The budget is reported instead of imposed.
-  UMEAN = P.subduct ? 0 : UMEAN;
+  // would be wrong. The budget is reported instead of imposed. With it off the
+  // mean IS subtracted, and until now that used a stale UMEAN left behind by the
+  // noise path — this path never measured its own field.
+  UMEAN = P.subduct ? 0 : UMEAN_RAW;
 }
 
-// source 0 = noise belts, 1 = analytic plates (static margins), 2 = advected plates
+/* Motion-vector source: velocity → divergence → uplift. Nothing is advected and
+   no id field exists — the seeds themselves move, so the Voronoi drifts and the
+   margin distance stays analytic. Three passes, all amortised at PLATE_EVERY. */
+function buildMotion(measure){
+  gl.disable(gl.BLEND);
+  gl.viewport(0,0,NT,NT);
+
+  gl.useProgram(pVField); setGrid(pVField); setPlates(pVField);
+  gl.uniform1f(U(pVField,'uBlendC'), P.blendC);
+  gl.uniform1f(U(pVField,'uBlendD'), P.blendD);
+  for(let f=0; f<6; f++){ bindLayer(fb, VF, f); gl.uniform1i(U(pVField,'uFace'), f); drawQuad(); }
+
+  gl.useProgram(pDiverge); setGrid(pDiverge);
+  gl.uniform1i(U(pDiverge,'uVF'), unit(0, VF));
+  gl.uniform1i(U(pDiverge,'uA'),  unit(1, MA));
+  gl.uniform1f(U(pDiverge,'uR'), R0);
+  for(let f=0; f<6; f++){ bindLayer(fb, DVF, f); gl.uniform1i(U(pDiverge,'uFace'), f); drawQuad(); }
+
+  /* Seed the sharp compression spike, then march it downstream. Steps double,
+     so K passes reach 2^K cells: 6 passes cover 63. Decay is exp(-step/L) per
+     pass, which composes to exp(-d/L) at distance d however the steps are
+     split — the profile does not depend on how the reach is chunked. */
+  const cellArcN = 1.5708/N;
+  const reach = Math.max(P.echoL/cellArcN, 1e-3);          // reach, in cells
+  gl.useProgram(pPgSeed); setGrid(pPgSeed);
+  gl.uniform1i(U(pPgSeed,'uDV'), unit(0, DVF));
+  for(let f=0; f<6; f++){ bindLayer(fb, PG[0], f); gl.uniform1i(U(pPgSeed,'uFace'), f); drawQuad(); }
+  pgcur = 0;
+  gl.useProgram(pPgProp); setGrid(pPgProp); setPlates(pPgProp);
+  gl.uniform1i(U(pPgProp,'uVF'), unit(1, VF));
+  for(let st=1; st<=32; st*=2){
+    gl.uniform1f(U(pPgProp,'uStep'), st);
+    gl.uniform1f(U(pPgProp,'uDecay'), Math.exp(-st/reach));
+    gl.uniform1f(U(pPgProp,'uBack'), P.backside);
+    gl.uniform1f(U(pPgProp,'uGradFlip'), P.gradFlip);
+    gl.uniform1i(U(pPgProp,'uPG'), unit(0, PG[pgcur]));
+    for(let f=0; f<6; f++){ bindLayer(fb, PG[1-pgcur], f); gl.uniform1i(U(pPgProp,'uFace'), f); drawQuad(); }
+    pgcur = 1-pgcur;
+  }
+
+  // the OROGEN preset drives this shader — not the terrain one
+  const npNow = orogenParamsNow();
+  const pUD = (npNow && upDivProgramFor(npNow)) || pUpDiv;
+  gl.useProgram(pUD); setGrid(pUD); setPlates(pUD);
+  gl.uniform1i(U(pUD,'uDV'), unit(0, DVF));
+  gl.uniform1i(U(pUD,'uSF'), unit(3, SF[cur]));
+  gl.uniform1i(U(pUD,'uPG'), unit(5, PG[pgcur]));
+  gl.uniform1f(U(pUD,'uFoldAmp'), P.foldAmp);
+  gl.uniform1f(U(pUD,'uFoldFreq'), P.foldFreq);
+  gl.uniform1i(U(pUD,'uT'), unit(4, T[cur]));
+  gl.uniform1f(U(pUD,'uOceanTc'), OCEAN_H/P.isoK);
+  gl.uniform1f(U(pUD,'uThinK'), P.thinK);
+  gl.uniform1f(U(pUD,'uPExt'), P.pExt);
+  gl.uniform1f(U(pUD,'uEchoL'), P.echoL);
+  gl.uniform1f(U(pUD,'uEchoV'), P.echoV);
+  gl.uniform1i(U(pUD,'uSubduct'), P.subduct);
+  gl.uniform1f(U(pUD,'uOroAmp'), npNow ? P.oroAmp : 0.0);
+  if (npNow && pUD !== pUpDiv) window.OrogenyNoise.uploadNoiseParams(gl, pUD, 'uNP', npNow);
+  for(let f=0; f<6; f++){ bindLayer(fb, Uf, f); gl.uniform1i(U(pUD,'uFace'), f); drawQuad(); }
+
+  if (measure){
+    const st = fieldStats();
+    UMEAN_RAW = st.mean;
+    SRC_NORM  = SRC_REF/Math.max(st.meanAbs, 1e-9);
+  }
+  UMEAN = P.subduct ? 0 : UMEAN_RAW;
+
+  // the pressure field just changed, so the baked folding has to follow it
+  bakeFold();
+}
+
+/* Carry the crust along the plate velocity. T[cur] → T[1-cur], same ping-pong
+   shape as pass 1, so nothing downstream can tell the difference. Halo texels
+   are advected too rather than refilled from a neighbour: the backtrace is
+   position-based, so it is already correct outside the face. */
+function advSetup(p, a){
+  // setPlates is not optional: the transport velocity is plateOmega(id), and
+  // plateOmega is seeded from uPSeed. Omitting it silently builds the motion
+  // from a DIFFERENT random draw than VF itself was built from — the field
+  // stays discontinuous per plate, so a scarp test still passes and nothing
+  // looks wrong, while the crust moves the wrong way.
+  setGrid(p); setPlates(p);
+  gl.uniform1i(U(p,'uVF'), unit(1, VF));
+  gl.uniform1i(U(p,'uDV'), unit(2, DVF));
+  gl.uniform1i(U(p,'uSubduct'), P.subduct);
+  gl.uniform1f(U(p,'uAdv'), a);
+  gl.uniform1f(U(p,'uComp'), P.comp);
+  gl.uniform1f(U(p,'uNewTc'), NEW_CRUST_H/P.isoK);
+  gl.uniform1f(U(p,'uNewK'), P.newk);
+  gl.uniform1f(U(p,'uStrainK'), P.strainK);
+}
+/* MacCormack. The plain backtrace is first order and its error is pure
+   diffusion, which for a crater rim at ~8 cells across costs about 10 % of the
+   amplitude PER PASS — so a rim measured by global spread looked healthy while
+   in fact it was being sanded flat. Advect forward, advect the result back, and
+   the round trip's error estimates what the first pass lost:
+
+     q̂ = A(qⁿ) ,  q̃ = A⁻¹(q̂) ,  qⁿ⁺¹ = q̂ + (qⁿ − q̃)/2
+
+   The reverse trace is computed inline here rather than in its own pass, so one
+   scratch texture suffices instead of two.
+
+   The limiter is NOT optional. Part A deliberately puts discontinuities at
+   faults, and unlimited MacCormack overshoots hardest exactly at
+   discontinuities. Clamping to the range of the four texels the bilinear fetch
+   actually used degrades it to first order there, which is the correct
+   behaviour at a fault. */
+function advectCrust(a){
+  gl.disable(gl.BLEND);
+  gl.viewport(0,0,NT,NT);
+
+  // The forward pass carries BOTH fields: crust to target 0, strain and fold
+  // axis to target 1. Only the crust gets the MacCormack correction — strain
+  // and axis are smooth, so first order costs nothing that shows.
+  gl.useProgram(pAdvect); advSetup(pAdvect, a);
+  gl.uniform1i(U(pAdvect,'uT'),  unit(0, T[cur]));
+  gl.uniform1i(U(pAdvect,'uSF'), unit(4, SF[cur]));
+  const dst = P.macc ? TA : T[1-cur];
+  for(let f=0; f<6; f++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, dst,      0, f);
+    gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, SF[1-cur],0, f);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+    gl.uniform1i(U(pAdvect,'uFace'), f); drawQuad();
+  }
+  gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, null, 0, 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  if (!P.macc){ cur = 1-cur; return; }        // first-order only, for A/B
+
+  gl.useProgram(pMacc); advSetup(pMacc, a);
+  gl.uniform1i(U(pMacc,'uT'),  unit(0, T[cur]));
+  gl.uniform1i(U(pMacc,'uTA'), unit(3, TA));
+  for(let f=0; f<6; f++){ bindLayer(fb, T[1-cur], f); gl.uniform1i(U(pMacc,'uFace'), f); drawQuad(); }
+  cur = 1-cur;
+}
+
+// 0 = noise belts, 1 = analytic plates (static), 2 = advected id field, 3 = motion vectors
 function buildSource(){
-  if (P.source === 2){ buildPlateField(); upliftFromField(); }
+  // source 2 resets the clock inside buildPlateField; 3 has no field to seed,
+  // so it resets here. Without this, switching 2 → 3 inherits 2's accumulated
+  // angle and the new source starts already drifted.
+  if      (P.source === 3){ plateAngle = 0; crustAngle = 0; buildMotion(true); }
+  else if (P.source === 2){ buildPlateField(); upliftFromField(true); }
   else buildUplift(false);
 }
 
@@ -1670,8 +3044,9 @@ function rebuild(n, pd){
   const got = tryAllocate(n, pd);
   if (got !== n) note('grid fell back to 6 × '+got+'²  (out of memory)', 'bad');
   gl.disable(gl.BLEND);
+  clearStrain();
   buildMetric(); buildSource(); buildTerrain(); seedDroplets();
-  cur = 0; frameNo = 0; simTime = 0;
+  cur = 0; frameNo = 0; simTime = 0; advAccum = 0; advPasses = 0; crustAngle = 0;
 }
 
 /* ═══════════════════════════ simulation step ═══════════════════════════ */
@@ -1683,7 +3058,42 @@ function substep(dt){
   // Amortised, because margins migrate far slower than the framerate.
   if (P.source === 2 && P.tectonics){
     plateAngle += P.drift*DRIFT_SCALE*dt;
-    if (frameNo % PLATE_EVERY === 0){ advectPlates(); upliftFromField(); }
+    if (frameNo % PLATE_EVERY === 0){ advectPlates(); upliftFromField(false); }
+  }
+  // 0 — motion vectors: the seeds move, so the whole field is rebuilt from the
+  // accumulated angle. No advection step to compound, so nothing here can lock up.
+  /* Two clocks, deliberately separate — they were one number, which conflated
+     two different things:
+
+       plateAngle  the SEEDS migrate, so the Voronoi deforms. This is the plate
+                   CONFIGURATION changing: boundaries sweeping, cells reshaping.
+       crustAngle  the crust TRAVELS along the velocity field. This is how fast
+                   landmasses actually move across the sphere.
+
+     Physically they are coupled — rigid plates carry their own boundaries — but
+     as controls they are worth splitting: a fixed configuration with crust
+     streaming through it is a legitimate steady state, and so is a slow crust
+     under rapidly reorganising boundaries. */
+  if (P.source === 3 && P.tectonics){
+    plateAngle += P.drift*DRIFT_SCALE*dt;
+    advAccum   += P.plateSpeed*DRIFT_SCALE*dt;
+    crustAngle += P.plateSpeed*DRIFT_SCALE*dt;
+    if (frameNo % PLATE_EVERY === 0) buildMotion(false);
+    // Bank the motion and spend it once the fastest plate has covered a cell.
+    // The reason is COST, not accuracy: bilinear error goes as t(1−t) in the
+    // sub-cell offset, so small hops are individually gentle and banking buys
+    // 4.7× fewer GPU passes for four hundredths of a percent of field spread.
+    //
+    // The threshold stays at ONE cell. Raising it to ~4 was planned, to cut the
+    // number of resamples a feature suffers — but MacCormack made that
+    // unnecessary: a crater rim now retains 99.3 % of its amplitude over 6,000
+    // steps at the default rate, and 95.3 % even at eight times the drift with
+    // 206 passes. A bigger hop would buy nothing measurable and would cost
+    // visible stair-stepping plus terrain misregistered against the uplift
+    // geometry by up to the threshold, against a 15-cell belt width.
+    if (advAccum*OMEGA_MAX >= 1.5708/N && P.advect){
+      advectCrust(advAccum); advAccum = 0; advPasses++;
+    }
   }
 
   // 1 — uplift + creep :  T[cur] → T[1-cur]
@@ -1695,7 +3105,7 @@ function substep(dt){
   gl.uniform1f(U(pStep,'uDt'), dt);
   // The master switches gate their own terms here rather than in the shader, so
   // pass 1 always runs and the ping-pong bookkeeping never changes shape.
-  gl.uniform1f(U(pStep,'uUplift'), P.uplift*UPLIFT_SCALE*P.tectonics);
+  gl.uniform1f(U(pStep,'uUplift'), P.uplift*UPLIFT_SCALE*P.tectonics*SRC_NORM);
   gl.uniform1f(U(pStep,'uUMean'), UMEAN);
   gl.uniform1f(U(pStep,'uLith'), P.erosion ? 0.02 : 0.0);
   gl.uniform1f(U(pStep,'uSedMax'), 0.0015);
@@ -1811,7 +3221,18 @@ function substep(dt){
   frameNo++; simTime += dt;
 }
 
-/* ═══════════════════════════ impacts ═══════════════════════════ */
+/* ═══════════════════════════ impacts ═══════════════════════════
+   Crater SHAPE — bowl exponent, peak width/height, rim window/gain, ejecta
+   falloff/reach, default depth:radius ratio — was hardcoded here; now reads
+   from craterShape, which the impact designer (impact-designer.js) can
+   replace wholesale. Defaults below are byte-identical to the original
+   literals, so leaving the crater preset on "Classic" changes nothing. */
+const CRATER_DEFAULTS = {
+  bowlExp:2.0, peakWidthFrac:0.22, peakHeightFrac:0.45, peakCutoff:0.035,
+  rimStart:0.75, rimEnd:1.0, rimGain:0.9, ejectaExp:-3.0, rMaxMult:3.0, depthRadiusRatio:0.22,
+};
+let craterShape = Object.assign({}, CRATER_DEFAULTS);
+
 function strike(dir, radius, depth){
   if (!dir){
     const z = Math.random()*2 - 1, th = Math.random()*2*Math.PI, r = Math.sqrt(Math.max(0,1-z*z));
@@ -1822,15 +3243,16 @@ function strike(dir, radius, depth){
     const u = Math.random();
     radius = P.impMin + (P.impMax - P.impMin)*Math.pow(u, 2.4);
   }
-  if (depth === undefined) depth = radius*0.22;    // depth/diameter ≈ 1:9, as observed
+  const cs = craterShape;
+  if (depth === undefined) depth = radius*cs.depthRadiusRatio;
 
   // Solve the ejecta height E so removed volume equals deposited volume, on the
   // sphere's own area element 2π·sin(a)·da and including the outer taper. Doing
   // it analytically on a flat plane, as the first version did, lost ~0.04 % of
   // the planet's volume per strike because the taper cuts blanket the balance
   // assumed was there.
-  const R = radius, Rmax = R*3.0, ps = R*0.22;
-  const peak = (R > 0.035) ? depth*0.45 : 0.0;
+  const R = radius, Rmax = R*cs.rMaxMult, ps = R*cs.peakWidthFrac;
+  const peak = (R > cs.peakCutoff) ? depth*cs.peakHeightFrac : 0.0;
   const smoothstep = (a,b,x) => { const t = Math.min(1, Math.max(0, (x-a)/(b-a))); return t*t*(3-2*t); };
   const M = 4000;
   let bowl = 0, peakV = 0, rimC = 0, blanketC = 0;
@@ -1838,11 +3260,11 @@ function strike(dir, radius, depth){
     const a = (i+0.5)/M*Rmax, da = Rmax/M, w = 2*Math.PI*Math.sin(a)*da;
     const x = a/R;
     if (a < R){
-      bowl  += depth*(1 - x*x)*w;
+      bowl  += depth*(1 - Math.pow(x, cs.bowlExp))*w;
       peakV += peak*Math.exp(-(a*a)/(ps*ps))*w;
-      rimC  += smoothstep(0.75, 1.0, x)*0.9*w;
+      rimC  += smoothstep(cs.rimStart, cs.rimEnd, x)*cs.rimGain*w;
     } else {
-      blanketC += Math.pow(x, -3)*smoothstep(Rmax, R, a)*w;
+      blanketC += Math.pow(x, cs.ejectaExp)*smoothstep(Rmax, R, a)*w;
     }
   }
   const ejecta = (bowl - peakV)/Math.max(rimC + blanketC, 1e-12);
@@ -1855,6 +3277,13 @@ function strike(dir, radius, depth){
   gl.uniform1f(U(pImpact,'uDepth'), depth);
   gl.uniform1f(U(pImpact,'uPeak'), peak);
   gl.uniform1f(U(pImpact,'uEjecta'), ejecta);
+  gl.uniform1f(U(pImpact,'uBowlExp'), cs.bowlExp);
+  gl.uniform1f(U(pImpact,'uPeakWidthFrac'), cs.peakWidthFrac);
+  gl.uniform1f(U(pImpact,'uRimStart'), cs.rimStart);
+  gl.uniform1f(U(pImpact,'uRimEnd'), cs.rimEnd);
+  gl.uniform1f(U(pImpact,'uRimGain'), cs.rimGain);
+  gl.uniform1f(U(pImpact,'uEjectaExp'), cs.ejectaExp);
+  gl.uniform1f(U(pImpact,'uRMaxMult'), cs.rMaxMult);
   gl.viewport(0,0,NT,NT);
   for(let f=0; f<6; f++){ bindLayer(fb, T[1-cur], f); gl.uniform1i(U(pImpact,'uFace'), f); drawQuad(); }
   cur = 1-cur;
@@ -1907,6 +3336,11 @@ function render(){
   gl.uniform1i(U(pRender,'uT'), unit(0, T[cur]));
   gl.uniform1i(U(pRender,'uF'), unit(1, F[0]));
   gl.uniform1i(U(pRender,'uU'), unit(2, Uf));
+  gl.uniform1i(U(pRender,'uDV'), unit(5, DVF));
+  gl.uniform1i(U(pRender,'uPG'), unit(6, PG[pgcur]));
+  gl.uniform1f(U(pRender,'uPThr'), 0.13);
+  gl.uniform1f(U(pRender,'uPSoft'), (1.0 - P.pEdge)*0.45);
+  gl.uniform1f(U(pRender,'uPExt'), P.pExt);
   gl.uniform3f(U(pRender,'uEye'), eye[0], eye[1], eye[2]);
   gl.uniform3f(U(pRender,'uFwd'), fwd[0], fwd[1], fwd[2]);
   gl.uniform3f(U(pRender,'uRight'), right[0], right[1], right[2]);
@@ -2152,9 +3586,12 @@ slider('rep','vRep','repose');
 slider('sea','vSea','sea',1,v=>v.toFixed(4));
 slider('spd','vSpd','dt');
 
+slider('oroH','vOroH','oroH',1,v=>v.toFixed(3));
+// changing the height rebakes as a delta, so it retargets rather than stacking
+$('oroH').addEventListener('change', () => { if (P.source === 3) bakeFold(); });
 slider('iso','vIso','isoK');
 $('iso').addEventListener('change', () => { buildTerrain(); seedDroplets(); frameNo = 0; massRef = null; });
-slider('imp','vImp','bombard');
+slider('imp','vImp','bombard',1,v=>v.toFixed(0));
 slider('imin','vIMin','impMin',1,v=>v.toFixed(3));
 slider('imax','vIMax','impMax',1,v=>v.toFixed(3));
 $('strike').onclick = () => { const s = strike(); note(`<b>impact</b>  radius ${s.radius.toFixed(3)} rad `
@@ -2169,20 +3606,150 @@ function toggle(id, key, after){
 toggle('onTect', 'tectonics');
 toggle('onImp',  'impacts', () => { $('strike').disabled = !P.impacts; });
 toggle('onEro',  'erosion');
+toggle('advect', 'advect');
+toggle('gradFlip', 'gradFlip', () => { if (P.source === 3) buildMotion(true); });
 
 slider('pn','vPN','plateN',1,v=>v.toFixed(0));
 slider('bw','vBW','bwidth',1,v=>v.toFixed(3));
 slider('cf','vCF','contFrac',1,v=>v.toFixed(2));
 slider('ao','vAO','arcOff',1,v=>v.toFixed(3));
+slider('warp','vWarp','warp',1,v=>v.toFixed(2));
+slider('rough','vRough','rough',1,v=>v.toFixed(2));
+slider('blendC','vBC','blendC',1,v=>v.toFixed(2));
+slider('blendD','vBD','blendD',1,v=>v.toFixed(2));
+slider('pEdge','vPE','pEdge',1,v=>v.toFixed(2));
+slider('pExt','vPX','pExt',1,v=>v.toFixed(1));
+slider('echoL','vEL','echoL',1,v=>v.toFixed(3));
 
+slider('plateSpeed','vPS','plateSpeed');
 slider('drift','vDrift','drift');
-$('subduct').onchange = e => { P.subduct = e.target.checked ? 1 : 0; if (P.source === 2) upliftFromField(); };
+$('subduct').onchange = e => {
+  P.subduct = e.target.checked ? 1 : 0;
+  if      (P.source === 3) buildMotion(true);
+  else if (P.source === 2) upliftFromField(true);
+};
+
+/* ═══════════ presets from the companion designers ═══════════
+   Storage lives in preset-store.js: a folder of .json files once one has been
+   picked, localStorage otherwise. The noise designer is a separate PAGE, so its
+   saves reach us through the store's cross-tab doorbell; the impact designer
+   runs in this document and hands back through a callback. Both paths end at
+   the same refresh, and the store also refreshes on focus in case a tab was
+   discarded. See preset-store.js for the secure-context requirement.          */
+const NOISE_KEY = 'orogeny.noisePresets', CRATER_KEY = 'orogeny.impactPresets';
+/* Both stores share the same folder-vs-localStorage machinery. They are separate
+   store instances so noise and crater presets can live in different folders, but
+   in practice you pick one folder here and the designers see the same files. */
+const noiseStore  = window.OrogenyPresets.create({ kind:'noise',  lsKey:NOISE_KEY,  onChange: () => refreshNoisePresets() });
+const craterStore = window.OrogenyPresets.create({ kind:'impact', lsKey:CRATER_KEY, onChange: () => refreshCraterPresets() });
+let noiseCache = [], craterCache = [];
+
+function fillPresetSelect(sel, list, blankLabel){
+  const keep = sel.value;
+  sel.innerHTML = '';
+  const b = document.createElement('option'); b.value = ''; b.textContent = blankLabel; sel.appendChild(b);
+  list.forEach(p => {
+    const o = document.createElement('option'); o.value = p.id;
+    o.textContent = p.name + (p.builtin ? ' · built-in' : '');
+    sel.appendChild(o);
+  });
+  sel.value = keep;
+  return sel.value === keep;      // false if the selected preset has gone away
+}
+
+/* ── the Init select doubles as the terrain-preset picker ──
+   Built-in modes carry a plain numeric value; presets carry "preset:<id>".
+   The preset list is rebuilt underneath whenever the designer saves, without
+   disturbing the current selection. */
+const INIT_NFREQ = P.nFreq;      // the built-in inits' own frequency, captured before any preset overrides it
+const INIT_BUILTIN = [
+  ['0', 'Planet — fBm relief'],
+  ['3', 'Planet — warped ridge'],
+  ['1', 'Off — flat shell'],
+  ['2', 'Isotropy test — corner vs face bump'],
+];
+async function refreshNoisePresets(){
+  const B = window.OrogenyBuiltinPresets;
+  const saved = (await noiseStore.list()).filter(p => p.mode !== 'special' && p.np);
+  // only presets meant for the terrain; the orogen one is hardcoded elsewhere
+  noiseCache = (B ? B.merge(B.noise, saved) : saved)
+    .filter(p => p.np && p.defaultFor !== 'orogen');
+
+  const sel = $('init'), keep = sel.value;
+  sel.innerHTML = '';
+  INIT_BUILTIN.forEach(([v,t]) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); });
+  noiseCache.forEach(p => {
+    const o = document.createElement('option');
+    o.value = 'preset:' + p.id;
+    o.textContent = p.name + (p.builtin ? ' · built-in' : '');
+    sel.appendChild(o);
+  });
+  sel.value = keep;
+  if (!sel.value){ sel.value = String(P.initMode); activeNoisePreset = null; }
+}
+
+$('init').onchange = e => {
+  const v = e.target.value;
+  if (v.indexOf('preset:') === 0){
+    const p = noiseCache.find(x => x.id === v.slice(7));
+    activeNoisePreset = (p && p.np) ? p.np : null;
+    if (activeNoisePreset && !initProgramFor(noiseParamsNow())){
+      note('<b class="bad">preset failed to compile</b>\nfalling back to fBm relief', 'bad');
+      activeNoisePreset = null; e.target.value = '0'; P.initMode = 0;
+    } else {
+      // the preset carries its own frequency; nothing in the panel overrides it now
+      if (typeof activeNoisePreset.freq === 'number') P.nFreq = activeNoisePreset.freq;
+      note(`<b>init</b>  ${p.name}`);
+    }
+  } else {
+    activeNoisePreset = null;
+    P.initMode = parseInt(v);
+    P.nFreq = INIT_NFREQ;                      // restore the built-in init default
+    note(P.initMode === 1 ? '<b>init</b>  off — flat shell' : '<b>init</b>  built-in');
+  }
+  buildTerrain(); seedDroplets(); frameNo = 0; massRef = null;
+};
+
+async function refreshCraterPresets(){
+  craterCache = await craterStore.list();
+  if (!fillPresetSelect($('craterPreset'), craterCache, 'Classic (built-in)')){
+    $('craterPreset').value = ''; craterShape = Object.assign({}, CRATER_DEFAULTS);
+  }
+}
+$('craterPreset').onchange = e => {
+  const p = craterCache.find(x => x.id === e.target.value);
+  craterShape = Object.assign({}, CRATER_DEFAULTS, (p && p.params) || {});
+  note(p ? `<b>crater preset</b>  ${p.name}` : '<b>crater preset</b>  classic');
+};
+/* No folder picker here — the folder is chosen in the noise designer, and this
+   page picks up whatever it finds. Compiled-in presets need no folder at all. */
+$('openImpDesigner').onclick = () => {
+  if (!window.openImpactDesigner){ note('<b class="bad">impact-designer.js not loaded</b>', 'bad'); return; }
+  window.openImpactDesigner({
+    current: craterShape,
+    previewR: (P.impMin + P.impMax)*0.5,
+    store: craterStore,          // same folder as everything else
+    onSaved: () => refreshCraterPresets(),
+    onApply: cs => { craterShape = Object.assign({}, CRATER_DEFAULTS, cs);
+                     $('craterPreset').value = ''; refreshCraterPresets();
+                     note('<b>crater shape</b>  applied'); },
+    onStrike: cs => { craterShape = Object.assign({}, CRATER_DEFAULTS, cs);
+                      const s = strike();
+                      note(`<b>test impact</b>  radius ${s.radius.toFixed(3)} rad`); },
+  });
+};
+
+// storage/focus notification is handled inside each store, which calls onChange
+noiseStore.ready().then(refreshNoisePresets);
+craterStore.ready().then(refreshCraterPresets);
 
 $('belt').addEventListener('change', () => buildUplift(false));
 $('sharp').addEventListener('change', () => buildUplift(false));
 // plate geometry also sets the starting continent/ocean split, so terrain rebuilds too
-const rebuildPlates = () => { buildSource(); buildTerrain(); seedDroplets(); frameNo = 0; massRef = null; };
-['pn','bw','cf','ao'].forEach(id => $(id).addEventListener('change', rebuildPlates));
+const rebuildPlates = () => { clearStrain(); buildSource(); buildTerrain(); seedDroplets();
+                              frameNo = 0; massRef = null; advAccum = 0; advPasses = 0;
+                              crustAngle = 0; };
+['pn','bw','cf','ao','warp','rough','blendC','blendD','echoL'].forEach(id => $(id).addEventListener('change', rebuildPlates));
 $('newPlates').onclick = () => { plateSeed = Math.random()*97; rebuildPlates(); };
 
 // only the controls belonging to the active source are shown
@@ -2200,7 +3767,10 @@ $('shade').onchange = e => P.shade = parseInt(e.target.value);
 $('water').onchange = e => P.water = e.target.checked ? 1 : 0;
 $('shadow').onchange = e => P.shadow = e.target.checked ? 1 : 0;
 $('spin').onchange = e => P.spin = e.target.checked ? 1 : 0;
-$('init').onchange = e => { P.initMode = parseInt(e.target.value); buildTerrain(); seedDroplets(); };
+/* The Init handler lives with the preset wiring above — it has to know about
+   presets as well as the built-in modes. Do NOT re-bind it here.
+   The noise-shape sliders are gone from the panel: the built-in inits use the
+   constants in P, and a preset carries its own. */
 $('grid').onchange  = e => rebuild(parseInt(e.target.value), PD);
 $('drops').onchange = e => rebuild(N, parseInt(e.target.value));
 $('quality').onchange = e => {
@@ -2221,7 +3791,9 @@ function frame(){
   if (!paused && P.dt > 0){
     substep(P.dt);
     // bombardment: expected strikes per step, so the slider reads as a rate
-    if (P.impacts && P.bombard > 0 && Math.random() < P.bombard*0.004) strike();
+    // 0–100 now, so the per-step coefficient drops 100× to keep the same rate
+    // at the same fraction of the slider: 100 is still one strike per 250 steps.
+    if (P.impacts && P.bombard > 0 && Math.random() < P.bombard*0.00004) strike();
   }
   render();
 

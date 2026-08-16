@@ -329,6 +329,275 @@ falls back to the last good size rather than black-screening.
 - ⬜ *A rebound regression test* in the panel alongside flat/isotropy/mass. The
   84.2 → 90.7 % measurement is a one-off, not a guard.
 
+## 18. Margin scan reach ✅ v003.1
+
+The uplift rebuild finds its margin by scanning outward for a differing plate id. The
+first version scanned **±5 cells at stride 1**, and at 6 × 512² a cell is 0.0031 rad
+while the belt is `bwidth` = 0.045 and the arc sits at `arcOff` = 0.056 — fifteen and
+eighteen cells out. The window could not reach either.
+
+❌ *What that cost.* The Gaussian only decayed from 1.000 to 0.944 before the hard edge of
+the window, so the belt was a 5-cell stripe of near-constant height and **`bwidth` was
+geometrically inert**; and `x = (db − arcOff)/w` never went positive, so the **volcanic
+arc — the whole point of the ocean–continent asymmetry — did not exist**. *Measured:*
+source coverage was 10.84 % of the sphere for `bwidth` ∈ {0.015, 0.045, 0.090} and for
+`arcOff` ∈ {0.020, 0.056, 0.100} — the same number for every value of both sliders.
+Both work correctly in the static-plate mode, where `db` is analytic and unbounded; the
+bug arrived with the field rebuild.
+
+- **Two-tier scan** ✅ — tier 1 stride 1 out to 5 cells, exact, and where the normal
+  matters most; tier 2 strides the same 13×13 window by `K` for *direction only*, then a
+  stride-1 march back along it recovers exact distance. `K = ⌈(arcOff + 2.5·bwidth)/
+  cellArc / 6⌉`, so the reach follows the sliders — 10 at defaults, covering 60 cells.
+  Worst case ~350 fetches against 169, at one rebuild per 50 steps. *Measured:* coverage
+  now 36 / 80 / 99 % across the three `bwidth` values and 71 / 80 / 83 % across `arcOff`.
+- **Seam-crossing lookup** ✅ — the old scan clamped to the layer, so it truncated against
+  the face edge. Invisible at ±5, a groove along all twelve cube edges at ±60. Offsets
+  that leave the face now go through `faceToDir` → `dirToFace`, nearest (bilinear would
+  blend ids 3 and 8 into plate 5.5); interior offsets keep the plain `texelFetch` and pay
+  nothing. *Measured:* mean-|u| at edge+0/1/2/4 cells agrees within 0.6 %, i.e. no groove.
+- **True angle for the margin distance** ✅ — `acos(p·q)` rather than `best × π/2N`. The
+  equiangular cell arc varies 1.41× across a face, which was below noise at 5 cells and is
+  not at 60.
+- ⬜ *Jump-flood distance field* — exact and unbounded, removing the caveat that tier 2 can
+  miss a foreign strip narrower than `K` lying wholly outside tier 1. Costs log₂N extra
+  passes and a seam-aware ping-pong. The strips only occur at triple junctions here, and
+  cost an overestimated distance rather than a wrong one.
+- ⬜ *Widening the halo to R texels* instead of routing out-of-face offsets through the
+  direction — fewer ALU ops per sample, but the halo pass grows from 1 ring to 60 and
+  every other field would carry the cost.
+- ❌ *Raising the stride-1 radius to ~40* — 6,561 fetches per cell, a ~40 ms hitch every
+  rebuild.
+
+## 19. Source normalisation ✅ v003.1
+
+Widening the belt widens every term at once, so the **total** tectonic throughput rode on
+`bwidth`: fixing §18 multiplied the field's area-weighted mean-|u| by **2.74×** on its own,
+and the crust budget went from −0.42 % to **+3.97 %** over 6,000 steps — the uncontrolled
+inflation the mean-zero correction exists to prevent, coming back in through the
+subduction gate.
+
+- **Normalise by area-weighted mean-|u|** ✅ — folded into `uUplift`, so `bwidth` now
+  redistributes uplift instead of adding it and the uplift slider keeps one meaning across
+  every belt width. Mean-|u| rather than peak because the physically meaningful invariant
+  is crustal flux per unit time, not maximum rate. *Measured:* budget +3.97 % → **+1.37 %**.
+- ❌ *`upliftFromField` never measured its own field.* `UMEAN` was whatever the noise path
+  last left behind — so in drifting mode with subduction **off**, the regime that exists to
+  demonstrate strict conservation, the mean-zero correction was running on a stale constant.
+  It now measures. *Measured:* −0.161 % over 6,000 steps.
+- **Measure on geometry change, not per rebuild** ✅ — the readback is 6 × (N+2)² and a
+  pipeline stall, which would roughly triple the cost of a rebuild. Margins move 5 % of
+  cells in 6,000 steps, so the statistics are near-stationary between rebuilds — the same
+  amortisation argument as `PLATE_EVERY` itself.
+- ⬜ *Balancing creation against consumption directly*, by splitting the two into separate
+  channels of the source texture and scaling the ridge term to match the measured trench
+  term. That is §16's open plate-area bookkeeping, and it is the honest fix: the residual
+  +1.37 % is unenforced, and its sign is now creation-dominated where it used to be
+  consumption-dominated.
+
+## 20. Boundary shape ✅ v003.2
+
+Spherical Voronoi boundaries are **great-circle arcs** — exactly straight — so every
+margin was a polygon edge. Seed jitter does not help: it moves the seed, not the shape of
+the bisector.
+
+- **Domain-warp the lookup direction inside `nearestPlates`** ✅ — two octaves, the low one
+  cutting embayments at plate scale and the high one crenulating the edge. Placed inside
+  the lookup so the plate field, the initial continents and the overlay agree for free,
+  and so the drifting source inherits it through its own seeding. *Measured:* boundary
+  crossings along a fixed set of great circles go 2199 → 2372 → 2580 for warp 0 / 0.18 /
+  0.40; a straight-edged Voronoi holds constant, so the rise is added path length.
+  Side effect, kept: the bisector distance is now measured in warped space, so belt width
+  stretches and pinches along a margin instead of holding one value.
+- **Ridged-fBm mask on the OROGENIC branches only** ✅ — a single Gaussian runs as a
+  continuous welt; real ranges are chains of massifs with gaps and offsets. Trenches and
+  rifts are genuinely continuous and are left alone. *Measured:* uplift volume −24 % and
+  strong-uplift area −20 % at full strength, with the negative (trench/rift) volume
+  unchanged at −0.3098 to four figures.
+- ❌ *Four octaves with a symmetric remap* — averaging pulls ridged fBm toward its mean, so
+  the mask barely reached zero and the belt lost only 7 % of its volume. A texture, not a
+  break-up. Two octaves and a threshold biased above the mean.
+- ⬜ *Break-up scaled by local convergence*, so orogens crenulate more than transforms.
+  Needs the convergence rate before the warp is applied, which is circular in the current
+  ordering.
+
+## 21. Motion-vector source ✅ v004
+
+The plate field stops being a label and becomes a **velocity**. Three passes: `v = ω × p`
+blended across each margin → finite-volume divergence → crust-type rules on that
+divergence. Chosen over extending the scan source, because boundary *shape* and the
+physics *across* a boundary are orthogonal and the scan was the wrong tool for both.
+
+- **Divergence as the mechanism** ✅ — −∇·v is the areal strain rate, so subduction and
+  spreading are one quantity from a four-tap difference. **Retires the entire §18
+  apparatus for this source**: no scan for a differing id, no radius, no two-tier window,
+  no quantised normal.
+- **Seeds move, so the Voronoi drifts** ✅ — rigid plates are rotations, so rotating each
+  seed under its own pole drifts margins and triple junctions analytically. No id field,
+  no advection pass to compound, and the margin distance stays exact and unbounded.
+  *Measured:* 31.2 % of sampled directions changed uplift over 6,000 steps.
+  *Caveat written down:* a Voronoi cell shrinks but never empties, because a seed always
+  owns the points nearest it. Oceans narrow; they do not shut.
+- **Belt width stops being a magnitude** ✅ — blending v over width w gives |∇·v| ~ conv/2w,
+  so total consumption is convergence × margin length *independent of w*. That is the
+  physically correct invariant, and precisely what the old Gaussian band got wrong — its
+  integral scaled with w, which is why SRC_NORM had to exist (§19).
+- ❌ **Centre-to-centre direction as the edge normal.** The equiangular grid is *not*
+  orthogonal — ξ and η curves meet well off 90° away from a face centre — so it is not
+  perpendicular to the edge. Caught by a control that has an exact answer: **one plate is
+  a rigid rotation, which is divergence-free everywhere**. Background |∇·v| was 0.18
+  against a true value of 0, and global closure −4.93 %. The normal is now p̂ × t̂ from the
+  edge tangent: **0.00057 and 0.0001 %**.
+- ❌ *Centre-to-centre distances as edge lengths* (`uM`) — right kind of quantity, wrong
+  one: the east face's flux needs the length of that face, which runs north–south. They
+  differ by the local metric anisotropy, worst at cube corners, so the error was
+  structured and did not cancel.
+- ❌ *Edge normal at the cell centre rather than the edge midpoint* — my first diagnosis of
+  the −4.93 % closure, and it was **wrong**: the fix changed the number by nothing at all,
+  which is what sent me to the rigid-plate control that found the real cause.
+- ⬜ *Strike-slip* — the antisymmetric part of the same four-tap, free (task #4).
+- ⬜ *Crust advection along VF* (task #2) and *crust age* (task #3). VF exists precisely so
+  the advection pass has something to read.
+
+## 22. Crust advection ✅ v004b
+
+- **Semi-Lagrangian, bilinear, backtraced along the local flow** ✅ — `p·cos a − v̂·sin a`,
+  exact wherever the field is a rigid rotation, which is everywhere but the shear zones.
+  Bilinear rather than the id field's nearest: thickness is continuous, and nearest would
+  freeze sub-cell motion exactly the way the v003 plate advection locked up.
+  *Measured:* 11.65 % from a stationary copy, 3.50 % from its own backtraced self.
+- **`h` recomputed, not carried** ✅ — it is derived from `tc` by isostasy, so transporting
+  both would let them desync.
+- **Bank the motion, spend it in one hop** ✅ — for **cost**, not accuracy. ❌ My stated
+  reason was that a sub-cell resample smears as badly as a full one; bilinear error goes as
+  t(1−t), so that is false. 80 passes retained 99.52 % of the field's spread against
+  99.56 % for 17; a 1 → 16 cell threshold moved retention only 89.2 → 90.6 %. Banking buys
+  4.7× fewer GPU passes and four hundredths of a percent.
+- ❌ **Multiplicative compression exp(−∇·v·Δt)** — the textbook conservative form, measured
+  at 0.000 % under a divergence-free flow, and **wrong for this variable**: `tc` is a signed
+  deviation from a datum, so oceanic crust is negative and scaling it toward zero *adds*
+  signed volume. Advection alone went +14.4 % at default drift, +45.5 % at maximum. Coded,
+  disabled (`uComp = 0`), documented in place.
+- ❌ *Gating compression by crust type* — tried both skipping oceanic thickening (budget
+  +1.9 %) and actively subducting it (+2.98 %). Neither helps, because the fault is in the
+  variable's definition and not in which cells the term is applied to.
+- **Ship with compression off** ✅ — `tc·∇·v` stays with the divergence-driven uplift source,
+  where it already lived. Relief 0.0347 against 0.0348 with advection off; budget +0.386 %
+  at drift 0.5, −0.112 % at drift 2.0.
+- ⬜ *An absolute column* — `tc` measured up from a datum thickness rather than about zero,
+  which is what compression needs and what crust age (task #3) would supply.
+- ⬜ *MacCormack / BFECC* to cut the residual smearing, at 2–3× the passes.
+
+## 23. Tearing, sharpness and folds ✅ v004c
+
+**Transport uses the RIGID per-plate velocity** ✅, not `VF.xyz`. That blend is C1 across
+every margin — right for a finite divergence, wrong for moving rock, and with a 15-cell
+shear zone against an 8-cell crater radius it pulled craters like taffy. A backtrace that
+would cross a fault is halved until it stays on its own side. *Measured:* the height step
+**across** a fault is now 7.13× the step inside a plate.
+
+- ❌ *"The membership test fires precisely at divergent margins."* It does not. Only 53.1 %
+  of the cells it fired on were divergent — a coin flip — with mean divergence −0.123,
+  convergent-leaning. Plate velocity at a margin is mostly TANGENTIAL, so the trace slides
+  along a curved boundary and crosses it whichever way the margin moves. And a Voronoi
+  partition never has a literal gap. It is a fault clamp; new crust needs its own test.
+- **New crust from areal expansion** ✅ — `∇·v·Δt`, no threshold to tune. *Measured:* mean
+  `tc` by divergence bucket: −0.0168 convergent, −0.0081 interior, **−0.0227 / −0.0225** at
+  5…20 and >100, against a target of −0.0229.
+- ❌ *Ungated injection* also fired on 780,000 weakly-divergent cells, mostly continental
+  interior, each stepping toward seafloor thickness every pass. Cost 1.4 points of budget.
+  Gated to oceanic crust.
+- **`NEW_CRUST_H` measured, not chosen** ✅ — −0.0063, the mass-neutral value, which lands
+  above the ambient abyssal −0.0117: a crest shallower than the plain, which is what a ridge
+  is. It leaves the uplift source as the single authority on ridge topography.
+- ❌ **`advectCrust` never called `setPlates`**, so `plateOmega` used seed 0 and the crust
+  moved on a different random draw than `VF`. Invisible to the scarp test, which only cares
+  that the field is discontinuous per plate. Cost most of a −0.6 % budget regression.
+
+**MacCormack with a limiter** ✅ — reverse trace computed inline, so one scratch texture
+instead of two. The limiter is mandatory: the tear deliberately creates discontinuities and
+unlimited MacCormack overshoots hardest there.
+
+| crater rim amplitude retained, 6,000 steps | first order | MacCormack |
+|---|---|---|
+| default drift, 26 passes | 95.2 % | **99.3 %** |
+| 8× drift, 206 passes, 65 cells travelled | 76.4 % | **95.3 %** |
+
+- ❌ *Raising the resample threshold to 4 cells* — planned, then dropped. MacCormack made it
+  pointless at 99.3 % retention, and it would have cost stair-stepping and misregistration.
+
+**Carried shortening strain and folds** ✅ — new `SF` RGBA32F holding (ε, fold axis xyz).
+Strain accumulates as convergence × displacement, the axis is captured from the divergence
+gradient at formation, both advect with the crust, and everything is evaluated at the
+MATERIAL position so the pattern is nailed to the rock. `beltRough` moved into the same
+frame — it had the identical world-fixed flaw.
+
+- The axis is a **3-vector in material space**, not an angle in a local basis: angles wrap,
+  and blending two of them while advecting is nonsense wherever the basis flips.
+- ❌ *Multiplicative on the orogenic uplift* — the obvious form, and wrong. Strain is carried
+  so it spreads over 15.8 % of the sphere; `u` is concentrated where `|∇·v|` is large. The
+  product is non-zero only at the margin, so folds appeared as a thin line: source
+  high-frequency content +39 %, terrain roughness +3 %. Additive and driven by strain alone.
+- ⚠️ **`foldAmp` is in the SOURCE's units**, where belt values run to ~3. 1.6 was invisible;
+  the default is 14. *Measured:* belt-over-surroundings roughness 3.345 → 4.306 at amplitude
+  30, 2.995 at the default.
+- ⬜ **Anisotropy is UNVERIFIED.** The domain elongation along the stored axis is implemented
+  at their tuned ≈0.85/0.15 ratio, but no measurement I ran could show the folds are
+  directional: 1.521 vs 1.515 at active margins with amplitude 30. Either the instrument
+  (one-cell differences against the divergence gradient, on a field dominated by drainage
+  and belt slope) is too crude, or the elongation is not surviving. **Do not claim
+  directional folds until this is measured properly.** Phasor noise (§ deferred) would make
+  the direction explicit rather than emergent and would be testable.
+
+## 24. The blend profile IS the divergence ✅ v004d
+
+The velocity blend across a margin was `smoothstep(0, w, db)`. Divergence is the GRADIENT
+of that blend, and **smoothstep has zero derivative at its endpoints** — so there was a dead
+line of zero divergence running along the axis of every margin, with the real peak displaced
+to `db = w/2` on both sides. Visually: a double band with a neutral stripe down the middle.
+
+*Measured*, mean |∇·v| against distance from the margin, 14.7-cell belt:
+
+| cells from margin | smoothstep | tanh |
+|---|---|---|
+| 0 (axis) | **1.81** | **5.53** |
+| 4 | 5.13 | 5.56 |
+| 8 | **6.40** ← peak | 4.82 |
+| 15 | 4.32 | 3.50 |
+
+The axis carried **less than a third** of what its own flanks did. Not merely ugly: it
+starved the ridge axis of the extension that drives crust creation and thinning, and is a
+likely contributor to §12's stalled thinning.
+
+- **tanh** ✅ — maximum slope at zero, so divergence peaks where the plates actually meet.
+  Still continuous across the margin (db → 0 gives ½(v1+v2) from either side) and smoother
+  than smoothstep was, since sign(s)·tanh(|s|/w) is analytic where sign(s)·S(|s|/w) is only
+  C¹. Asymptotes rather than saturating at w, which is harmless — tanh(3) = 0.995.
+  Compression/extension area split also went symmetric, 5.6/5.0 % → 4.9/4.9 %.
+- ⚠️ The irony worth keeping: the C¹ blend was chosen deliberately in §21 to avoid a delta
+  function in the divergence. It worked, and the cost was a zero exactly where the signal
+  should have been strongest. **Choosing a blend profile is choosing the divergence profile**
+  — they are the same decision, and the first one was made looking only at the blend.
+
+## 25. Fold texture: warped, not bare ridged ✅ v004d
+
+Domain-warped ridged noise instead of `ridged(x, 3)`: warping the sample position by a
+second noise field before taking the ridge is what produces long sinuous branching crease
+lines rather than lumps. *Measured:* belt-over-surroundings roughness **2.995 → 4.065** at
+identical amplitude. The generator was not new — the v001 noise-belt source has used it
+since the beginning, with its own comment reading "long sinuous belts rather than isotropic
+blobs". Reaching for the unwarped one is very likely why the first fold attempt read as
+roughness rather than folding.
+
+## 26. Extension thins toward ocean floor ⚠️ v004d — implemented, ineffective
+
+Divergent margins relax `tc` toward the abyssal datum at a rate set by the extension, so a
+rift becomes a basin becomes ocean, all on one continuous scale with no hole for isostasy to
+divide by. **It does not reach its target.** Extensional ground settles at −0.0030 against
+−0.0117; raising the rate 500× moved it to −0.00304 while dropping belt roughness
+4.065 → 3.215 and flipping the budget +0.512 % → −0.409 %. Reverted to the low rate.
+Cause and the measurement bug behind it are recorded in task #12.
+
 ## 13. Panel layout ✅ v002
 
 - **Four panels on a pointer-transparent CSS grid** ✅ — container never eats a drag, each
