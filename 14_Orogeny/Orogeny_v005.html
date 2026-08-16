@@ -1,0 +1,2438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>№ 14 — Orogeny · v003 S² Crust · Drift · Subduction</title>
+<style>
+  :root{
+    --bg:#05070a; --ink:#e6ecf2; --dim:#7a8794; --accent:#8fc8e8; --line:rgba(230,236,242,0.10);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:var(--bg);color:var(--ink);
+    font-family:'JetBrains Mono',ui-monospace,monospace;overflow:hidden}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  /* Four panels on a pointer-transparent grid over the canvas: the container
+     never eats a drag, each panel does. Rows are auto/1fr/auto so the side
+     panels take exactly the height left between the top bar and the footer. */
+  #ui{position:fixed;inset:0;z-index:10;display:grid;gap:12px;padding:12px;
+    grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr) auto;
+    pointer-events:none}
+  .panel{pointer-events:auto;background:rgba(5,7,10,0.72);border:1px solid var(--line);
+    backdrop-filter:blur(8px);padding:13px 15px;overflow-y:auto;min-height:0}
+  .panel::-webkit-scrollbar{width:4px}
+  .panel::-webkit-scrollbar-thumb{background:var(--line)}
+  #top{grid-column:1/-1;grid-row:1;display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;
+    padding:11px 15px 12px}
+  #left{grid-column:1;grid-row:2;width:228px}
+  #right{grid-column:3;grid-row:2;width:228px}
+  #bottom{grid-column:1/-1;grid-row:3;display:flex;align-items:flex-start;gap:22px;flex-wrap:wrap;
+    padding:11px 15px}
+  .brand{flex:0 0 auto;margin-right:4px}
+  .brand h1{font-family:Georgia,'Cormorant Garamond',serif;font-style:italic;font-weight:400;
+    font-size:19px;letter-spacing:.02em;color:var(--accent);line-height:1.15}
+  .brand .sub{font-size:8px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim)}
+  .panel h2{font-family:Georgia,'Cormorant Garamond',serif;font-style:italic;font-weight:400;
+    font-size:15px;letter-spacing:.02em;color:var(--accent);margin-bottom:12px}
+  /* a top/bottom bar cell: one labelled control, sized to its content */
+  .cell{flex:0 0 auto;min-width:104px}
+  .cell.wide{min-width:152px}
+  .grp{font-size:8.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);
+    border-top:1px solid var(--line);padding-top:11px;margin:16px 0 4px;opacity:.75}
+  .grp:first-of-type{border-top:0;padding-top:0;margin-top:0}
+  .note{font-size:8.5px;line-height:1.7;letter-spacing:.06em;color:var(--dim);opacity:.62;margin:6px 0 2px}
+  .row{margin:11px 0}
+  .cell .row{margin:0}
+  .row label{display:flex;justify-content:space-between;font-size:9.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--dim);margin-bottom:5px}
+  .row label b{color:var(--ink);font-weight:400}
+  input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:var(--line);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+    background:var(--accent);cursor:pointer}
+  select{width:100%;background:rgba(5,7,10,0.9);border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:10px;letter-spacing:.1em;padding:6px 8px;outline:none;cursor:pointer}
+  select:hover{border-color:var(--accent)}
+  .chk{display:flex;align-items:center;gap:8px;margin:11px 0}
+  .chk input{width:auto;accent-color:var(--accent)}
+  .chk label{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+    margin:0;cursor:pointer}
+  .btns{display:flex;gap:8px;margin-top:16px}
+  .cell .btns{margin-top:5px}
+  button{flex:1;background:transparent;border:1px solid var(--line);color:var(--ink);
+    font-family:inherit;font-size:9px;letter-spacing:.2em;text-transform:uppercase;padding:8px 10px;cursor:pointer;
+    transition:.25s;white-space:nowrap}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button:disabled{opacity:.35;cursor:not-allowed}
+  button:disabled:hover{border-color:var(--line);color:var(--ink)}
+  #diag{flex:1 1 260px;font-size:9px;line-height:1.75;color:var(--dim);white-space:pre-wrap;
+    border-left:1px solid var(--line);padding-left:11px;min-height:14px;max-height:112px;overflow-y:auto}
+  #diag b{color:var(--accent);font-weight:400}
+  #diag .ok{color:#7fd6a2}
+  #diag .bad{color:#e8896f}
+  #hint{flex:0 0 auto;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);
+    align-self:center}
+  #hint b{color:var(--accent);font-weight:400}
+  #hud{flex:0 0 auto;margin-left:auto;font-size:9px;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--dim);text-align:right;line-height:1.9}
+  #hud b{color:var(--ink);font-weight:400}
+  /* narrow viewports: side panels stop competing with the globe */
+  @media (max-width:900px){
+    #left,#right{width:186px}
+    #top,#bottom{gap:14px}
+  }
+  #err{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:40px;z-index:20;
+    background:var(--bg)}
+  #err div{max-width:540px;font-size:13px;line-height:1.9;color:var(--dim)}
+  #err b{color:var(--accent)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="ui">
+
+  <!-- ── TOP · viewing and simulation ───────────────────────────────── -->
+  <div id="top" class="panel">
+    <div class="brand">
+      <h1>Orogeny</h1>
+      <div class="sub">№ 14 · v004 — crust · drift · motion vectors</div>
+    </div>
+    <div class="cell wide"><div class="row"><label>Shading</label>
+      <select id="shade">
+        <option value="0" selected>Terrain — biome palette</option>
+        <option value="1">Sediment vs bedrock</option>
+        <option value="2">Discharge — drainage network</option>
+        <option value="3">Uplift field</option>
+        <option value="5">Plates — id &amp; margins</option>
+        <option value="6">Motion vectors — heading &amp; speed</option>
+        <option value="4">Face id — seam check</option>
+      </select></div></div>
+    <div class="cell">
+      <div class="chk"><input id="water" type="checkbox" checked><label for="water">Oceans</label></div>
+      <div class="chk"><input id="shadow" type="checkbox" checked><label for="shadow">Shadows</label></div>
+      <div class="chk"><input id="spin" type="checkbox" checked><label for="spin">Rotate</label></div>
+    </div>
+    <div class="cell wide"><div class="row"><label>Grid (per face)</label>
+      <select id="grid">
+        <option value="128">6 × 128² — fast</option>
+        <option value="256">6 × 256²</option>
+        <option value="512" selected>6 × 512² — default</option>
+        <option value="1024">6 × 1024² — heavy</option>
+      </select></div></div>
+    <div class="cell"><div class="row"><label>Droplets</label>
+      <select id="drops">
+        <option value="128">16 k</option>
+        <option value="256">65 k</option>
+        <option value="512" selected>262 k</option>
+        <option value="768">590 k</option>
+      </select></div></div>
+    <div class="cell wide"><div class="row"><label>Render quality</label>
+      <select id="quality">
+        <option value="low">Low — 0.6× · 180 steps</option>
+        <option value="med" selected>Medium — 0.85× · 300 steps</option>
+        <option value="high">High — 1.0× · 460 steps</option>
+        <option value="ultra">Ultra — 1.0× · 700 steps</option>
+      </select></div></div>
+    <div class="cell"><div class="row"><label>Time step <b id="vSpd">1.00</b></label>
+      <input id="spd" type="range" min="0" max="3" step="0.02" value="1"></div></div>
+    <div class="cell"><div class="btns">
+      <button id="pause">Pause</button>
+      <button id="reset">Reset</button>
+    </div></div>
+  </div>
+
+  <!-- ── LEFT · tectonics and impacts ───────────────────────────────── -->
+  <div id="left" class="panel">
+    <h2>Tectonics</h2>
+    <div class="chk"><input id="onTect" type="checkbox" checked><label for="onTect">Tectonics active</label></div>
+    <div class="grp">Uplift</div>
+    <div class="row"><label>Source</label>
+      <select id="source">
+        <option value="0" selected>Noise belts</option>
+        <option value="1">Plates — static margins</option>
+        <option value="2">Plates — drifting + subduction</option>
+        <option value="3">Motion vectors — divergence driven</option>
+      </select></div>
+    <div class="row"><label>Uplift rate <b id="vUp">0.55</b></label>
+      <input id="up" type="range" min="0" max="2" step="0.01" value="0.55"></div>
+    <div class="note">Mean-zero: belts rise, the rest subsides, total volume conserved.</div>
+
+    <div class="grp" id="gNoise">Noise belts</div>
+    <div class="row nz"><label>Belt scale <b id="vBelt">1.60</b></label>
+      <input id="belt" type="range" min="0.4" max="4" step="0.05" value="1.6"></div>
+    <div class="row nz"><label>Belt sharpness <b id="vSharp">0.62</b></label>
+      <input id="sharp" type="range" min="0" max="1" step="0.01" value="0.62"></div>
+
+    <div class="grp" id="gPlate">Plates</div>
+    <div class="row pl"><label>Plate count <b id="vPN">22</b></label>
+      <input id="pn" type="range" min="6" max="48" step="1" value="22"></div>
+    <div class="row pl"><label>Margin width <b id="vBW">0.045</b></label>
+      <input id="bw" type="range" min="0.012" max="0.12" step="0.001" value="0.045"></div>
+    <div class="row pl"><label>Continental frac <b id="vCF">0.42</b></label>
+      <input id="cf" type="range" min="0" max="1" step="0.01" value="0.42"></div>
+    <div class="row pl"><label>Arc offset <b id="vAO">0.055</b></label>
+      <input id="ao" type="range" min="0" max="0.15" step="0.002" value="0.055"></div>
+    <div class="row pl"><label>Boundary warp <b id="vWarp">0.18</b></label>
+      <input id="warp" type="range" min="0" max="0.45" step="0.01" value="0.18"></div>
+    <div class="row pl"><label>Orogen break-up <b id="vRough">0.55</b></label>
+      <input id="rough" type="range" min="0" max="1" step="0.01" value="0.55"></div>
+    <div class="row pl"><label>Drift rate <b id="vDrift">0.50</b></label>
+      <input id="drift" type="range" min="0" max="2" step="0.01" value="0.5"></div>
+    <div class="chk pl"><input id="subduct" type="checkbox" checked><label for="subduct">Subduction</label></div>
+    <div class="chk pl"><input id="advect" type="checkbox" checked><label for="advect">Crust rides the plate</label></div>
+    <div class="btns pl"><button id="newPlates">New plates</button></div>
+    <div class="note pl">Convergent margins build orogens, divergent margins rift.
+      Ocean–continent gives a trench and an arc offset inboard — the signature of
+      subduction, not the mechanism: nothing is consumed and margins never migrate.</div>
+
+    <div class="grp">Crust</div>
+    <div class="row"><label>Isostatic response <b id="vIso">0.35</b></label>
+      <input id="iso" type="range" min="0.10" max="1" step="0.01" value="0.35"></div>
+    <div class="note">Fraction of a thickness change that shows at the surface. 1 = rigid
+      crust, no rebound. True Airy is 0.152 — erode a kilometre off a range and it
+      rebounds 850 m, which is why ranges persist.</div>
+
+    <div class="grp">Impacts</div>
+    <div class="chk"><input id="onImp" type="checkbox" checked><label for="onImp">Impacts active</label></div>
+    <div class="row"><label>Bombardment <b id="vImp">0.00</b></label>
+      <input id="imp" type="range" min="0" max="1" step="0.01" value="0"></div>
+    <div class="row"><label>Min radius <b id="vIMin">0.030</b></label>
+      <input id="imin" type="range" min="0.01" max="0.10" step="0.002" value="0.03"></div>
+    <div class="row"><label>Max radius <b id="vIMax">0.090</b></label>
+      <input id="imax" type="range" min="0.02" max="0.30" step="0.005" value="0.09"></div>
+    <div class="btns"><button id="strike">Strike now</button></div>
+    <div class="note">Bowl and central peak excavated, the same volume laid back down as
+      rim and an r⁻³ ejecta blanket. Ejecta lands as sediment. A fresh basin is a closed
+      drainage sink — watch the rim breach and the floor fill.</div>
+  </div>
+
+  <!-- ── RIGHT · erosion and fluids ─────────────────────────────────── -->
+  <div id="right" class="panel">
+    <h2>Erosion</h2>
+    <div class="chk"><input id="onEro" type="checkbox" checked><label for="onEro">Erosion active</label></div>
+    <div class="grp">Water</div>
+    <div class="row"><label>Rain rate <b id="vRain">1.00</b></label>
+      <input id="rain" type="range" min="0" max="3" step="0.02" value="1"></div>
+    <div class="row"><label>Evaporation <b id="vEvap">0.020</b></label>
+      <input id="evap" type="range" min="0.002" max="0.1" step="0.002" value="0.02"></div>
+    <div class="row"><label>Inertia <b id="vIner">0.35</b></label>
+      <input id="iner" type="range" min="0" max="0.95" step="0.01" value="0.35"></div>
+    <div class="row"><label>Sea level <b id="vSea">0.000</b></label>
+      <input id="sea" type="range" min="-0.02" max="0.02" step="0.0005" value="0"></div>
+
+    <div class="grp">Rock</div>
+    <div class="row"><label>Erodibility <b id="vEro">0.50</b></label>
+      <input id="ero" type="range" min="0" max="1.5" step="0.01" value="0.5"></div>
+    <div class="row"><label>Deposition <b id="vDep">0.35</b></label>
+      <input id="dep" type="range" min="0" max="1" step="0.01" value="0.35"></div>
+    <div class="row"><label>Rock hardness <b id="vHard">2.20</b></label>
+      <input id="hard" type="range" min="1" max="8" step="0.05" value="2.2"></div>
+    <div class="row"><label>Hillslope creep <b id="vDiff">0.30</b></label>
+      <input id="diff" type="range" min="0" max="2" step="0.01" value="0.3"></div>
+    <div class="row"><label>Talus angle <b id="vRep">0.70</b></label>
+      <input id="rep" type="range" min="0.1" max="3" step="0.02" value="0.7"></div>
+
+    <div class="grp">Fluids</div>
+    <div class="note">2D fluid on the same cubed-sphere atlas — № 02's PIC/FLIP reusing
+      this experiment's halo and metric. Not built yet.</div>
+  </div>
+
+  <!-- ── BOTTOM · verification and readout ──────────────────────────── -->
+  <div id="bottom" class="panel">
+    <div class="cell wide"><div class="row"><label>Init</label>
+      <select id="init">
+        <option value="0" selected>Planet — fBm relief</option>
+        <option value="1">Flat test — uniform shell</option>
+        <option value="2">Isotropy test — corner vs face bump</option>
+      </select></div></div>
+    <div class="cell"><div class="row"><label>Verify</label></div>
+      <div class="btns">
+        <button id="tFlat">Flat</button>
+        <button id="tIso">Isotropy</button>
+        <button id="tMass">Mass</button>
+      </div></div>
+    <div id="diag">idle</div>
+    <div id="hint">Drag <b>orbit</b> · scroll <b>zoom</b></div>
+    <div id="hud"></div>
+  </div>
+
+</div>
+<div id="err"><div></div></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   № 14 — OROGENY  ·  v001  ·  seamless planetary erosion on S²
+
+   Cubed-sphere heightfield eroded by Lagrangian droplets.
+
+   • Fields live in 6-layer TEXTURE_2D_ARRAYs, each layer (N+2)² — a 1-texel
+     HALO of ghost cells around an N² interior. Every pass rewrites the halo
+     by resampling the neighbouring face, so (a) all physics stencils are
+     plain in-layer texelFetch and (b) hardware bilinear at a face edge blends
+     against true neighbour values instead of the tile next door.
+   • EQUIANGULAR cubed sphere (a = tan ξ) — cell area varies ~2× across a face
+     instead of 5.2× for plain gnomonic.
+   • Arc lengths are MEASURED from the 3D positions into a metric texture at
+     init, not derived algebraically. Every gradient, flux and area uses them.
+   • Mass moves as VOLUME. Droplets carry volume, the splat scatters volume,
+     the apply pass divides by the measured cell area. Talus and creep exchange
+     volume through antisymmetric fluxes. So the mass audit is meaningful.
+
+   Passes per substep:
+     1  uplift + hillslope creep      (6 draws, one per layer)
+     2  droplet advect / erode        (1 draw, MRT → pos, vel, deltas)
+     3  splat deltas to the grid      (6 draws, additive, POINTS)
+     4  apply splat + discharge       (6 draws)
+     5  talus relaxation              (6 draws)
+   then one raymarch of the displaced shell.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const errEl = document.getElementById('err');
+function fail(msg){ errEl.style.display='grid'; errEl.firstElementChild.innerHTML = msg; throw new Error(msg.replace(/<[^>]+>/g,'')); }
+
+const canvas = document.getElementById('c');
+const gl = canvas.getContext('webgl2', {antialias:false, depth:false, alpha:false, powerPreference:'high-performance'});
+if(!gl) fail("This experiment needs <b>WebGL2</b>.<br><br>Use a recent desktop Chrome, Edge, Firefox or Safari with hardware acceleration enabled.");
+
+const extCBF = gl.getExtension('EXT_color_buffer_float');
+if(!extCBF) fail("Your browser has WebGL2 but not <b>EXT_color_buffer_float</b>.<br><br>The simulation renders into floating-point textures and cannot run without it.");
+const extFL  = gl.getExtension('OES_texture_float_linear');   // optional — manual bilinear fallback
+const extFB  = gl.getExtension('EXT_float_blend');            // optional — 32-bit splat accumulation
+
+const LINEAR_OK = !!extFL;
+const SPLAT_F32 = !!extFB;
+
+/* ───────────────────────────── parameters ───────────────────────────── */
+let N  = 512;      // interior cells per face edge
+let PD = 512;      // droplet texture edge (PD² droplets)
+
+const P = {
+  uplift:0.55, belt:1.6, sharp:0.62,
+  rain:1.0, erodibility:0.5, deposition:0.35, hardness:2.2,
+  inertia:0.35, evaporation:0.02, creep:0.3, repose:0.7,
+  sea:0.0, dt:1.0,
+  shade:0, water:1, shadow:1, spin:1, initMode:0,
+  plateN:22, bwidth:0.045, contFrac:0.42, arcOff:0.055,
+  stiff:1.0, gdrag:0.55, flip:0.92,
+  warp:0.18, rough:0.55, advect:1, comp:0, newk:1, macc:1,
+  // foldAmp is in the SOURCE's units, where belt values run to ~3, so it has to
+  // be large to register; 1.6 was invisible. See DESIGN_OPTIONS §23.
+  strainK:6.0, foldAmp:14.0, foldFreq:26.0,
+  bombard:0.0, impMin:0.030, impMax:0.090,
+  isoK:0.35, drift:0.5, subduct:1,
+  tectonics:1, impacts:1, erosion:1,
+  steps:300, pixScale:0.85
+};
+
+const R0 = 1.0;             // planet radius, world units
+const HMAX = 0.075;         // shell half-thickness the marcher brackets
+/* Erosive throughput per substep is bounded by droplet COVERAGE — only a cell
+   that a droplet visits can be cut, so ~PD²/6N² of the grid is eligible each
+   step. Uplift has no such bound. Tie the uplift rate to coverage and the
+   uplift/erosion balance holds at every grid and droplet count instead of
+   having to be re-tuned for each. */
+const UPLIFT_BASE = 1.1e-5;
+let UPLIFT_SCALE = UPLIFT_BASE;
+let ALLOW_K = 0.6;          // max fraction of the drop to the lowest neighbour cut per step
+const SPLAT_GAIN = 1.0e4;   // keeps per-droplet contributions out of half-float sub-normals
+let CAP_K = 60.0;           // sediment-capacity constant — sets the load a droplet can hold
+const DRIFT_SCALE = 2.0e-5; // slider 1.0 → this much rotation per step
+const PLATE_EVERY = 50;     // margins move far slower than the framerate
+const SRC_REF     = 0.0341; // area-weighted mean-|u| the erosion constants are tuned against
+const OMEGA_MAX   = 1.35;   // largest |ω| plateOmega can draw: 0.35 + 1.0·hash
+/* Surface height of crust minted at a spreading gap, divided by isoK at upload
+   because the stored quantity is the column and the surface derives from it.
+
+   MEASURED, not chosen: this is the value at which injection neither adds nor
+   removes crust, given what the uplift source already builds at a ridge. It
+   lands at −0.0063 against an ambient abyssal floor of −0.0117 — a crest 5.4 mm
+   above the plain, which is what a mid-ocean ridge is. Mass-neutrality and the
+   right physics coincide, and the reason they do is that it leaves the uplift
+   source as the single authority on ridge topography; injection only resets
+   identity, giving the new ground zero sediment and oceanic type. Guessing
+   −0.008 instead cost 0.45 points of crust budget. */
+const NEW_CRUST_H = -0.0063;
+const RELAX_K     = 3.0e-4;  // rate the surface chases the grain-derived column
+/* Grain constants. RHO0 is the rest density the pressure law is measured
+   against, and it is DERIVED, not chosen: total seeded mass over 4πR², so a
+   planet at rest starts at exactly zero pressure everywhere. */
+const GRAIN_M0  = 1.0;      // base mass per grain; continental grains carry 2.6×
+let   RHO0      = 1.0;      // computed at seed time
+const TC_K      = 0.10;     // density excess → crustal thickness
+const GRAIN_DT  = 0.5;      // grain step relative to the erosion step
+const GSUB      = 2;        // grain substeps per erosion step
+const TC_EVERY  = 25;       // rebuild the fine-grid thickness this often
+let   seed = 1337;
+let   plateSeed = 4.71;     // rerolled independently, so new plates keep the same terrain noise
+
+/* ───────────────────────────── GL helpers ───────────────────────────── */
+function sh(type, src){
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)){
+    const log = gl.getShaderInfoLog(s);
+    const numbered = src.split('\n').map((l,i)=>String(i+1).padStart(4)+' | '+l).join('\n');
+    console.error(log+'\n'+numbered);
+    fail("Shader compile failed:<br><br><b>"+log.split('\n')[0]+"</b><br><br>See the browser console for the annotated source.");
+  }
+  return s;
+}
+function prog(vs, fs){
+  const p = gl.createProgram();
+  gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS))
+    fail("Program link failed:<br><br><b>"+gl.getProgramInfoLog(p)+"</b>");
+  p._u = {};
+  const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for(let i=0;i<n;i++){ const info = gl.getActiveUniform(p,i); const nm = info.name.replace(/\[0\]$/,'');
+    p._u[nm] = gl.getUniformLocation(p, nm); }
+  return p;
+}
+function U(p, name){ return p._u[name] !== undefined ? p._u[name] : null; }
+
+function tex2DArray(w, h, layers, internal, format, type, filter){
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D_ARRAY, t);
+  gl.texStorage3D(gl.TEXTURE_2D_ARRAY, 1, internal, w, h, layers);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MIN_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D_ARRAY, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  t._w=w; t._h=h; t._l=layers;
+  return t;
+}
+function tex2D(w, h, internal){
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, internal, w, h);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  t._w=w; t._h=h;
+  return t;
+}
+function bindLayer(fb, tex, layer){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, tex, 0, layer);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+}
+function unit(i, tex, target){
+  gl.activeTexture(gl.TEXTURE0 + i);
+  gl.bindTexture(target || gl.TEXTURE_2D_ARRAY, tex);
+  return i;
+}
+
+/* ─────────────────────────── shared GLSL ─────────────────────────── */
+/*  The cubed-sphere chart machinery. dirToFace / faceToDir follow № 02's
+    axis convention exactly so the two experiments agree on what face 3 is;
+    the tan/atan pair upgrades it from gnomonic to equiangular.            */
+const COMMON = `
+const float PI4 = 0.7853981633974483;
+uniform float uN;          // interior cells per face edge
+uniform float uNT;         // uN + 2.0, the stored texture edge
+
+// local face coord s in [0,1] over the INTERIOR (values slightly outside = halo)
+vec3 faceToDir(int face, vec2 s){
+  vec2 c = tan((s*2.0-1.0)*PI4);
+  if (face==0) return vec3( 1.0,  c.y, -c.x);
+  if (face==1) return vec3(-1.0,  c.y,  c.x);
+  if (face==2) return vec3( c.x,  1.0, -c.y);
+  if (face==3) return vec3( c.x, -1.0,  c.y);
+  if (face==4) return vec3( c.x,  c.y,  1.0);
+  return             vec3(-c.x,  c.y, -1.0);
+}
+void dirToFace(vec3 d, out int face, out vec2 s){
+  vec3 a = abs(d); vec2 uv;
+  if (a.x >= a.y && a.x >= a.z){
+    if (d.x > 0.0){ face=0; uv = vec2(-d.z, d.y)/a.x; } else { face=1; uv = vec2( d.z, d.y)/a.x; }
+  } else if (a.y >= a.x && a.y >= a.z){
+    if (d.y > 0.0){ face=2; uv = vec2( d.x,-d.z)/a.y; } else { face=3; uv = vec2( d.x, d.z)/a.y; }
+  } else {
+    if (d.z > 0.0){ face=4; uv = vec2( d.x, d.y)/a.z; } else { face=5; uv = vec2(-d.x, d.y)/a.z; }
+  }
+  s = atan(uv)/PI4*0.5 + 0.5;
+}
+// interior-local s  →  texture uv inside the (N+2)² halo'd layer
+vec2 sToUv(vec2 s){ return (s*uN + 1.0)/uNT; }
+// fragment position  →  interior-local s   (gl_FragCoord.xy = texelIndex + 0.5)
+vec2 fragToS(vec2 fc){ return (fc - 1.0)/uN; }
+
+vec4 fetchDir(sampler2DArray T, vec3 d){
+  int f; vec2 s; dirToFace(normalize(d), f, s);
+  ${LINEAR_OK ? `return texture(T, vec3(sToUv(s), float(f)));`
+              : `vec2 p = sToUv(s)*uNT - 0.5; vec2 fr = fract(p); ivec2 i0 = ivec2(floor(p));
+                 vec4 a = texelFetch(T, ivec3(i0                , f), 0);
+                 vec4 b = texelFetch(T, ivec3(i0+ivec2(1,0)     , f), 0);
+                 vec4 c = texelFetch(T, ivec3(i0+ivec2(0,1)     , f), 0);
+                 vec4 e = texelFetch(T, ivec3(i0+ivec2(1,1)     , f), 0);
+                 return mix(mix(a,b,fr.x), mix(c,e,fr.x), fr.y);`}
+}
+// orthonormal tangent basis at a unit direction
+void basis(vec3 n, out vec3 e1, out vec3 e2){
+  vec3 up = abs(n.z) < 0.9 ? vec3(0.0,0.0,1.0) : vec3(1.0,0.0,0.0);
+  e1 = normalize(cross(up, n));
+  e2 = cross(n, e1);
+}
+/* Local Airy isostasy. The terrain texture stores (h, sed, tc, type): the
+   BEDROCK SURFACE h is derived, not primary — the primary quantity is crustal
+   thickness tc, and the surface is where that column floats.
+
+     h = uIsoK · tc
+
+   uIsoK is the fraction of a thickness change that shows at the surface. True
+   Airy is 1 − ρc/ρm ≈ 0.152: erode a kilometre off a mountain and it rebounds
+   850 m, so the net lowering is 150 m. That is why ranges persist. Running the
+   true value collapses this model's (already ~50× exaggerated) relief, so the
+   default is a compromise and the slider spans rigid → true. See ROADMAP for
+   the alternatives considered.
+
+   Tectonics thickens the column; erosion removes mass from it and only uIsoK of
+   that shows. The asymmetry between those two is the whole point. */
+uniform float uIsoK;
+float isoH(float tc){ return uIsoK*tc; }
+
+float hash11(float p){ p = fract(p*0.1031); p *= p + 33.33; p *= p + p; return fract(p); }
+float hash13(vec3 q){ vec3 p3 = fract(q*0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x+p3.y)*p3.z); }
+float vnoise(vec3 x){
+  vec3 i = floor(x), f = fract(x); vec3 u = f*f*(3.0-2.0*f);
+  float a=hash13(i), b=hash13(i+vec3(1,0,0)), c=hash13(i+vec3(0,1,0)), d=hash13(i+vec3(1,1,0));
+  float e=hash13(i+vec3(0,0,1)), g=hash13(i+vec3(1,0,1)), h=hash13(i+vec3(0,1,1)), k=hash13(i+vec3(1,1,1));
+  return mix(mix(mix(a,b,u.x), mix(c,d,u.x), u.y), mix(mix(e,g,u.x), mix(h,k,u.x), u.y), u.z);
+}
+float fbm(vec3 p, int oct){
+  float a=0.5, s=0.0, n=0.0;
+  for(int i=0;i<8;i++){ if(i>=oct) break; s += a*vnoise(p); n += a; p *= 2.03; a *= 0.5; }
+  return s/max(n,1e-5);
+}
+float ridged(vec3 p, int oct){
+  float a=0.5, s=0.0, n=0.0;
+  for(int i=0;i<8;i++){ if(i>=oct) break;
+    s += a*(1.0 - abs(vnoise(p)*2.0-1.0)); n += a; p *= 2.07; a *= 0.5; }
+  return s/max(n,1e-5);
+}
+`;
+
+/* ─────────────────────────── Euler-pole plates ───────────────────────────
+   Euler's rotation theorem: a rigid body moving on a sphere about a fixed
+   centre is rotating about some axis. A tectonic plate therefore *is* a
+   rotation about an axis through the planet's centre — its Euler pole. Not an
+   approximation; it is why this model only exists on a sphere.
+
+   Plates partition the sphere by Voronoi over seed directions. The two nearest
+   seeds give the boundary for free: half the difference of the geodesic
+   distances is the distance to their bisector, so no jump-flooding pass is
+   needed to find how far a cell sits from its plate margin.
+
+   Everything here is evaluated ONCE, at init, into the uplift texture. The
+   per-step cost is identical to the noise field it replaces.                */
+const PLATES = `
+uniform int   uPlateN;
+uniform float uPSeed, uBWidth, uContFrac, uArcOff, uWarp, uRough, uPTime;
+
+/* Two seeds on a sphere are separated by a GREAT-CIRCLE ARC — a spherical
+   Voronoi boundary is exactly straight, and no amount of jitter on the seed
+   positions changes that, because jitter moves the seed and not the shape of
+   the bisector. Every margin was therefore a polygon edge.
+
+   Warping the lookup direction bends them. Everything that asks "which plate is
+   here" asks through nearestPlates, so warping inside it keeps the plate field,
+   the initial continents and the plate overlay in exact agreement for free —
+   and the drifting mode inherits it too, since FS_PLINIT seeds the id field
+   from this same function.
+
+   Two octaves: the low one cuts embayments and promontories at the scale of a
+   plate, the high one crenulates the edge itself. Large amplitudes will strand
+   fragments of one plate inside another, which is a microplate and is welcome;
+   they are carried at the parent plate's rate. */
+vec3 plateWarp(vec3 p){
+  if (uWarp <= 0.0) return p;
+  vec3 lo = vec3(fbm(p*2.3 + 19.1 + uPSeed, 4),
+                 fbm(p*2.3 + 47.3 + uPSeed, 4),
+                 fbm(p*2.3 + 83.7 + uPSeed, 4)) - 0.5;
+  vec3 hi = vec3(fbm(p*6.7 +  5.7 + uPSeed, 3),
+                 fbm(p*6.7 + 31.9 + uPSeed, 3),
+                 fbm(p*6.7 + 67.3 + uPSeed, 3)) - 0.5;
+  return normalize(p + (lo + hi*0.38)*uWarp);
+}
+
+/* A margin drawn as one smooth Gaussian runs as a continuous welt, which reads
+   as a wall rather than a mountain belt. Real ranges are chains of massifs with
+   gaps, en-echelon offsets and re-entrants. This is the same ridged-fBm
+   treatment the noise-belt source already uses, applied to the belt envelope of
+   the OROGENIC branches only — trenches and rifts really are continuous.
+
+   It removes uplift rather than adding it, so the total source magnitude drops;
+   SRC_NORM absorbs that, which is the point of normalising by mean-|u|. */
+/* Position in the plate's OWN frame — p rotated back by everything that plate
+   has turned through, the exact inverse of what plateSeedDir does to the seeds.
+
+   Any pattern evaluated here is nailed to the rock instead of to space, and
+   rotates with it for free. Evaluating at the world position instead means the
+   crust slides through a stationary pattern, which is the same class of mistake
+   as advecting with a blended velocity: it looks fine until the rock moves. */
+vec3 plateOmega(int i);            // defined below; matPos and beltRough precede it
+vec3 matPos(vec3 p, int id){
+  if (uPTime == 0.0) return p;
+  vec3 w = plateOmega(id);
+  float th = -length(w)*uPTime, c = cos(th), sn = sin(th);
+  vec3 n = normalize(w);
+  return normalize(p*c + cross(n, p)*sn + n*dot(n, p)*(1.0 - c));
+}
+
+float beltRough(vec3 p0, int id){
+  vec3 p = matPos(p0, id);
+  if (uRough <= 0.0) return 1.0;
+  // Few octaves and a threshold biased ABOVE the mean. Averaging many octaves
+  // pulls ridged fBm toward its mean, so a symmetric remap of 4 octaves barely
+  // reached zero and the belt only lost 7 % of its volume — a texture, not a
+  // break-up. Two octaves keep the contrast and the high threshold puts real
+  // gaps in, which is what separates a chain of massifs from a continuous welt.
+  float r = ridged(p*7.0 + uPSeed*0.31, 2);
+  return mix(1.0, smoothstep(0.46, 0.86, r), uRough);
+}
+
+// angular velocity vector ω·ω̂ — surface speed is ω·sin(Δ) from the pole
+vec3 plateOmega(int i){
+  vec3 a = normalize(vec3(hash11(float(i)*11.1 + uPSeed),
+                          hash11(float(i)*13.7 + uPSeed),
+                          hash11(float(i)*17.3 + uPSeed))*2.0 - 1.0);
+  return a*(0.35 + 1.0*hash11(float(i)*19.9 + uPSeed));
+}
+// Fibonacci lattice for even spacing, jittered so the result is not suspiciously regular
+vec3 plateSeedDir0(int i){
+  float k = float(i) + 0.5, n = float(uPlateN);
+  float z = 1.0 - 2.0*k/n;
+  float r = sqrt(max(0.0, 1.0 - z*z));
+  float th = 3.14159265*(1.0 + sqrt(5.0))*k + uPSeed*7.0;
+  vec3 j = vec3(hash11(float(i)*1.7 + uPSeed),
+                hash11(float(i)*3.3 + uPSeed),
+                hash11(float(i)*5.1 + uPSeed)) - 0.5;
+  return normalize(vec3(r*cos(th), r*sin(th), z) + j*0.33);
+}
+/* Rigid plates are rotations, so the SEEDS move analytically — rotate each seed
+   under its own pole and the whole Voronoi drifts with it, margins and triple
+   junctions included. No id field, no advection pass, no margin scan, and the
+   distance to the margin stays exact and unbounded at any range.
+
+   The catch, written down rather than hidden: a Voronoi cell shrinks as its
+   neighbours close in but never empties, because a seed always owns the points
+   nearest itself. Oceans narrow; they do not shut. Real topology change needs
+   seeds that can be retired, which is the plate-topology item on the roadmap. */
+vec3 plateSeedDir(int i){
+  vec3 s = plateSeedDir0(i);
+  if (uPTime == 0.0) return s;
+  vec3 w = plateOmega(i);
+  float th = length(w)*uPTime, c = cos(th), sn = sin(th);
+  vec3 n = normalize(w);
+  return normalize(s*c + cross(n, s)*sn + n*dot(n, s)*(1.0 - c));
+}
+// 1 = continental (buoyant, cannot subduct), 0 = oceanic
+float plateCont(int i){ return step(hash11(float(i)*23.7 + uPSeed), uContFrac); }
+
+/* d1, d2 come back measured in WARPED space, so the bisector distance derived
+   from them — and with it the local belt width — stretches and pinches along a
+   margin instead of holding one value. That is a side effect, and a welcome one. */
+void nearestPlates(vec3 p0, out int i1, out int i2, out float d1, out float d2){
+  vec3 p = plateWarp(p0);
+  d1 = 9.0; d2 = 9.0; i1 = 0; i2 = 0;
+  for(int i=0;i<64;i++){
+    if (i >= uPlateN) break;
+    float d = acos(clamp(dot(p, plateSeedDir(i)), -1.0, 1.0));
+    if (d < d1){ d2 = d1; i2 = i1; d1 = d; i1 = i; }
+    else if (d < d2){ d2 = d; i2 = i; }
+  }
+}
+
+// signed vertical response at p, in the same arbitrary units as the noise field
+float plateUplift(vec3 p, out float convOut, out float contOut){
+  int i1, i2; float d1, d2;
+  nearestPlates(p, i1, i2, d1, d2);
+  float db = 0.5*(d2 - d1);                       // distance to the bisector
+  contOut = plateCont(i1);
+
+  vec3 s1 = plateSeedDir(i1), s2 = plateSeedDir(i2);
+  vec3 t1 = normalize(s1 - p*dot(p,s1));          // unit tangent toward each seed
+  vec3 t2 = normalize(s2 - p*dot(p,s2));
+  vec3 nrm = normalize(t2 - t1);                  // across the margin, plate 1 → plate 2
+
+  // relative motion is itself a rotation: poles subtract as vectors
+  vec3 dv = cross(plateOmega(i1), p) - cross(plateOmega(i2), p);
+  float conv = dot(dv, nrm);                      // > 0 convergent, < 0 divergent
+  convOut = conv;
+
+  float w    = max(uBWidth, 1e-3);
+  float band = exp(-(db*db)/(2.0*w*w));
+  float c1 = contOut, c2 = plateCont(i2);
+
+  if (conv <= 0.0) return conv*band*0.55;         // rift: narrow, subsiding
+
+  float rg = beltRough(p, i1);                        // orogens break up, trenches do not
+  if (c1 > 0.5 && c2 > 0.5) return conv*band*rg;     // continent–continent: collision plateau
+  if (c1 < 0.5 && c2 < 0.5) return conv*band*0.55*rg;// ocean–ocean: island arc
+
+  // ocean–continent. The oceanic side gets a trench, the continental side an arc
+  // offset inboard. This is the *signature* of subduction, not the mechanism —
+  // nothing is consumed here and the margin never migrates.
+  if (c1 < 0.5) return -conv*band*0.85;                          // trench
+  float x = (db - uArcOff)/w;
+  return conv*exp(-0.5*x*x)*1.05*rg;                             // volcanic arc
+}
+`;
+
+const VS_QUAD = `#version 300 es
+void main(){
+  vec2 v = vec2((gl_VertexID<<1)&2, gl_VertexID&2);
+  gl_Position = vec4(v*2.0-1.0, 0.0, 1.0);
+}`;
+
+/* Boilerplate for every field pass: decide interior vs halo, and for halo
+   texels resample the neighbouring face from the SOURCE texture. */
+const HALO = `
+bool haloFill(sampler2DArray SRC, vec2 s, int face, out vec4 outv){
+  if (s.x > 0.0 && s.x < 1.0 && s.y > 0.0 && s.y < 1.0) return false;
+  outv = fetchDir(SRC, faceToDir(face, s));
+  return true;
+}`;
+
+/* ─────────────────── pass 0a: metric (arc lengths, area) ─────────────────── */
+const FS_METRIC = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+uniform int uFace; uniform float uR;
+layout(location=0) out vec4 oM;    // arc lengths E, W, N, S
+layout(location=1) out vec4 oA;    // exact cell area
+
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  float d = 1.0/uN, hf = 0.5/uN;
+  vec3 c  = normalize(faceToDir(uFace, s));
+  vec3 pe = normalize(faceToDir(uFace, s + vec2( d,0.0)));
+  vec3 pw = normalize(faceToDir(uFace, s + vec2(-d,0.0)));
+  vec3 pn = normalize(faceToDir(uFace, s + vec2(0.0, d)));
+  vec3 ps = normalize(faceToDir(uFace, s + vec2(0.0,-d)));
+  // chord ≈ arc: θ ~ π/(2N) ≲ 3e-3 rad, relative error θ²/24 ≲ 4e-7
+  oM = vec4(length(pe-c), length(pw-c), length(pn-c), length(ps-c)) * uR;
+
+  // cell area from the analytic area element of the equiangular cubed sphere:
+  //   dA = (1+X²)(1+Y²)·δ⁻³ dξ dη,  X = tan ξ, Y = tan η, δ² = 1+X²+Y²
+  // A rectangle of the centred spacings is 1.6 % out; the spherical-excess
+  // formula is exact but cancels catastrophically in fp32 at these sizes.
+  vec2 XY = tan((s*2.0-1.0)*PI4);
+  float d2 = 1.0 + XY.x*XY.x + XY.y*XY.y;
+  float dxi = 2.0*PI4/uN;
+  float area = (1.0+XY.x*XY.x)*(1.0+XY.y*XY.y)/(d2*sqrt(d2)) * dxi*dxi;
+  oA = vec4(area*uR*uR, 0.0, 0.0, 1.0);
+}`;
+
+/* ══════════════ the lithosphere as GRAINS ══════════════
+   The tectonic driver is a material point method: the crust is ~400,000 grains
+   that carry their own mass and type, are pushed around by the plate velocity
+   field, and resist being crowded.
+
+   Why grains at all. The field version resampled the terrain on every advection
+   pass, and bilinear resampling is diffusive by construction — a crater rim lost
+   amplitude every hop, and MacCormack only slowed that down. Here material rides
+   on particles and is NEVER resampled; only velocity passes through a grid. And
+   crumpling stops being a noise mask modulated by a strain scalar and becomes
+   what happens when you push grains into each other, which is the same thing a
+   sandbox experiment does to layered sand under a piston.
+
+   Two resolutions. MPM wants several particles per cell, which at 6 × 512²
+   would be millions, so the grains run on their own coarse grid and the
+   thickness they produce is upsampled as the tectonic source. Erosion, isostasy
+   and the render stay at full resolution and are untouched.
+
+   Stage 1 is PRESSURE ONLY: grains resist compression but have no shear
+   strength, so they will pile up and spread but not yet fold. Shear strength —
+   and therefore folds — is stage 2. The driver stays prescribed here on purpose,
+   so the material layer can be verified against a motion we already trust. */
+const GRAINS = `
+uniform float uNG, uNGT;                 // coarse tectonic grid, not uN/uNT
+// analytic cell area of the equiangular cubed sphere, same formula as FS_METRIC
+float cellAreaAt(vec2 s, float n){
+  vec2 XY = tan((s*2.0-1.0)*PI4);
+  float d2 = 1.0 + XY.x*XY.x + XY.y*XY.y;
+  float dxi = 2.0*PI4/n;
+  return (1.0+XY.x*XY.x)*(1.0+XY.y*XY.y)/(d2*sqrt(d2))*dxi*dxi;
+}
+`;
+
+/* seed grains on a Fibonacci lattice — even coverage, no clumps to relax out */
+const FS_GSEED = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+uniform float uGD, uSeed, uM0;
+layout(location=0) out vec4 oP;          // position.xyz, mass
+layout(location=1) out vec4 oV;          // velocity.xyz, crust type
+void main(){
+  float id = floor(gl_FragCoord.y)*uGD + floor(gl_FragCoord.x);
+  float n  = uGD*uGD;
+  float k  = id + 0.5;
+  float z  = 1.0 - 2.0*k/n;
+  float r  = sqrt(max(0.0, 1.0 - z*z));
+  float th = 3.14159265*(1.0 + sqrt(5.0))*k;
+  vec3 p = normalize(vec3(r*cos(th), r*sin(th), z));
+
+  int i1, i2; float d1, d2;
+  nearestPlates(p, i1, i2, d1, d2);
+  float cont = plateCont(i1);
+  // continental grains carry more column than oceanic ones — that difference IS
+  // the continent/ocean split, rather than a height offset painted on later
+  oP = vec4(p, uM0*(1.0 + cont*1.6));
+  oV = vec4(cross(plateOmega(i1), p), cont);
+}`;
+
+/* ── P2G: scatter mass and momentum to the coarse grid ──
+   Same trick as the droplet splat: one POINTS draw per face, additive blending,
+   grains not on this face are pushed outside the clip volume. */
+const VS_GSPLAT = `#version 300 es
+precision highp float; precision highp sampler2DArray;   // COMMON declares one
+${COMMON}
+uniform sampler2D uGP, uGV;
+uniform int uFace; uniform float uGD;
+out vec4 vD;
+void main(){
+  int id = gl_VertexID, w = int(uGD);
+  ivec2 tc = ivec2(id % w, id / w);
+  vec4 P = texelFetch(uGP, tc, 0);
+  vec4 V = texelFetch(uGV, tc, 0);
+  vD = vec4(P.w*V.xyz, P.w);             // momentum, mass
+  int f; vec2 s;
+  dirToFace(normalize(P.xyz), f, s);
+  // A 1-texel nearest splat makes the density field Poisson noise — at four
+  // grains per cell the spread was 48× the mean, and a pressure law reading that
+  // is reading noise. MPM spreads each grain over 3×3 with a quadratic B-spline,
+  // which is what makes the density field smooth enough to differentiate.
+  gl_PointSize = 3.0;
+  if (f != uFace || P.w <= 0.0){ gl_Position = vec4(2.0); return; }
+  gl_Position = vec4(sToUv(s)*2.0 - 1.0, 0.0, 1.0);
+}`;
+const FS_GSPLAT = `#version 300 es
+precision highp float;
+in vec4 vD; out vec4 o;
+float bspl(float x){ x = abs(x); return x < 0.5 ? 0.75 - x*x
+                                : (x < 1.5 ? 0.5*(1.5-x)*(1.5-x) : 0.0); }
+void main(){
+  vec2 d = (gl_PointCoord - 0.5)*3.0;      // texels from the grain to this fragment
+  o = vD*(bspl(d.x)*bspl(d.y));
+}`;
+
+/* ── G2P + forces + advection, all per grain ──
+   Pressure is read as a gradient of grid density. Weakly compressible: grains
+   push back once they are crowded past rest density, which is what makes a
+   convergent margin thicken instead of simply overlapping. */
+const FS_GRAIN = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+${GRAINS}
+uniform sampler2D uGP, uGV;
+uniform sampler2DArray uGM;
+uniform float uGD, uDt, uStiff, uRho0, uDrag, uFlip, uDriftS;
+layout(location=0) out vec4 oP;
+layout(location=1) out vec4 oV;
+
+// grid density at a direction, from accumulated mass over the cell's own area
+float densAt(vec3 d){
+  int f; vec2 s; dirToFace(normalize(d), f, s);
+  ivec2 i = clamp(ivec2(floor(s*uNG + 1.0)), ivec2(0), ivec2(int(uNGT)-1));
+  float m = texelFetch(uGM, ivec3(i, f), 0).w;
+  return m/max(cellAreaAt(s, uNG), 1e-20);
+}
+void main(){
+  ivec2 tc = ivec2(gl_FragCoord.xy);
+  vec4 P = texelFetch(uGP, tc, 0);
+  vec4 V = texelFetch(uGV, tc, 0);
+  vec3 p = normalize(P.xyz), v = V.xyz;
+
+  // ── G2P: grid velocity where this grain sits
+  vec4 gm = fetchDir(uGM, p);
+  vec3 vg = gm.w > 1e-20 ? gm.xyz/gm.w : v;
+  // FLIP keeps the grain's own history and is sharp but noisy; PIC is smooth and
+  // lossy. № 02 settled on a blend and so does this.
+  v = mix(vg, v + (vg - v), uFlip);
+
+  vec3 e1, e2; basis(p, e1, e2);
+  float st = 1.5708/uNG;
+
+  // ── pressure: −∇p/ρ, with p = k(ρ/ρ0 − 1) clamped at zero so grains resist
+  // being crowded but never pull on each other. Cohesion is stage 2.
+  float dc = densAt(p);
+  float px = max(densAt(normalize(p + e1*st))/uRho0 - 1.0, 0.0)
+           - max(densAt(normalize(p - e1*st))/uRho0 - 1.0, 0.0);
+  float py = max(densAt(normalize(p + e2*st))/uRho0 - 1.0, 0.0)
+           - max(densAt(normalize(p - e2*st))/uRho0 - 1.0, 0.0);
+  vec3 acc = -(e1*px + e2*py)*(uStiff/(2.0*st));
+
+  // ── the driver: pull toward the plate velocity this grain sits on. Prescribed
+  // for now; stage 3 replaces this with mantle forces and lets plates emerge.
+  int i1, i2; float d1, d2;
+  nearestPlates(p, i1, i2, d1, d2);
+  vec3 vt = cross(plateOmega(i1), p)*uDriftS;
+  acc += (vt - v)*uDrag;
+
+  v += acc*uDt;
+  v -= p*dot(p, v);                       // keep it tangent
+
+  // ── geodesic advection, the same exact step the field version used
+  float sp = length(v);
+  vec3 pn = sp > 1e-12 ? normalize(p*cos(sp*uDt) + (v/sp)*sin(sp*uDt)) : p;
+
+  oP = vec4(pn, P.w);                     // mass is never touched: exact conservation
+  oV = vec4(v, V.w);
+}`;
+
+/* ── grain grid → crustal thickness on the FINE grid ──
+   The one place the two resolutions meet. Bilinear here is harmless: it smooths
+   the tectonic source, not the terrain, and the terrain is what has to stay sharp. */
+const FS_GTC = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${GRAINS}
+uniform sampler2DArray uGM;
+uniform int uFace; uniform float uTcK, uRho0;
+out vec4 o;
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 p = normalize(faceToDir(uFace, s));
+  int f; vec2 sg; dirToFace(p, f, sg);
+  float m = fetchDir(uGM, p).w;
+  float rho = m/max(cellAreaAt(sg, uNG), 1e-20);
+  // thickness relative to rest density: crowded crust is thick crust
+  o = vec4((rho/uRho0 - 1.0)*uTcK, 0.0, 0.0, 1.0);
+}`;
+
+/* ─────────────────── pass 0c: initial terrain ─────────────────── */
+const FS_INIT = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+uniform int uFace; uniform float uSeed; uniform int uMode, uSource;
+out vec4 o;
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 d = normalize(faceToDir(uFace, s));
+  float rock = 0.0, cont = 0.0;
+  if (uMode == 0){
+    vec3 q = d*2.2 + uSeed;
+    vec3 w = vec3(fbm(q+3.1,3), fbm(q+13.7,3), fbm(q+29.3,3)) - 0.5;
+    rock = (fbm(q + w*0.9, 6) - 0.5) * 0.030;
+    if (uSource >= 1){   // grains supply the split; this only sets the starting shape
+      // Continents ride high because their crust is thick and light. Standing in
+      // for isostasy, which this model does not have — see ROADMAP item 4.
+      int i1, i2; float d1, d2;
+      nearestPlates(d, i1, i2, d1, d2);
+      float db = 0.5*(d2 - d1);
+      float blend = smoothstep(0.0, max(uBWidth*1.6, 1e-3), db);   // soften the margin
+      float c1 = plateCont(i1), c2 = plateCont(i2);
+      rock = rock*0.55 + mix(mix(c1,c2,0.5), c1, blend)*0.026 - 0.013;
+      cont = mix(mix(c1,c2,0.5), c1, blend);
+    }
+  } else if (uMode == 1){
+    rock = 0.010;                       // flat test — a perfectly uniform shell
+  } else {
+    // isotropy test — identical bumps at a cube CORNER and a face CENTRE
+    vec3 corner = normalize(vec3(1.0,1.0,1.0));
+    vec3 centre = vec3(1.0,0.0,0.0);
+    float ac = acos(clamp(dot(d,corner),-1.0,1.0));
+    float af = acos(clamp(dot(d,centre),-1.0,1.0));
+    float sg = 0.16;
+    rock = 0.004 + 0.028*(exp(-ac*ac/(2.0*sg*sg)) + exp(-af*af/(2.0*sg*sg)));
+  }
+  // The value above is the intended STARTING SURFACE; invert isostasy to get the
+  // crustal thickness that floats there, then let h follow from it as usual.
+  float tc = rock/max(uIsoK, 1e-4);
+  o = vec4(isoH(tc), 0.0, tc, cont);    // h, sediment, crust thickness, crust type
+}`;
+
+/* ─────────────────── pass 1: uplift + hillslope creep ───────────────────
+   Creep is a VOLUME flux with a symmetric coefficient, so it conserves
+   exactly: ΔV_i = D·dt·(h_j−h_i)·√(A_i·A_j)/dist², Δh_i = ΔV_i/A_i.      */
+const FS_STEP = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${HALO}
+uniform sampler2DArray uT, uM, uA, uU;
+uniform int uFace; uniform float uDt, uUplift, uCreep, uUMean, uLith, uSedMax;
+out vec4 o;
+
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec4 h; if (haloFill(uT, s, uFace, h)){ o = h; return; }
+
+  ivec3 t = ivec3(gl_FragCoord.xy, uFace);
+  vec4 me = texelFetch(uT, t, 0);
+  vec4 m  = texelFetch(uM, t, 0);
+  float A = max(texelFetch(uA, t, 0).x, 1e-14);
+
+  vec4 nb[4]; float An[4]; float dst[4];
+  nb[0]=texelFetch(uT,t+ivec3( 1,0,0),0); An[0]=texelFetch(uA,t+ivec3( 1,0,0),0).x; dst[0]=m.x;
+  nb[1]=texelFetch(uT,t+ivec3(-1,0,0),0); An[1]=texelFetch(uA,t+ivec3(-1,0,0),0).x; dst[1]=m.y;
+  nb[2]=texelFetch(uT,t+ivec3(0, 1,0),0); An[2]=texelFetch(uA,t+ivec3(0, 1,0),0).x; dst[2]=m.z;
+  nb[3]=texelFetch(uT,t+ivec3(0,-1,0),0); An[3]=texelFetch(uA,t+ivec3(0,-1,0),0).x; dst[3]=m.w;
+
+  float hme = me.x + me.y;
+  float dV = 0.0;
+  for(int i=0;i<4;i++){
+    float hn = nb[i].x + nb[i].y;
+    float d  = max(dst[i], 1e-9);
+    float L  = sqrt(A*An[i])/d;                  // symmetric edge-length proxy
+    dV += uCreep*uDt*(hn - hme)*L/d;             // uCreep carries the dx² normaliser
+  }
+  float dh = dV/max(A,1e-12);
+
+  // Mean-zero: belts rise, everything else subsides by the area-weighted mean.
+  // A closed sphere with a source and no sink can only inflate — the mean radius
+  // grows at exactly the uplift rate forever. Real uplift is isostatic, i.e. crust
+  // rearranged rather than created, so removing the mean is both the physical and
+  // the numerical answer. It also makes total volume a conserved quantity.
+  float up = (texelFetch(uU, t, 0).x - me.z) * uUplift * uDt;   // toward the grain target
+
+  // creep works the loose layer first, then bites bedrock. dh here is a
+  // THICKNESS of material moved laterally, so it goes into the column, not
+  // straight onto the surface — the surface is derived at the end.
+  float sed = me.y, tc = me.z;
+  float toSed = clamp(dh, -sed, 1e9);
+  sed += toSed;
+  tc  += (dh - toSed) + up;          // uplift is crustal thickening
+
+  // Lithification. Nothing on a closed sphere removes sediment, so without a
+  // return path the whole planet slowly disappears under its own debris. Burial
+  // below the top few metres compacts back to bedrock — mass-conserving, and it
+  // is what actually happens to a basin fill.
+  float bury = max(sed - uSedMax, 0.0)*uLith*uDt;
+  sed -= bury;
+  tc  += bury;
+
+  o = vec4(isoH(tc), max(sed,0.0), tc, me.w);
+}`;
+
+/* ─────────────────── pass 2: droplet advect / erode ───────────────────
+   Each droplet takes ONE step per substep, so a droplet traces a continuous
+   path over many frames — a persistent rain rather than a burst. Gradients
+   are measured in world arc length along a tangent basis, which makes the
+   step metric-correct on every face and across every seam without touching
+   the metric texture.                                                     */
+const FS_DROP = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+uniform sampler2D uPos, uVel;
+uniform sampler2DArray uT, uA;
+uniform float uDt, uInertia, uErod, uDepo, uHard, uEvap, uRain, uSea, uFrame, uSeed, uAref, uCap;
+layout(location=0) out vec4 oPos;
+layout(location=1) out vec4 oVel;
+layout(location=2) out vec4 oEro;
+
+vec3 respawn(float id){
+  float a = hash11(id*1.13 + uFrame*0.017 + uSeed);
+  float b = hash11(id*7.71 + uFrame*0.031 + uSeed*3.7);
+  float z = a*2.0 - 1.0, th = b*6.2831853;
+  float r = sqrt(max(0.0, 1.0 - z*z));
+  return vec3(r*cos(th), r*sin(th), z);
+}
+
+void main(){
+  ivec2 tc = ivec2(gl_FragCoord.xy);
+  float id = gl_FragCoord.y*4096.0 + gl_FragCoord.x;
+
+  vec4 Pw = texelFetch(uPos, tc, 0);
+  vec4 Vs = texelFetch(uVel, tc, 0);
+  vec3 p = Pw.xyz; float water = Pw.w;
+  vec3 v = Vs.xyz; float sed = Vs.w;
+
+  if (water <= 0.0 || dot(p,p) < 0.5){          // fresh droplet
+    p = respawn(id); v = vec3(0.0); water = uRain; sed = 0.0;
+    oPos = vec4(p, water); oVel = vec4(v, sed); oEro = vec4(0.0);
+    return;
+  }
+  p = normalize(p);
+
+  vec3 e1, e2; basis(p, e1, e2);
+  float step = 1.5708/uN;                        // one cell, in radians ≈ world units at R=1
+  vec2 h0 = fetchDir(uT, p).rg;
+  float H  = h0.r + h0.g;
+
+  // measured tangent gradient of the surface
+  float hxp = dot(fetchDir(uT, normalize(p + e1*step)).rg, vec2(1.0));
+  float hxm = dot(fetchDir(uT, normalize(p - e1*step)).rg, vec2(1.0));
+  float hyp = dot(fetchDir(uT, normalize(p + e2*step)).rg, vec2(1.0));
+  float hym = dot(fetchDir(uT, normalize(p - e2*step)).rg, vec2(1.0));
+  vec3 grad = (e1*(hxp-hxm) + e2*(hyp-hym)) / (2.0*step);
+
+  vec3 dir = v*uInertia - grad*(1.0-uInertia);
+  dir -= p*dot(dir,p);
+  float dl = length(dir);
+  if (dl < 1e-7){                                 // flat spot: nudge, do not stall
+    dir = e1*(hash11(id+uFrame)*2.0-1.0) + e2*(hash11(id*3.1+uFrame)*2.0-1.0);
+    dir -= p*dot(dir,p); dl = max(length(dir),1e-7);
+  }
+  dir /= dl;
+
+  vec3 pn = normalize(p + dir*step);
+  vec2 h1 = fetchDir(uT, pn).rg;
+  float Hn = h1.r + h1.g;
+  float dH = Hn - H;
+
+  // work in SLOPE, not raw Δh, so the constants are resolution-independent
+  float slope = -dH/step;
+  float spd = length(v);
+  spd = min(sqrt(max(0.0, spd*spd + slope*4.0)), 3.0);
+
+  // relative cell area a = A/Aref. Loads and capacities are VOLUMES expressed
+  // in reference-cell depth, so a droplet carries the same mass across a seam
+  // even though the cells either side differ in size.
+  float a = max(fetchDir(uA, p).x, 1e-14)/uAref;
+
+  float capH = max(slope, 0.01) * spd * water * uCap * step;  // a depth
+  float capV = capH * a;
+
+  // This pass only DECLARES what it wants; it does not touch its own load.
+  // Hundreds of droplets can funnel through one channel cell in a step, and if
+  // each acted on the same stale height they would between them cut deeper than
+  // the whole relief — the pit then steepens and the next step is worse. So the
+  // grid arbitrates: the apply pass grants a fraction g of the total demand,
+  // and pass 2b hands each droplet g × its own demand. P2G, then G2P.
+  float wantV = 0.0, dropV = 0.0;
+  if (sed > capV || dH > 0.0){
+    dropV = (dH > 0.0) ? min(dH*a, sed) : (sed - capV)*uDepo;
+    dropV = max(dropV, 0.0);
+  } else {
+    wantV = max((capV - sed)*uErod, 0.0);
+  }
+
+  water *= (1.0 - uEvap*uDt);
+
+  // sink at base level or when spent: put the load down, then retire
+  bool dead = (water < 0.02) || (Hn < uSea);
+  if (dead){ dropV = sed; wantV = 0.0; water = 0.0; }
+
+  oPos = vec4(pn, water);
+  oVel = vec4(dir*spd, sed);                     // load unchanged here
+  oEro = vec4(dropV, wantV, Pw.w, dead ? 1.0 : 0.0);
+}`;
+
+/* ─────────────────── pass 3: splat droplet deltas ───────────────────
+   PointSize 1: a droplet writes exactly one texel, so nothing spills into a
+   halo and mass is conserved bit-for-bit at seams. Stipple is answered by
+   droplet count and by creep, not by a fat brush.                        */
+const VS_SPLAT = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+uniform sampler2D uPos, uEro;
+uniform int uFace; uniform float uPD, uGain;
+out vec4 vD;
+void main(){
+  int id = gl_VertexID;
+  int w  = int(uPD);
+  ivec2 tc = ivec2(id % w, id / w);
+  vec4 Pw = texelFetch(uPos, tc, 0);
+  // A single droplet's demand is ~3e-5 — below half-float's smallest normal
+  // (6.1e-5), so it lands in the sub-normal range that most GPUs flush to zero.
+  // The grid then saw no demand while the droplets still collected one: mass out
+  // of nothing. The gain lifts every contribution into the normal range.
+  vD = texelFetch(uEro, tc, 0)*uGain;
+  int f; vec2 s;
+  dirToFace(normalize(Pw.xyz), f, s);
+  gl_PointSize = 1.0;
+  if (f != uFace || Pw.w <= 0.0 || dot(Pw.xyz,Pw.xyz) < 0.5){
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);      // clipped
+    return;
+  }
+  gl_Position = vec4(sToUv(s)*2.0 - 1.0, 0.0, 1.0);
+}`;
+const FS_SPLAT = `#version 300 es
+precision highp float;
+in vec4 vD; out vec4 o;
+void main(){ o = vD; }`;
+
+/* ─────────────────── pass 4: apply splat + discharge ───────────────────
+   The splat holds VOLUME. Dividing by the measured cell area here is what
+   makes an erosion event cost the same mass in a big cell as in a small one. */
+const FS_APPLY = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${HALO}
+uniform sampler2DArray uT, uS, uA, uF;
+uniform int uFace; uniform float uDt, uAref, uHard, uGain, uAllow, uQScale;
+layout(location=0) out vec4 oT;
+layout(location=1) out vec4 oF;
+
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec4 hh, ff;
+  bool halo = haloFill(uT, s, uFace, hh);
+  if (halo){ haloFill(uF, s, uFace, ff); oT = hh; oF = ff; return; }
+
+  ivec3 t = ivec3(gl_FragCoord.xy, uFace);
+  vec4 me = texelFetch(uT, t, 0);
+  vec4 sp = texelFetch(uS, t, 0)/uGain;
+  float a = max(texelFetch(uA, t, 0).x, 1e-14)/uAref;   // relative cell area
+
+  // the splat holds volume in reference-cell depth; /a turns it into a depth here
+  float deposit = sp.x/a;
+  float demand  = sp.y/a;
+
+  // A cell may not be cut more than a quarter of the way down to its lowest
+  // neighbour in one step. In a pit the allowance is zero, so pits fill instead
+  // of digging — which is also what water does.
+  float hme = me.x + me.y;
+  float lowest = hme;
+  lowest = min(lowest, texelFetch(uT,t+ivec3( 1,0,0),0).x + texelFetch(uT,t+ivec3( 1,0,0),0).y);
+  lowest = min(lowest, texelFetch(uT,t+ivec3(-1,0,0),0).x + texelFetch(uT,t+ivec3(-1,0,0),0).y);
+  lowest = min(lowest, texelFetch(uT,t+ivec3(0, 1,0),0).x + texelFetch(uT,t+ivec3(0, 1,0),0).y);
+  lowest = min(lowest, texelFetch(uT,t+ivec3(0,-1,0),0).x + texelFetch(uT,t+ivec3(0,-1,0),0).y);
+  float allowed = uAllow*max(hme - lowest, 0.0);
+  // Fail to ZERO, never to one. If a droplet's demand failed to register here,
+  // granting it in full would hand out material the ground never gave up — an
+  // unbounded source. Granting nothing is a bounded loss instead.
+  float g = demand > 1e-20 ? min(1.0, allowed/demand) : 0.0;
+
+  float cut   = demand*g;
+  float loose = max(me.y + deposit, 0.0);
+  float fromSed   = min(cut, loose);
+  float fromRock  = (cut - fromSed)/uHard;       // hard rock yields less per unit of work
+  float removed   = fromSed + fromRock;
+  // the fraction each droplet actually gets — hardness included, so what the
+  // ground loses and what the droplets gain are the same number
+  float gEff = demand > 1e-20 ? removed/demand : 0.0;
+
+  float sed = loose - fromSed;
+  float tc  = me.z - fromRock;        // erosion removes mass from the column
+  if (sed < 0.0){ tc += sed; sed = 0.0; }
+
+  // Discharge, in multiples of AVERAGE traffic — so "q = 20" means twenty times
+  // the water an average cell sees, at any grid size or droplet count, and the
+  // river threshold downstream does not need re-tuning per setting.
+  float q = texelFetch(uF, t, 0).x;
+  float inst = sp.z/a*uQScale;
+  q = mix(q, inst, clamp(0.10*uDt, 0.0, 1.0));
+
+  oT = vec4(isoH(tc), sed, tc, me.w);
+  oF = vec4(q, gEff, 0.0, 1.0);                  // .y is the grant, read back by 2b
+}`;
+
+/* ─────────────────── pass 5: talus / angle of repose ───────────────────
+   Antisymmetric volume exchange: both cells of a pair compute an identical
+   magnitude from identical inputs, so no sediment is invented or destroyed
+   at a cliff edge — the trap № 11 hit and documented.                     */
+const FS_TALUS = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${HALO}
+uniform sampler2DArray uT, uM, uA;
+uniform int uFace; uniform float uRepose, uDt;
+out vec4 o;
+
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec4 h; if (haloFill(uT, s, uFace, h)){ o = h; return; }
+
+  ivec3 t = ivec3(gl_FragCoord.xy, uFace);
+  vec4 me = texelFetch(uT, t, 0);
+  vec4 mm = texelFetch(uM, t, 0);
+  float A = max(texelFetch(uA, t, 0).x, 1e-14);
+  float hme = me.x + me.y;
+
+  vec4 nb[4]; float dst[4]; float An[4];
+  nb[0]=texelFetch(uT,t+ivec3( 1,0,0),0); dst[0]=mm.x; An[0]=texelFetch(uA,t+ivec3( 1,0,0),0).x;
+  nb[1]=texelFetch(uT,t+ivec3(-1,0,0),0); dst[1]=mm.y; An[1]=texelFetch(uA,t+ivec3(-1,0,0),0).x;
+  nb[2]=texelFetch(uT,t+ivec3(0, 1,0),0); dst[2]=mm.z; An[2]=texelFetch(uA,t+ivec3(0, 1,0),0).x;
+  nb[3]=texelFetch(uT,t+ivec3(0,-1,0),0); dst[3]=mm.w; An[3]=texelFetch(uA,t+ivec3(0,-1,0),0).x;
+
+  float dV = 0.0;
+  for(int i=0;i<4;i++){
+    float hn   = nb[i].x + nb[i].y;
+    float diff = hme - hn;                        // >0 → I am the giver
+    float d    = max(dst[i], 1e-9);
+    float over = abs(diff)/d - uRepose;           // slope beyond repose
+    if (over <= 0.0) continue;
+    // rate ∝ d keeps Δh ≈ 0.15·diff — stable, and still metric-weighted
+    float mag  = 0.15*uDt * over * d * sqrt(A*An[i]);     // identical on both sides
+    // 1/8, not 1/2: a cell can be the giver to all four neighbours at once, and
+    // clamping a negative result afterwards would invent sediment
+    float give = (diff > 0.0) ? me.y*A : nb[i].y*An[i];   // giver's stock, both agree
+    mag = min(mag, give*0.125);
+    dV += (diff > 0.0) ? -mag : mag;
+  }
+  float sed = max(me.y + dV/A, 0.0);
+  o = vec4(me.x, sed, me.z, me.w);     // talus moves sediment only
+}`;
+
+/* ─────────────────── impact: one crater, mass-conserving ───────────────────
+   Bowl + central peak excavated from the surface, the identical volume laid
+   back down as a rim and an ejecta blanket falling off as r⁻³. Balanced
+   analytically on the locally-flat approximation:
+
+     bowl      V = π·D·R²/2                 depth D over radius R
+     peak      V = π·P·s²                   height P, width s
+     blanket   V = 2π·E·R²·(1 − R/Rmax)     rim height E out to Rmax
+
+   so E = (D·R²/2 − P·s²) / (2·R²·(1 − R/Rmax)). Curvature makes this
+   approximate on a sphere; the mass audit reports what it actually costs.
+
+   Excavation takes sediment before rock; ejecta lands as sediment, which is
+   what a breccia blanket is.                                                */
+const FS_IMPACT = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${HALO}
+uniform sampler2DArray uT;
+uniform int uFace;
+uniform vec3 uCentre;
+uniform float uRad, uDepth, uPeak, uEjecta;
+out vec4 o;
+
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec4 h; if (haloFill(uT, s, uFace, h)){ o = h; return; }
+
+  ivec3 t = ivec3(gl_FragCoord.xy, uFace);
+  vec4 me = texelFetch(uT, t, 0);
+  vec3 d = normalize(faceToDir(uFace, s));
+
+  float a    = acos(clamp(dot(d, uCentre), -1.0, 1.0));   // angular distance
+  float R    = uRad;
+  float Rmax = R*3.0;
+  if (a > Rmax){ o = me; return; }
+
+  float D  = uDepth;
+  float ps = R*0.22;                                       // central-peak width
+  float P  = uPeak;
+  float E  = uEjecta;      // solved on the CPU against sin(a)·da, taper included
+
+  float dh;
+  if (a < R){
+    float x = a/R;
+    dh = -D*(1.0 - x*x);                                   // parabolic bowl
+    dh += P*exp(-(a*a)/(ps*ps));                           // central peak
+    dh += E*smoothstep(0.75, 1.0, x)*0.9;                  // raised rim
+  } else {
+    float x = a/R;
+    dh = E*pow(x, -3.0)*smoothstep(Rmax, R, a);            // ejecta blanket
+  }
+
+  float tc = me.z, sed = me.y;
+  if (dh < 0.0){
+    float take = -dh;                                      // sediment goes first
+    float fromSed = min(take, sed);
+    sed -= fromSed;
+    tc  -= (take - fromSed);
+  } else {
+    sed += dh;                                             // ejecta is loose
+  }
+  o = vec4(isoH(tc), max(sed, 0.0), tc, me.w);
+}`;
+
+/* ─────────────────── render: raymarch the displaced shell ─────────────────── */
+const FS_RENDER = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+uniform sampler2DArray uT, uF, uU;
+uniform vec3 uEye, uFwd, uRight, uUp, uSun;
+uniform vec2 uRes;
+uniform float uTanFov, uSteps, uSea, uR, uHmax;
+uniform int uShade, uWater, uShadow;
+out vec4 frag;
+
+float surf(vec3 d){ vec2 h = fetchDir(uT, d).rg; return uR + h.r + h.g; }
+
+bool sphere(vec3 ro, vec3 rd, float r, out float t0, out float t1){
+  float b = dot(ro, rd), c = dot(ro,ro) - r*r;
+  float disc = b*b - c;
+  if (disc < 0.0) return false;
+  float sq = sqrt(disc);
+  t0 = -b - sq; t1 = -b + sq;
+  return t1 > 0.0;
+}
+
+// march the shell; returns distance to the terrain hit or -1
+float trace(vec3 ro, vec3 rd, float steps){
+  float t0, t1;
+  if (!sphere(ro, rd, uR + uHmax, t0, t1)) return -1.0;
+  float t = max(t0, 0.0);
+  float tEnd = t1;
+  float inner0, inner1;
+  if (sphere(ro, rd, uR - uHmax, inner0, inner1) && inner0 > 0.0) tEnd = min(tEnd, inner0);
+  float minStep = 1.5708/uN*0.45;
+  float prev = 0.0; float prevT = t; bool have = false;
+  for (float i = 0.0; i < steps; i += 1.0){
+    if (t > tEnd) break;
+    vec3 p = ro + rd*t;
+    float r = length(p);
+    float f = r - surf(p/r);
+    if (f < 0.0){
+      // bisect between the last outside sample and here
+      float a = have ? prevT : max(t0,0.0), b = t;
+      for (int k = 0; k < 7; k++){
+        float mid = 0.5*(a+b);
+        vec3 pm = ro + rd*mid; float rm = length(pm);
+        if (rm - surf(pm/rm) < 0.0) b = mid; else a = mid;
+      }
+      return 0.5*(a+b);
+    }
+    prev = f; prevT = t; have = true;
+    t += max(f*0.55, minStep);
+  }
+  return -1.0;
+}
+
+vec3 normalAt(vec3 p){
+  vec3 n = normalize(p);
+  vec3 e1, e2; basis(n, e1, e2);
+  float st = 1.5708/uN;
+  float a = surf(normalize(n + e1*st)), b = surf(normalize(n - e1*st));
+  float c = surf(normalize(n + e2*st)), d = surf(normalize(n - e2*st));
+  vec3 g = e1*(a-b)/(2.0*st) + e2*(c-d)/(2.0*st);
+  return normalize(n - g);
+}
+
+float shadow(vec3 p){
+  if (uShadow == 0) return 1.0;
+  vec3 n = normalize(p);
+  vec3 sd = normalize(uSun - n*dot(uSun,n));
+  float st = 1.5708/uN;
+  float h0 = surf(n);
+  float occ = 0.0;
+  for (int i = 1; i <= 10; i++){
+    float d = float(i)*st*2.2;
+    vec3 q = normalize(n + sd*d);
+    float rise = (surf(q) - h0)/d;               // apparent slope to the sample
+    occ = max(occ, rise);
+  }
+  float sunEl = dot(uSun, n);
+  return 1.0 - smoothstep(sunEl - 0.03, sunEl + 0.10, occ);
+}
+
+vec3 palette(vec3 p, vec3 n, vec2 h, float q, float up){
+  float H = h.r + h.g - uR + uR - uR;            // relief above datum
+  H = h.r + h.g;
+  float alt   = clamp((H - uSea)/0.035, 0.0, 1.0);
+  float sedf  = clamp(h.g/0.0035, 0.0, 1.0);
+  float slope = 1.0 - clamp(dot(n, normalize(p)), 0.0, 1.0);
+  slope = clamp(slope*6.0, 0.0, 1.0);
+
+  if (uShade == 1) return mix(vec3(0.30,0.31,0.34), vec3(0.86,0.70,0.44), sedf);
+  if (uShade == 2){
+    float f = clamp(log(1.0 + q)/log(60.0), 0.0, 1.0);
+    return mix(vec3(0.05,0.06,0.09), vec3(0.35,0.78,1.0), f);
+  }
+  if (uShade == 3) return mix(vec3(0.06,0.07,0.10), vec3(1.0,0.55,0.30), clamp(up,0.0,1.0));
+  if (uShade == 5){
+    vec3 dd = normalize(p);
+    int i1, i2; float d1, d2;
+    nearestPlates(dd, i1, i2, d1, d2);
+    float db = 0.5*(d2 - d1);
+    // hashed RGB clusters around mid-grey and reads as one colour; spread the hue
+    // instead so neighbouring plates are always separable
+    float hue = hash11(float(i1)*3.1 + uPSeed + 1.0);
+    vec3 rgb = clamp(abs(mod(hue*6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    bool cont = plateCont(i1) > 0.5;
+    // continental crust warm and bright, oceanic cool and dark — the split that
+    // decides what happens when two of these meet
+    vec3 base = cont ? mix(rgb, vec3(1.0,0.82,0.52), 0.40)*0.95
+                     : mix(rgb, vec3(0.16,0.34,0.62), 0.62)*0.55;
+    float margin = 1.0 - smoothstep(0.0, 0.030, db);
+    return mix(base, vec3(1.0,0.98,0.94), margin*margin);
+  }
+  if (uShade == 6){
+    // The motion field itself. Evaluated analytically rather than sampled from
+    // VF, so it stays correct for every source, not only source 3 — direction
+    // to hue, speed to value. Each plate reads as its own colour because each
+    // has its own Euler pole, and the blend across a margin is visible as the
+    // gradient between two of them: that gradient IS the shear zone whose
+    // divergence drives the uplift.
+    vec3 dd = normalize(p);
+    int i1, i2; float d1, d2;
+    nearestPlates(dd, i1, i2, d1, d2);
+    float db = 0.5*(d2 - d1);
+    vec3 v1 = cross(plateOmega(i1), dd), v2 = cross(plateOmega(i2), dd);
+    vec3 v  = mix(0.5*(v1 + v2), v1, smoothstep(0.0, max(uBWidth,1e-3), db));
+    float sp = length(v);
+    vec3 e1, e2; basis(dd, e1, e2);
+    float ang = atan(dot(v, e2), dot(v, e1));           // heading in the tangent plane
+    float hue = ang/6.2831853 + 0.5;
+    vec3 rgb = clamp(abs(mod(hue*6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+    return rgb*(0.25 + 0.75*clamp(sp/1.2, 0.0, 1.0));
+  }
+  if (uShade == 4){
+    int f; vec2 s; dirToFace(normalize(p), f, s);
+    vec3 cols[6];
+    cols[0]=vec3(0.9,0.3,0.3); cols[1]=vec3(0.3,0.9,0.4); cols[2]=vec3(0.35,0.5,1.0);
+    cols[3]=vec3(0.9,0.85,0.3); cols[4]=vec3(0.9,0.4,0.9); cols[5]=vec3(0.3,0.9,0.9);
+    vec2 e = min(s, 1.0-s);
+    float edge = smoothstep(0.0, 2.5/uN, min(e.x, e.y));
+    return mix(vec3(1.0), cols[f], 0.35 + 0.65*edge);
+  }
+
+  vec3 low  = vec3(0.20,0.30,0.16);              // lowland green
+  vec3 mid  = vec3(0.36,0.32,0.22);              // dry upland
+  vec3 rock = vec3(0.30,0.29,0.30);              // exposed bedrock
+  vec3 snow = vec3(0.92,0.94,0.97);
+  vec3 sand = vec3(0.72,0.63,0.45);
+
+  vec3 c = mix(low, mid, smoothstep(0.10, 0.45, alt));
+  c = mix(c, rock, smoothstep(0.35, 0.75, alt));
+  c = mix(c, rock, slope*0.65);
+  c = mix(c, sand, sedf*0.55*(1.0 - smoothstep(0.55,0.85,alt)));
+  float snowline = smoothstep(0.72, 0.92, alt) * (1.0 - slope*0.55);
+  c = mix(c, snow, clamp(snowline, 0.0, 1.0));
+  // coastal bleach
+  c = mix(vec3(0.74,0.68,0.52), c, smoothstep(0.0, 0.045, alt));
+  return c;
+}
+
+void main(){
+  vec2 uv = (gl_FragCoord.xy/uRes)*2.0 - 1.0;
+  uv.x *= uRes.x/uRes.y;
+  vec3 rd = normalize(uFwd + uRight*uv.x*uTanFov + uUp*uv.y*uTanFov);
+  vec3 ro = uEye;
+
+  vec3 col;
+  float t = trace(ro, rd, uSteps);
+
+  // ocean shell
+  float so0, so1; bool seaHit = false; float tSea = 1e9;
+  if (uWater == 1 && sphere(ro, rd, uR + uSea, so0, so1) && so0 > 0.0){ seaHit = true; tSea = so0; }
+
+  bool land = t > 0.0 && (!seaHit || t < tSea);
+
+  if (land){
+    vec3 p = ro + rd*t;
+    vec3 n = normalAt(p);
+    vec3 d = normalize(p);
+    vec2 h = fetchDir(uT, d).rg;
+    float q = fetchDir(uF, d).r;
+    float up = fetchDir(uU, d).r;
+    vec3 base = palette(p, n, h, q, up);
+
+    // rivers: discharge above threshold, above base level
+    float riv = 0.0;
+    if (uWater == 1 && uShade == 0){
+      riv = smoothstep(2.0, 8.0, q);       // ≈4 % of cells partially, 0.4 % fully
+      base = mix(base, vec3(0.12,0.28,0.40), riv*0.85);
+    }
+
+    float sun = max(dot(n, uSun), 0.0) * shadow(p);
+    float sky = 0.35 + 0.35*dot(n, normalize(p));
+    col = base*(sun*1.25 + sky*0.30);
+    col += vec3(0.35,0.55,0.85)*riv*pow(max(dot(reflect(-uSun,n), -rd),0.0), 48.0)*sun*0.9;
+  } else if (seaHit){
+    vec3 p = ro + rd*tSea;
+    vec3 n = normalize(p);
+    vec2 h = fetchDir(uT, n).rg;
+    if (h.r + h.g >= uSea){
+      col = vec3(0.02,0.03,0.05);                // shell hit but land is above: sky
+      land = false; seaHit = false;
+    } else {
+      float depth = clamp((uSea - (h.r+h.g))/0.02, 0.0, 1.0);
+      vec3 deep = vec3(0.014,0.055,0.115), shallow = vec3(0.09,0.32,0.42);
+      vec3 base = mix(shallow, deep, depth);
+      float sun = max(dot(n, uSun), 0.0);
+      float spec = pow(max(dot(reflect(-uSun,n), -rd), 0.0), 90.0);
+      col = base*(sun*1.05 + 0.10) + vec3(0.8,0.9,1.0)*spec*sun*0.7;
+      float fres = pow(1.0 - max(dot(n,-rd),0.0), 4.0);
+      col = mix(col, vec3(0.25,0.42,0.62), fres*0.5);
+    }
+  }
+
+  if (!land && !seaHit){
+    float st = hash13(floor(rd*900.0));
+    col = vec3(0.006,0.009,0.014) + vec3(step(0.9994, st))*0.9;
+    // atmospheric limb
+    float t0,t1;
+    if (sphere(ro, rd, uR + uHmax*2.6, t0, t1)){
+      float chord = max(t1 - max(t0,0.0), 0.0);
+      col += vec3(0.18,0.36,0.72) * clamp(chord*2.4, 0.0, 1.0) * 0.30;
+    }
+  } else {
+    float t0,t1;
+    if (sphere(ro, rd, uR + uHmax*2.6, t0, t1)){
+      vec3 p = ro + rd*max(t0,0.0);
+      float g = clamp(dot(normalize(p), uSun), 0.0, 1.0);
+      col += vec3(0.10,0.20,0.42)*pow(g,2.0)*0.20;
+    }
+  }
+
+  col = col/(col + 0.72);                        // tonemap
+  col = pow(max(col, 0.0), vec3(1.0/2.2));
+  frag = vec4(col, 1.0);
+}`;
+
+/* ─────────────────── pass 2b: G2P — collect the granted share ───────────────────
+   The droplet reads back the fraction the grid allowed at the cell it acted on
+   and moves exactly that much into its load. The texel is looked up the same way
+   the splat rasterised it, so what left the ground and what entered the droplets
+   are the same number rather than two nearly-equal numbers.                     */
+const FS_DROPB = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+uniform sampler2D uPos, uVel, uEro;
+uniform sampler2DArray uF;
+out vec4 oVel;
+
+float grantAt(vec3 d){
+  int f; vec2 s; dirToFace(normalize(d), f, s);
+  ivec2 i = clamp(ivec2(floor(s*uN + 1.0)), ivec2(0), ivec2(int(uNT)-1));
+  return texelFetch(uF, ivec3(i, f), 0).y;
+}
+void main(){
+  ivec2 tc = ivec2(gl_FragCoord.xy);
+  vec4 Pw = texelFetch(uPos, tc, 0);      // position the droplet acted FROM
+  vec4 Vs = texelFetch(uVel, tc, 0);      // new heading, load not yet updated
+  vec4 E  = texelFetch(uEro, tc, 0);      // (deposit, demand, water, retired)
+  float sed = Vs.w;
+  if (dot(Pw.xyz, Pw.xyz) > 0.5 && E.w < 0.5){
+    sed = sed - E.x + E.y*grantAt(Pw.xyz);
+  } else if (E.w > 0.5){
+    sed = 0.0;                            // retired — the whole load was put down
+  }
+  oVel = vec4(Vs.xyz, max(sed, 0.0));
+}`;
+
+/* ─────────────────── droplet seed ─────────────────── */
+const FS_DSEED = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+uniform float uSeed, uRain;
+layout(location=0) out vec4 oPos;
+layout(location=1) out vec4 oVel;
+layout(location=2) out vec4 oEro;
+void main(){
+  float id = gl_FragCoord.y*4096.0 + gl_FragCoord.x;
+  float a = hash11(id*1.13 + uSeed), b = hash11(id*7.71 + uSeed*3.7);
+  float z = a*2.0-1.0, th = b*6.2831853, r = sqrt(max(0.0,1.0-z*z));
+  oPos = vec4(r*cos(th), r*sin(th), z, uRain*hash11(id*2.3+uSeed));
+  oVel = vec4(0.0);
+  oEro = vec4(0.0);
+}`;
+
+/* ═══════════════════════════ programs ═══════════════════════════ */
+const pMetric = prog(VS_QUAD, FS_METRIC);
+const pInit   = prog(VS_QUAD, FS_INIT);
+const pStep   = prog(VS_QUAD, FS_STEP);
+const pDrop   = prog(VS_QUAD, FS_DROP);
+const pDropB  = prog(VS_QUAD, FS_DROPB);
+const pSplat  = prog(VS_SPLAT, FS_SPLAT);
+const pApply  = prog(VS_QUAD, FS_APPLY);
+const pTalus  = prog(VS_QUAD, FS_TALUS);
+const pImpact = prog(VS_QUAD, FS_IMPACT);
+const pRender = prog(VS_QUAD, FS_RENDER);
+const pDSeed  = prog(VS_QUAD, FS_DSEED);
+const pGSeed  = prog(VS_QUAD, FS_GSEED);
+const pGSplat = prog(VS_GSPLAT, FS_GSPLAT);
+const pGrain  = prog(VS_QUAD, FS_GRAIN);
+const pGTc    = prog(VS_QUAD, FS_GTC);
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const fb  = gl.createFramebuffer();
+const fb2 = gl.createFramebuffer();
+
+/* ═══════════════════════════ resources ═══════════════════════════ */
+let T = [], F = [], S = null, M = null, MA = null, Uf = null;   // field textures
+let GP = [], GV = [], GM = null;        // grain position/mass, velocity/type, and their grid
+let NG = 128, NGT = 130, GD = 640;      // coarse tectonic grid, and GD² grains
+let DP = [], DV = [], DE = null;                     // droplet textures
+let cur = 0, NT = 0, AREF = 1, UMEAN = 0, gcur = 0;
+let frameNo = 0, simTime = 0;
+
+function freeAll(){
+  [...T, ...F, ...GP, ...GV, S, M, MA, Uf, GM, ...DP, ...DV, DE].forEach(t => { if(t) gl.deleteTexture(t); });
+  T=[]; F=[]; GP=[]; GV=[]; S=null; M=null; MA=null; Uf=null; GM=null; DP=[]; DV=[]; DE=null;
+}
+
+function allocate(n, pd){
+  freeAll();
+  N = n; PD = pd; NT = N + 2;
+  AREF = 4*Math.PI*R0*R0/(6*N*N);          // mean cell area — the splat's unit
+  UPLIFT_SCALE = UPLIFT_BASE * (PD*PD)/(6*N*N);
+  const f = LINEAR_OK ? gl.LINEAR : gl.NEAREST;
+  // (h, sed, tc, type): h is derived from tc by isostasy, tc is the conserved one
+  T  = [tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f),
+        tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f)];
+  F  = [tex2DArray(NT,NT,6, gl.RG16F,   gl.RG,   gl.HALF_FLOAT, f),   // .x discharge, .y grant
+        tex2DArray(NT,NT,6, gl.RG16F,   gl.RG,   gl.HALF_FLOAT, f)];
+  // The splat accumulates per-droplet demands spanning many orders of magnitude.
+  // In half-float the small tail lands in the sub-normal range and is flushed to
+  // zero, so the grid sees no demand while the droplet still expects one. 32-bit
+  // blending removes the tail problem outright; without EXT_float_blend we fall
+  // back to 16F and eat a small, safe under-count instead.
+  S  =  tex2DArray(NT,NT,6, SPLAT_F32 ? gl.RGBA32F : gl.RGBA16F, gl.RGBA,
+                   SPLAT_F32 ? gl.FLOAT : gl.HALF_FLOAT, gl.NEAREST);
+  M  =  tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, gl.NEAREST);
+  MA =  tex2DArray(NT,NT,6, gl.R32F,    gl.RED,  gl.FLOAT, f);
+  Uf =  tex2DArray(NT,NT,6, gl.R16F,    gl.RED,  gl.HALF_FLOAT, f);
+  // Grains. Position carries mass, velocity carries crust type; both are
+  // ping-ponged. Mass is written once at seeding and never modified again,
+  // which is what makes total crustal mass conserved to machine precision
+  // rather than to a percentage.
+  GP = [tex2D(GD,GD, gl.RGBA32F), tex2D(GD,GD, gl.RGBA32F)];
+  GV = [tex2D(GD,GD, gl.RGBA32F), tex2D(GD,GD, gl.RGBA32F)];
+  // the coarse tectonic grid the grains transfer through: (momentum, mass)
+  GM = tex2DArray(NGT,NGT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f);
+  DP = [tex2D(PD,PD, gl.RGBA32F), tex2D(PD,PD, gl.RGBA32F)];
+  DV = [tex2D(PD,PD, gl.RGBA32F), tex2D(PD,PD, gl.RGBA32F)];
+  DE =  tex2D(PD,PD, gl.RGBA32F);
+  const err = gl.getError();
+  if (err !== gl.NO_ERROR) throw new Error('GL error '+err+' allocating '+n+'³-equivalent grid');
+}
+
+function tryAllocate(n, pd){
+  const prevN = N, prevPD = PD;
+  try { allocate(n, pd); return n; }
+  catch(e){
+    console.warn('allocation failed at', n, e);
+    if (n > 128){ return tryAllocate(n>>1, pd); }
+    allocate(prevN, prevPD); return prevN;
+  }
+}
+
+/* ─────────────── common uniform block for every field pass ─────────────── */
+function setGrid(p){
+  gl.uniform1f(U(p,'uN'), N);
+  gl.uniform1f(U(p,'uNT'), NT);
+  gl.uniform1f(U(p,'uIsoK'), P.isoK);
+}
+function setPlates(p){
+  gl.uniform1i(U(p,'uPlateN'), P.plateN);
+  gl.uniform1f(U(p,'uPSeed'), plateSeed);
+  gl.uniform1f(U(p,'uBWidth'), P.bwidth);
+  gl.uniform1f(U(p,'uContFrac'), P.contFrac);
+  gl.uniform1f(U(p,'uArcOff'), P.arcOff);
+  gl.uniform1f(U(p,'uWarp'), P.warp);
+  gl.uniform1f(U(p,'uRough'), P.rough);
+  // Only the motion-vector source moves its seeds; 1 is static by definition and
+  // 2 drifts by advecting its id field instead.
+}
+function drawQuad(){ gl.drawArrays(gl.TRIANGLES, 0, 3); }
+
+function fieldPass(p, target, setup){
+  gl.useProgram(p); setGrid(p);
+  gl.viewport(0,0,NT,NT);
+  for(let f=0; f<6; f++){
+    bindLayer(fb, target, f);
+    gl.uniform1i(U(p,'uFace'), f);
+    if (setup) setup(f);
+    drawQuad();
+  }
+}
+
+/* ═══════════════════════════ build / reset ═══════════════════════════ */
+function buildMetric(){
+  gl.disable(gl.BLEND);
+  gl.useProgram(pMetric); setGrid(pMetric);
+  gl.uniform1f(U(pMetric,'uR'), R0);
+  gl.viewport(0,0,NT,NT);
+  for(let f=0; f<6; f++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, M,  0, f);
+    gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, MA, 0, f);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+    gl.uniform1i(U(pMetric,'uFace'), f);
+    drawQuad();
+  }
+  gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, null, 0, 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+}
+function setGrain(p){
+  gl.uniform1f(U(p,'uN'), NG); gl.uniform1f(U(p,'uNT'), NGT);
+  gl.uniform1f(U(p,'uNG'), NG); gl.uniform1f(U(p,'uNGT'), NGT);
+  gl.uniform1f(U(p,'uIsoK'), P.isoK);
+  gl.uniform1f(U(p,'uGD'), GD);
+  setPlates(p);
+}
+function seedGrains(){
+  gl.disable(gl.BLEND);
+  gl.useProgram(pGSeed); setGrain(pGSeed);
+  gl.uniform1f(U(pGSeed,'uSeed'), seed*0.011);
+  gl.uniform1f(U(pGSeed,'uM0'), GRAIN_M0);
+  gl.viewport(0,0,GD,GD);
+  for(let i=0;i<2;i++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb2);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, GP[i], 0);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, GV[i], 0);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+    drawQuad();
+  }
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, null, 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  gcur = 0;
+  // mean grain mass × grains ÷ sphere area. Derived rather than tuned, so a
+  // planet at rest sits at exactly zero pressure instead of quietly inflating.
+  RHO0 = GRAIN_M0*(1.0 + P.contFrac*1.6)*GD*GD/(4.0*Math.PI*R0*R0);
+  scatterGrains();
+}
+/* P2G. Additive, one POINTS draw per face — the same scatter the droplet splat
+   uses, so grains that belong to another face are simply clipped away. */
+function scatterGrains(){
+  gl.useProgram(pGSplat); setGrain(pGSplat);
+  gl.uniform1i(U(pGSplat,'uGP'), unit(0, GP[gcur], gl.TEXTURE_2D));
+  gl.uniform1i(U(pGSplat,'uGV'), unit(1, GV[gcur], gl.TEXTURE_2D));
+  gl.viewport(0,0,NGT,NGT);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);
+  for(let f=0; f<6; f++){
+    bindLayer(fb, GM, f);
+    gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform1i(U(pGSplat,'uFace'), f);
+    gl.drawArrays(gl.POINTS, 0, GD*GD);
+  }
+  gl.disable(gl.BLEND);
+}
+/* One grain substep: scatter, then gather + force + advect. */
+function grainStep(dt){
+  scatterGrains();
+  gl.useProgram(pGrain); setGrain(pGrain);
+  gl.uniform1i(U(pGrain,'uGP'), unit(0, GP[gcur], gl.TEXTURE_2D));
+  gl.uniform1i(U(pGrain,'uGV'), unit(1, GV[gcur], gl.TEXTURE_2D));
+  gl.uniform1i(U(pGrain,'uGM'), unit(2, GM));
+  gl.uniform1f(U(pGrain,'uDt'), dt);
+  // Pressure is expressed in the SAME units as the drift, so the balance
+  // between a plate being pushed and the crust resisting is scale-free.
+  gl.uniform1f(U(pGrain,'uStiff'), P.stiff*DRIFT_SCALE);
+  gl.uniform1f(U(pGrain,'uRho0'), RHO0);
+  gl.uniform1f(U(pGrain,'uDrag'), P.gdrag);
+  gl.uniform1f(U(pGrain,'uFlip'), P.flip);
+  gl.uniform1f(U(pGrain,'uDriftS'), DRIFT_SCALE);
+  gl.viewport(0,0,GD,GD);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb2);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, GP[1-gcur], 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, GV[1-gcur], 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+  drawQuad();
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, null, 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  gcur = 1-gcur;
+}
+/* Grain grid → target crustal thickness on the fine grid. */
+function grainThickness(){
+  gl.disable(gl.BLEND);
+  gl.useProgram(pGTc); setGrid(pGTc);
+  gl.uniform1f(U(pGTc,'uNG'), NG); gl.uniform1f(U(pGTc,'uNGT'), NGT);
+  gl.uniform1i(U(pGTc,'uGM'), unit(0, GM));
+  gl.uniform1f(U(pGTc,'uRho0'), RHO0);
+  gl.uniform1f(U(pGTc,'uTcK'), TC_K);
+  gl.viewport(0,0,NT,NT);
+  for(let f=0; f<6; f++){ bindLayer(fb, Uf, f); gl.uniform1i(U(pGTc,'uFace'), f); drawQuad(); }
+}
+function buildSource(){ seedGrains(); grainThickness(); UMEAN = 0; }
+
+function buildTerrain(){
+  gl.useProgram(pInit); setGrid(pInit);
+  gl.uniform1f(U(pInit,'uSeed'), seed*0.0031);
+  gl.uniform1i(U(pInit,'uMode'), P.initMode);
+  gl.uniform1i(U(pInit,'uSource'), 1);
+  setPlates(pInit);
+  gl.viewport(0,0,NT,NT);
+  for(const t of T) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.uniform1i(U(pInit,'uFace'), f); drawQuad(); }
+  for(const t of F) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.clearColor(0,0,0,1); gl.clear(gl.COLOR_BUFFER_BIT); }
+}
+function seedDroplets(){
+  gl.useProgram(pDSeed);
+  gl.uniform1f(U(pDSeed,'uSeed'), seed*0.017);
+  gl.uniform1f(U(pDSeed,'uRain'), P.rain);
+  gl.viewport(0,0,PD,PD);
+  for(let i=0;i<2;i++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb2);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, DP[i], 0);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, DV[i], 0);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, DE, 0);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+    drawQuad();
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb2);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, null, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, null, 0);
+}
+
+function rebuild(n, pd){
+  const got = tryAllocate(n, pd);
+  if (got !== n) note('grid fell back to 6 × '+got+'²  (out of memory)', 'bad');
+  gl.disable(gl.BLEND);
+  clearStrain();
+  buildMetric(); buildSource(); buildTerrain(); seedDroplets();
+  cur = 0; gcur = 0; frameNo = 0; simTime = 0;
+}
+
+/* ═══════════════════════════ simulation step ═══════════════════════════ */
+function substep(dt){
+  gl.disable(gl.BLEND);
+  gl.bindVertexArray(vao);
+
+  // 0 — advected plates: drift the id field and rebuild the source term from it.
+  // Amortised, because margins migrate far slower than the framerate.
+  // 0 — the grains. Their own substep, because a stiff material needs a
+  //     shorter step than erosion does; the thickness they produce is
+  //     rebuilt onto the fine grid at the same cadence.
+  if (P.tectonics){
+    for(let k=0;k<GSUB;k++) grainStep(dt*P.drift*GRAIN_DT);
+    if (frameNo % TC_EVERY === 0) grainThickness();
+  }
+
+  // 1 — uplift + creep :  T[cur] → T[1-cur]
+  gl.useProgram(pStep); setGrid(pStep);
+  gl.uniform1i(U(pStep,'uT'), unit(0, T[cur]));
+  gl.uniform1i(U(pStep,'uM'), unit(1, M));
+  gl.uniform1i(U(pStep,'uU'), unit(2, Uf));
+  gl.uniform1i(U(pStep,'uA'), unit(3, MA));
+  gl.uniform1f(U(pStep,'uDt'), dt);
+  // The master switches gate their own terms here rather than in the shader, so
+  // pass 1 always runs and the ping-pong bookkeeping never changes shape.
+  // Uf now holds a TARGET thickness from the grains, not a rate, so this is a
+  // relaxation constant: the surface is pulled toward what the crust column
+  // says it should be, while erosion pulls the other way.
+  gl.uniform1f(U(pStep,'uUplift'), P.uplift*RELAX_K*P.tectonics);
+  gl.uniform1f(U(pStep,'uUMean'), UMEAN);
+  gl.uniform1f(U(pStep,'uLith'), P.erosion ? 0.02 : 0.0);
+  gl.uniform1f(U(pStep,'uSedMax'), 0.0015);
+  // the dx² normaliser lives in the coefficient, so 0…1 stays inside the
+  // explicit-diffusion stability limit at every resolution
+  gl.uniform1f(U(pStep,'uCreep'), P.creep*0.05*Math.pow(1.5708/N, 2)*P.erosion);
+  gl.viewport(0,0,NT,NT);
+  for(let f=0; f<6; f++){ bindLayer(fb, T[1-cur], f); gl.uniform1i(U(pStep,'uFace'), f); drawQuad(); }
+  cur = 1-cur;
+
+  // Erosion off: stop here. Pass 1 has already applied uplift (and nothing else,
+  // since creep and lithification were gated to zero), so the ping-pong is in a
+  // consistent state and the droplet/talus passes simply do not run.
+  if (!P.erosion){ frameNo++; simTime += dt; return; }
+
+  // 2 — droplets :  DP/DV[cur] → DP/DV[1-cur], deltas → DE
+  gl.useProgram(pDrop); setGrid(pDrop);
+  gl.uniform1i(U(pDrop,'uPos'), unit(0, DP[0], gl.TEXTURE_2D));
+  gl.uniform1i(U(pDrop,'uVel'), unit(1, DV[0], gl.TEXTURE_2D));
+  gl.uniform1i(U(pDrop,'uT'),   unit(2, T[cur]));
+  gl.uniform1i(U(pDrop,'uA'),   unit(3, MA));
+  gl.uniform1f(U(pDrop,'uAref'), AREF);
+  gl.uniform1f(U(pDrop,'uCap'), CAP_K);
+  gl.uniform1f(U(pDrop,'uDt'), dt);
+  gl.uniform1f(U(pDrop,'uInertia'), P.inertia);
+  gl.uniform1f(U(pDrop,'uErod'), P.erodibility);
+  gl.uniform1f(U(pDrop,'uDepo'), P.deposition);
+  gl.uniform1f(U(pDrop,'uHard'), P.hardness);
+  gl.uniform1f(U(pDrop,'uEvap'), P.evaporation);
+  gl.uniform1f(U(pDrop,'uRain'), P.rain);
+  gl.uniform1f(U(pDrop,'uSea'), P.sea);
+  gl.uniform1f(U(pDrop,'uFrame'), frameNo);
+  gl.uniform1f(U(pDrop,'uSeed'), seed*0.011);
+  gl.viewport(0,0,PD,PD);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb2);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, DP[1], 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, DV[1], 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, DE, 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1, gl.COLOR_ATTACHMENT2]);
+  drawQuad();
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, null, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT2, gl.TEXTURE_2D, null, 0);
+
+  // 3 — splat the deltas (the droplet's OLD position is DP[0])
+  gl.viewport(0,0,NT,NT);
+  for(let f=0; f<6; f++){
+    bindLayer(fb, S, f);
+    gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE);
+  gl.useProgram(pSplat); setGrid(pSplat);
+  gl.uniform1i(U(pSplat,'uPos'), unit(0, DP[0], gl.TEXTURE_2D));
+  gl.uniform1i(U(pSplat,'uEro'), unit(1, DE, gl.TEXTURE_2D));
+  gl.uniform1f(U(pSplat,'uPD'), PD);
+  gl.uniform1f(U(pSplat,'uGain'), SPLAT_GAIN);
+  for(let f=0; f<6; f++){
+    bindLayer(fb, S, f);
+    gl.uniform1i(U(pSplat,'uFace'), f);
+    gl.drawArrays(gl.POINTS, 0, PD*PD);
+  }
+  gl.disable(gl.BLEND);
+
+  // 4 — apply :  T[cur] + S → T[1-cur],  F[0] → F[1]
+  gl.useProgram(pApply); setGrid(pApply);
+  gl.uniform1i(U(pApply,'uT'), unit(0, T[cur]));
+  gl.uniform1i(U(pApply,'uS'), unit(1, S));
+  gl.uniform1i(U(pApply,'uA'), unit(2, MA));
+  gl.uniform1i(U(pApply,'uF'), unit(3, F[0]));
+  gl.uniform1f(U(pApply,'uDt'), dt);
+  gl.uniform1f(U(pApply,'uAref'), AREF);
+  gl.uniform1f(U(pApply,'uHard'), P.hardness);
+  gl.uniform1f(U(pApply,'uGain'), SPLAT_GAIN);
+  gl.uniform1f(U(pApply,'uAllow'), ALLOW_K);
+  gl.uniform1f(U(pApply,'uQScale'), (6*N*N)/(PD*PD));
+  for(let f=0; f<6; f++){
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, T[1-cur], 0, f);
+    gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, F[1], 0, f);
+    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
+    gl.uniform1i(U(pApply,'uFace'), f);
+    drawQuad();
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, null, 0, 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  cur = 1-cur;  F = [F[1], F[0]];
+
+  // 2b — G2P: hand each droplet its granted share, then retire the old positions
+  gl.useProgram(pDropB); setGrid(pDropB);
+  gl.uniform1i(U(pDropB,'uPos'), unit(0, DP[0], gl.TEXTURE_2D));
+  gl.uniform1i(U(pDropB,'uVel'), unit(1, DV[1], gl.TEXTURE_2D));
+  gl.uniform1i(U(pDropB,'uEro'), unit(2, DE,    gl.TEXTURE_2D));
+  gl.uniform1i(U(pDropB,'uF'),   unit(3, F[0]));
+  gl.viewport(0,0,PD,PD);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb2);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, DV[0], 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  drawQuad();
+  DP = [DP[1], DP[0]];              // positions advance; DV[0] is already current
+  gl.viewport(0,0,NT,NT);
+
+  // 5 — talus
+  gl.useProgram(pTalus); setGrid(pTalus);
+  gl.uniform1i(U(pTalus,'uT'), unit(0, T[cur]));
+  gl.uniform1i(U(pTalus,'uM'), unit(1, M));
+  gl.uniform1i(U(pTalus,'uA'), unit(2, MA));
+  gl.uniform1f(U(pTalus,'uRepose'), P.repose);
+  gl.uniform1f(U(pTalus,'uDt'), dt);
+  for(let f=0; f<6; f++){ bindLayer(fb, T[1-cur], f); gl.uniform1i(U(pTalus,'uFace'), f); drawQuad(); }
+  cur = 1-cur;
+
+  frameNo++; simTime += dt;
+}
+
+/* ═══════════════════════════ impacts ═══════════════════════════ */
+function strike(dir, radius, depth){
+  if (!dir){
+    const z = Math.random()*2 - 1, th = Math.random()*2*Math.PI, r = Math.sqrt(Math.max(0,1-z*z));
+    dir = [r*Math.cos(th), r*Math.sin(th), z];
+  }
+  if (radius === undefined){
+    // power law: small strikes are common, large ones rare
+    const u = Math.random();
+    radius = P.impMin + (P.impMax - P.impMin)*Math.pow(u, 2.4);
+  }
+  if (depth === undefined) depth = radius*0.22;    // depth/diameter ≈ 1:9, as observed
+
+  // Solve the ejecta height E so removed volume equals deposited volume, on the
+  // sphere's own area element 2π·sin(a)·da and including the outer taper. Doing
+  // it analytically on a flat plane, as the first version did, lost ~0.04 % of
+  // the planet's volume per strike because the taper cuts blanket the balance
+  // assumed was there.
+  const R = radius, Rmax = R*3.0, ps = R*0.22;
+  const peak = (R > 0.035) ? depth*0.45 : 0.0;
+  const smoothstep = (a,b,x) => { const t = Math.min(1, Math.max(0, (x-a)/(b-a))); return t*t*(3-2*t); };
+  const M = 4000;
+  let bowl = 0, peakV = 0, rimC = 0, blanketC = 0;
+  for(let i=0;i<M;i++){
+    const a = (i+0.5)/M*Rmax, da = Rmax/M, w = 2*Math.PI*Math.sin(a)*da;
+    const x = a/R;
+    if (a < R){
+      bowl  += depth*(1 - x*x)*w;
+      peakV += peak*Math.exp(-(a*a)/(ps*ps))*w;
+      rimC  += smoothstep(0.75, 1.0, x)*0.9*w;
+    } else {
+      blanketC += Math.pow(x, -3)*smoothstep(Rmax, R, a)*w;
+    }
+  }
+  const ejecta = (bowl - peakV)/Math.max(rimC + blanketC, 1e-12);
+
+  gl.disable(gl.BLEND);
+  gl.useProgram(pImpact); setGrid(pImpact);
+  gl.uniform1i(U(pImpact,'uT'), unit(0, T[cur]));
+  gl.uniform3f(U(pImpact,'uCentre'), dir[0], dir[1], dir[2]);
+  gl.uniform1f(U(pImpact,'uRad'), radius);
+  gl.uniform1f(U(pImpact,'uDepth'), depth);
+  gl.uniform1f(U(pImpact,'uPeak'), peak);
+  gl.uniform1f(U(pImpact,'uEjecta'), ejecta);
+  gl.viewport(0,0,NT,NT);
+  for(let f=0; f<6; f++){ bindLayer(fb, T[1-cur], f); gl.uniform1i(U(pImpact,'uFace'), f); drawQuad(); }
+  cur = 1-cur;
+  return { radius, depth };
+}
+
+/* ═══════════════════════════ camera ═══════════════════════════ */
+const cam = { yaw:0.7, pitch:0.35, dist:2.9, tYaw:0.7, tPitch:0.35, tDist:2.9 };
+let dragging = false, lastX = 0, lastY = 0;
+canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup',   e => { dragging = false; });
+canvas.addEventListener('pointermove', e => {
+  if(!dragging) return;
+  cam.tYaw   -= (e.clientX - lastX)*0.006;
+  cam.tPitch = Math.max(-1.45, Math.min(1.45, cam.tPitch + (e.clientY - lastY)*0.006));
+  lastX = e.clientX; lastY = e.clientY;
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.tDist = Math.max(1.06, Math.min(9.0, cam.tDist * Math.exp(e.deltaY*0.0011)));
+}, {passive:false});
+
+function norm(v){ const l = Math.hypot(v[0],v[1],v[2])||1; return [v[0]/l, v[1]/l, v[2]/l]; }
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+
+/* ═══════════════════════════ render ═══════════════════════════ */
+let W = 1, H = 1;
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.max(1, Math.floor(canvas.clientWidth  * dpr * P.pixScale));
+  H = Math.max(1, Math.floor(canvas.clientHeight * dpr * P.pixScale));
+  canvas.width = W; canvas.height = H;
+}
+window.addEventListener('resize', resize);
+
+function render(){
+  cam.yaw   += (cam.tYaw   - cam.yaw)  *0.14;
+  cam.pitch += (cam.tPitch - cam.pitch)*0.14;
+  cam.dist  += (cam.tDist  - cam.dist) *0.12;
+
+  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  const eye = [Math.cos(cam.yaw)*cp*cam.dist, sp*cam.dist, Math.sin(cam.yaw)*cp*cam.dist];
+  const fwd = norm([-eye[0], -eye[1], -eye[2]]);
+  const right = norm(cross(fwd, [0,1,0]));
+  const up = cross(right, fwd);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,W,H);
+  gl.useProgram(pRender); setGrid(pRender);
+  gl.uniform1i(U(pRender,'uT'), unit(0, T[cur]));
+  gl.uniform1i(U(pRender,'uF'), unit(1, F[0]));
+  gl.uniform1i(U(pRender,'uU'), unit(2, Uf));
+  gl.uniform3f(U(pRender,'uEye'), eye[0], eye[1], eye[2]);
+  gl.uniform3f(U(pRender,'uFwd'), fwd[0], fwd[1], fwd[2]);
+  gl.uniform3f(U(pRender,'uRight'), right[0], right[1], right[2]);
+  gl.uniform3f(U(pRender,'uUp'), up[0], up[1], up[2]);
+  const sa = 0.9, sb = 0.55;
+  gl.uniform3f(U(pRender,'uSun'), Math.cos(sa)*Math.cos(sb), Math.sin(sb), Math.sin(sa)*Math.cos(sb));
+  gl.uniform2f(U(pRender,'uRes'), W, H);
+  gl.uniform1f(U(pRender,'uTanFov'), Math.tan(0.42));
+  gl.uniform1f(U(pRender,'uSteps'), P.steps);
+  gl.uniform1f(U(pRender,'uSea'), P.sea);
+  gl.uniform1f(U(pRender,'uR'), R0);
+  gl.uniform1f(U(pRender,'uHmax'), HMAX);
+  setPlates(pRender);
+  gl.uniform1i(U(pRender,'uShade'), P.shade);
+  gl.uniform1i(U(pRender,'uWater'), P.water);
+  gl.uniform1i(U(pRender,'uShadow'), P.shadow);
+  drawQuad();
+}
+
+/* ═══════════════════════════ diagnostics ═══════════════════════════
+   Readback is exact and slow, so it only runs on demand. Reading RGBA/FLOAT
+   is the combination WebGL2 guarantees for float colour buffers.          */
+function readLayer(tex, layer){
+  const buf = new Float32Array(NT*NT*4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+  gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, tex, 0, layer);
+  gl.readBuffer(gl.COLOR_ATTACHMENT0);
+  gl.readPixels(0,0,NT,NT, gl.RGBA, gl.FLOAT, buf);
+  return buf;
+}
+function readAll(tex){ const a = []; for(let f=0;f<6;f++) a.push(readLayer(tex,f)); return a; }
+
+const PI4 = Math.PI/4;
+function faceToDirJS(face, s){
+  const cx = Math.tan((s[0]*2-1)*PI4), cy = Math.tan((s[1]*2-1)*PI4);
+  switch(face){
+    case 0: return [ 1, cy, -cx];
+    case 1: return [-1, cy,  cx];
+    case 2: return [cx,  1, -cy];
+    case 3: return [cx, -1,  cy];
+    case 4: return [cx, cy,  1];
+    default:return [-cx, cy, -1];
+  }
+}
+function dirToFaceJS(d){
+  const ax=Math.abs(d[0]), ay=Math.abs(d[1]), az=Math.abs(d[2]);
+  let face, u, v;
+  if(ax>=ay && ax>=az){ if(d[0]>0){face=0; u=-d[2]/ax; v=d[1]/ax;} else {face=1; u=d[2]/ax; v=d[1]/ax;} }
+  else if(ay>=ax && ay>=az){ if(d[1]>0){face=2; u=d[0]/ay; v=-d[2]/ay;} else {face=3; u=d[0]/ay; v=d[2]/ay;} }
+  else { if(d[2]>0){face=4; u=d[0]/az; v=d[1]/az;} else {face=5; u=-d[0]/az; v=d[1]/az;} }
+  return [face, [Math.atan(u)/PI4*0.5+0.5, Math.atan(v)/PI4*0.5+0.5]];
+}
+// bilinear sample of a read-back field, using the halo exactly as the GPU does
+function sampleJS(layers, d, ch){
+  const [f, s] = dirToFaceJS(d);
+  const px = (s[0]*N + 1.0) - 0.5, py = (s[1]*N + 1.0) - 0.5;
+  const i0 = Math.max(0, Math.min(NT-2, Math.floor(px)));
+  const j0 = Math.max(0, Math.min(NT-2, Math.floor(py)));
+  const fx = px - i0, fy = py - j0;
+  const L = layers[f];
+  const at = (i,j) => L[(j*NT + i)*4 + ch];
+  return (at(i0,j0)*(1-fx) + at(i0+1,j0)*fx)*(1-fy) + (at(i0,j0+1)*(1-fx) + at(i0+1,j0+1)*fx)*fy;
+}
+
+const diagEl = document.getElementById('diag');
+function note(msg, cls){ diagEl.innerHTML = cls ? `<span class="${cls}">${msg}</span>` : msg; }
+
+// The conserved quantity is CRUSTAL VOLUME (tc + sediment), not the surface —
+// the surface is derived from tc by isostasy and is free to move without any
+// mass changing hands.
+function totals(){
+  const t = readAll(T[cur]), a = readAll(MA);
+  let volRock = 0, volSed = 0, area = 0, absVol = 0;
+  for(let f=0; f<6; f++){
+    for(let j=1; j<=N; j++) for(let i=1; i<=N; i++){
+      const k = (j*NT+i)*4;
+      const A = a[f][k];
+      volRock += t[f][k+2]*A; volSed += t[f][k+1]*A; area += A;
+      // crust and sediment nearly cancel about the datum, so an |·|-weighted
+      // volume is the only honest denominator for a drift percentage
+      absVol += Math.abs(t[f][k+2] + t[f][k+1])*A;
+    }
+  }
+  return {volRock, volSed, area, absVol};
+}
+
+let massRef = null;
+// Σ of the volume the droplets are holding in transit — part of the ledger.
+function dropletLoad(){
+  const b = new Float32Array(PD*PD*4);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fb2);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, DV[0], 0);
+  gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  gl.readBuffer(gl.COLOR_ATTACHMENT0);
+  gl.readPixels(0,0,PD,PD, gl.RGBA, gl.FLOAT, b);
+  let s = 0; for(let i=3;i<b.length;i+=4) s += b[i];
+  return s*AREF;
+}
+
+document.getElementById('tMass').onclick = () => {
+  const s = totals();
+  const sphereArea = 4*Math.PI*R0*R0;
+  const areaErr = (s.area - sphereArea)/sphereArea;
+  const inTransit = dropletLoad();
+  const V = s.volRock + s.volSed + inTransit;
+  let txt = `<b>mass audit</b>\n`;
+  txt += `Σ area   ${s.area.toFixed(6)}\n`;
+  txt += `4πR²     ${sphereArea.toFixed(6)}   (${(areaErr*100).toFixed(4)} %)\n`;
+  txt += `V rock   ${s.volRock.toExponential(5)}\n`;
+  txt += `V sed    ${s.volSed.toExponential(5)}\n`;
+  txt += `in flight${inTransit.toExponential(5)}\n`;
+  if (massRef){
+    // uplift is mean-zero, so the closed sphere's total volume is invariant
+    const dv = V - massRef.v;
+    const steps = frameNo - massRef.f;
+    const rel = dv/Math.max(massRef.abs, 1e-30);
+    txt += `\nover ${steps} steps\n`;
+    txt += `ΔV       ${dv.toExponential(4)}\n`;
+    txt += `Σ|h|dA   ${massRef.abs.toExponential(4)}\n`;
+    txt += (Math.abs(rel) < 0.005
+      ? `<span class="ok">drift ${(rel*100).toFixed(3)} % — conserved</span>`
+      : `<span class="bad">drift ${(rel*100).toFixed(3)} %</span>`);
+  } else {
+    txt += `\nbaseline set — run, then press again`;
+  }
+  massRef = { v: V, f: frameNo, abs: s.absVol };
+  note(txt);
+};
+
+document.getElementById('tFlat').onclick = () => {
+  // uniform shell + uniform uplift + no droplets: any six-fold pattern is a metric bug
+  const keep = { init:P.initMode, rain:P.rain,
+                 tect:P.tectonics, ero:P.erosion, imp:P.impacts };
+  P.initMode = 1; P.rain = 0;
+  // Drifting plates rebuild the uplift field mid-run, which would overwrite the
+  // uniform source term this test depends on. Pin the source for the duration.
+  // The master switches are pinned too: the test needs uplift and the creep and
+  // talus passes actually running, and a stray impact would wreck it.
+  P.tectonics = 1; P.erosion = 1; P.impacts = 0;
+  buildUplift(true);                      // uniform source term
+  UMEAN = 0;                              // ...and don't subtract it, or the test drives nothing
+  buildTerrain(); seedDroplets();
+  gl.disable(gl.BLEND);
+  const K = 240;
+  for(let i=0;i<K;i++) substep(1.0);
+  const t = readAll(T[cur]);
+  let mn = 1e9, mx = -1e9, sum = 0, n = 0;
+  for(let f=0; f<6; f++) for(let j=1; j<=N; j++) for(let i=1; i<=N; i++){
+    const h = t[f][(j*NT+i)*4] + t[f][(j*NT+i)*4+1];
+    mn = Math.min(mn,h); mx = Math.max(mx,h); sum += h; n++;
+  }
+  const mean = sum/n, spread = (mx-mn)/Math.abs(mean);
+  const ok = spread < 1e-4;
+  note(`<b>flat test</b>  ${K} steps\n`
+     + `mean h   ${mean.toExponential(6)}\n`
+     + `spread   ${(spread*100).toExponential(3)} %  of mean\n`
+     + (ok ? `<span class="ok">uniform — no face pattern</span>`
+           : `<span class="bad">NON-UNIFORM — metric bug</span>`));
+  P.initMode = keep.init; P.rain = keep.rain;
+  P.tectonics = keep.tect; P.erosion = keep.ero; P.impacts = keep.imp;
+  buildSource();
+};
+
+document.getElementById('tIso').onclick = () => {
+  /* Identical Gaussian bumps at a cube CORNER and at a face CENTRE, spread by
+     hillslope creep alone. Droplets are off on purpose: a drainage network is
+     azimuthally structured by nature, so eroding the bumps would measure the
+     stochasticity of rivers rather than the geometry of the grid. Under pure
+     diffusion the bump must stay axisymmetric, and the corner must behave
+     exactly like the face centre — which is only true if the metric weights,
+     the halo and the corner ghost cells are all right. */
+  const keep = { init:P.initMode, rain:P.rain, creep:P.creep, up:P.uplift,
+                 ero:P.erosion, imp:P.impacts };
+  P.initMode = 2; P.rain = 0; P.creep = 1.0; P.uplift = 0;
+  P.erosion = 1; P.impacts = 0;      // creep is the thing under test; no stray craters
+  buildTerrain(); seedDroplets();
+  gl.disable(gl.BLEND);
+  const K = 400;
+  for(let i=0;i<K;i++) substep(1.0);
+  const t = readAll(T[cur]);
+  const corner = norm([1,1,1]), centre = [1,0,0];
+  const BASE = 0.004;
+
+  function ring(c, rho){
+    const e1 = norm(cross(c, Math.abs(c[2])<0.9 ? [0,0,1] : [1,0,0]));
+    const e2 = cross(c, e1);
+    const M0 = 720; let sum = 0, sum2 = 0;
+    for(let i=0;i<M0;i++){
+      const a = i/M0*2*Math.PI, cr = Math.cos(rho), sr = Math.sin(rho);
+      const d = norm([ c[0]*cr + (e1[0]*Math.cos(a)+e2[0]*Math.sin(a))*sr,
+                       c[1]*cr + (e1[1]*Math.cos(a)+e2[1]*Math.sin(a))*sr,
+                       c[2]*cr + (e1[2]*Math.cos(a)+e2[2]*Math.sin(a))*sr ]);
+      const h = sampleJS(t, d, 0) + sampleJS(t, d, 1) - BASE;
+      sum += h; sum2 += h*h;
+    }
+    const m = sum/M0;
+    return { mean: m, sd: Math.sqrt(Math.max(sum2/M0 - m*m, 0)) };
+  }
+  const ampC = sampleJS(t, corner, 0) + sampleJS(t, corner, 1) - BASE;
+  const ampF = sampleJS(t, centre, 0) + sampleJS(t, centre, 1) - BASE;
+  const amp  = 0.5*(ampC + ampF);
+
+  let txt = `<b>isotropy test</b>  ${K} steps, creep only\n`;
+  txt += `peak  corner ${ampC.toExponential(3)}\n`;
+  txt += `      face   ${ampF.toExponential(3)}   Δ ${(Math.abs(ampC-ampF)/amp*100).toFixed(2)} %\n`;
+  let worst = 0;
+  for(const rho of [0.06, 0.12, 0.20]){
+    const a = ring(corner, rho), b = ring(centre, rho);
+    const dm = Math.abs(a.mean-b.mean)/amp, sa = a.sd/amp, sb = b.sd/amp;
+    worst = Math.max(worst, dm, sa, sb);
+    txt += `ρ=${rho.toFixed(2)}  Δmean ${(dm*100).toFixed(2)} %`
+        +  `  σ ${(sa*100).toFixed(2)}/${(sb*100).toFixed(2)} %\n`;
+  }
+  txt += (worst < 0.02)
+       ? `<span class="ok">isotropic — corner ≡ face centre</span>`
+       : `<span class="bad">anisotropy ${(worst*100).toFixed(1)} % of peak</span>`;
+  note(txt);
+  P.initMode = keep.init; P.rain = keep.rain; P.creep = keep.creep; P.uplift = keep.up;
+  P.erosion = keep.ero; P.impacts = keep.imp;
+};
+
+/* ═══════════════════════════ UI ═══════════════════════════ */
+const $ = id => document.getElementById(id);
+function slider(id, vid, key, scale, fmt){
+  const el = $(id), lab = $(vid);
+  const apply = () => {
+    P[key] = parseFloat(el.value)*(scale||1);
+    lab.textContent = fmt ? fmt(P[key]) : P[key].toFixed(2);
+  };
+  el.oninput = apply; apply();
+}
+slider('up','vUp','uplift');
+slider('belt','vBelt','belt');
+slider('sharp','vSharp','sharp');
+slider('rain','vRain','rain');
+slider('ero','vEro','erodibility');
+slider('dep','vDep','deposition');
+slider('hard','vHard','hardness');
+slider('iner','vIner','inertia');
+slider('evap','vEvap','evaporation',1,v=>v.toFixed(3));
+slider('diff','vDiff','creep');
+slider('rep','vRep','repose');
+slider('sea','vSea','sea',1,v=>v.toFixed(4));
+slider('spd','vSpd','dt');
+
+slider('iso','vIso','isoK');
+$('iso').addEventListener('change', () => { buildTerrain(); seedDroplets(); frameNo = 0; massRef = null; });
+slider('imp','vImp','bombard');
+slider('imin','vIMin','impMin',1,v=>v.toFixed(3));
+slider('imax','vIMax','impMax',1,v=>v.toFixed(3));
+$('strike').onclick = () => { const s = strike(); note(`<b>impact</b>  radius ${s.radius.toFixed(3)} rad `
+  + `(${(s.radius*6371).toFixed(0)} km)\ndepth ${s.depth.toFixed(4)}`); };
+
+// master switches. Each gates its own subsystem; the rest keeps running, so you
+// can watch tectonics build relief with erosion off, or let erosion strip a
+// planet that is no longer being pushed up.
+function toggle(id, key, after){
+  $(id).onchange = e => { P[key] = e.target.checked ? 1 : 0; if (after) after(); };
+}
+toggle('onTect', 'tectonics');
+toggle('onImp',  'impacts', () => { $('strike').disabled = !P.impacts; });
+toggle('onEro',  'erosion');
+toggle('advect', 'advect');
+
+slider('pn','vPN','plateN',1,v=>v.toFixed(0));
+slider('bw','vBW','bwidth',1,v=>v.toFixed(3));
+slider('cf','vCF','contFrac',1,v=>v.toFixed(2));
+slider('ao','vAO','arcOff',1,v=>v.toFixed(3));
+slider('warp','vWarp','warp',1,v=>v.toFixed(2));
+slider('rough','vRough','rough',1,v=>v.toFixed(2));
+
+slider('drift','vDrift','drift');
+$('subduct').onchange = e => {
+  P.subduct = e.target.checked ? 1 : 0;
+  buildSource();
+};
+
+$('belt').addEventListener('change', () => buildUplift(false));
+$('sharp').addEventListener('change', () => buildUplift(false));
+// plate geometry also sets the starting continent/ocean split, so terrain rebuilds too
+const rebuildPlates = () => { buildSource(); buildTerrain(); seedDroplets();
+                              frameNo = 0; massRef = null; };
+['pn','bw','cf','ao','warp','rough'].forEach(id => $(id).addEventListener('change', rebuildPlates));
+$('newPlates').onclick = () => { plateSeed = Math.random()*97; rebuildPlates(); };
+
+// only the controls belonging to the active source are shown
+function syncSource(){
+  const plates = true;
+  document.querySelectorAll('.pl').forEach(e => e.style.display = plates ? '' : 'none');
+  document.querySelectorAll('.nz').forEach(e => e.style.display = plates ? 'none' : '');
+  $('gNoise').style.display = plates ? 'none' : '';
+  $('gPlate').style.display = plates ? '' : 'none';
+}
+syncSource();
+
+$('shade').onchange = e => P.shade = parseInt(e.target.value);
+$('water').onchange = e => P.water = e.target.checked ? 1 : 0;
+$('shadow').onchange = e => P.shadow = e.target.checked ? 1 : 0;
+$('spin').onchange = e => P.spin = e.target.checked ? 1 : 0;
+$('init').onchange = e => { P.initMode = parseInt(e.target.value); buildTerrain(); seedDroplets(); };
+$('grid').onchange  = e => rebuild(parseInt(e.target.value), PD);
+$('drops').onchange = e => rebuild(N, parseInt(e.target.value));
+$('quality').onchange = e => {
+  const q = { low:[180,0.6], med:[300,0.85], high:[460,1.0], ultra:[700,1.0] }[e.target.value];
+  P.steps = q[0]; P.pixScale = q[1]; resize();
+};
+let paused = false;
+$('pause').onclick = e => { paused = !paused; e.target.textContent = paused ? 'Run' : 'Pause'; };
+$('reset').onclick = () => { seed = (Math.random()*1e6)|0; buildUplift(); buildTerrain(); seedDroplets();
+                             frameNo = 0; simTime = 0; massRef = null; note('idle'); };
+
+/* ═══════════════════════════ main loop ═══════════════════════════ */
+const hud = $('hud');
+let fpsT = performance.now(), fpsN = 0, fps = 0;
+
+function frame(){
+  if (P.spin && !dragging) cam.tYaw += 0.0012;
+  if (!paused && P.dt > 0){
+    substep(P.dt);
+    // bombardment: expected strikes per step, so the slider reads as a rate
+    if (P.impacts && P.bombard > 0 && Math.random() < P.bombard*0.004) strike();
+  }
+  render();
+
+  fpsN++;
+  const now = performance.now();
+  if (now - fpsT > 500){ fps = fpsN*1000/(now-fpsT); fpsN = 0; fpsT = now; }
+  hud.innerHTML = `${fps.toFixed(0)} fps · 6 × ${N}²<br>${(PD*PD/1000).toFixed(0)} k droplets · step ${frameNo}`;
+  requestAnimationFrame(frame);
+}
+
+resize();
+rebuild(N, PD);
+note('idle');
+frame();
+</script>
+</body>
+</html>
