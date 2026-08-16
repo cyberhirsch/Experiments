@@ -315,6 +315,33 @@ task #3's territory, where crust age supplies a real thickness.
 
 ---
 
+## v004c–g — sharp margins, directional pressure, companion tools, baked folding ✅
+
+Compressed log; the forks and measurements live in DESIGN_OPTIONS §§23–30.
+
+- **Tear at faults, MacCormack, fresh crust** ✅ — plate-membership clamp on the
+  backtrace instead of blending across faults; crater rim retention 95.2 → 99.3 %; new
+  seafloor injected by areal expansion (∇·v·Δt), gated oceanic.
+- **Sharp margins + directional propagation** ✅ — velocity blends abandoned (they
+  corrupt interiors: rigid rotation read |∇·v| 0.31 at blendC 1.95); compression spike
+  marched along the velocity field with a buoyancy gate. True one-sidedness 4.9–6.0×,
+  measured per crossing. tanh blend profile kills the dead-zone on the margin axis.
+- **Two pressure channels** ✅ — PG.x compression (propagated), PG.y extension (sharp,
+  untouched by propagation; verified bit-identical across reach sweeps).
+- **Two clocks** ✅ — "Motion evolution" (seed migration, default 0) vs "Plate speed"
+  (crust transport); material frame follows the crust clock.
+- **Companion tools** ✅ — noise designer (compositional GLSL library, preprocessor-
+  specialized after the runtime-dispatch version crashed the GPU process; 4,480
+  combinations verified), impact designer (9 crater-shape params threaded through shader
+  AND the CPU mass-balance solve), preset folders via the File System Access API with
+  localStorage fallback, compiled-in presets for file://.
+- **Baked orogen folding** ✅ — fold displacement as a function of the current pressure
+  field, written to `tc` as a delta (FD pair): present at frame 1, zero drift over 100
+  re-bakes, reversible, isostasy still sole owner of the surface. Replaces the carried
+  strain/fold-axis field and `foldTerm`, both retired; advection back to a single target.
+
+---
+
 ## Deferred from v003 — worth doing next
 
 - **Plate topology**: splitting, merging, vanishing. Geometry moves today; topology does

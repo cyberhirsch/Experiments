@@ -375,6 +375,26 @@ cancel, so `ΔV / |V|` reported alarming numbers about a baseline near zero. `Σ
 the meaningful scale. The same mistake, in a different guise, is what made the first
 isotropy test useless.
 
+**Runtime noise dispatch is compile-time multiplication.** One shader branching over 9
+noise bases × 8 combinators inlined every branch — `evalBaseUnit` 83 times, each unrolling
+a 27-cell × 8-impulse kernel — and crashed the GPU process, taking every later WebGL2
+context in the browser with it. Specialize through the preprocessor and cache one program
+per combination; the largest of 4,480 verified specializations is 167 lines. Corollaries:
+warp fields want a fixed cheap noise, not the selected base, and a finite-difference
+derivative is a silent 7× on the whole shader — compile it only on request.
+
+**A rate cannot deliver "immediately".** Uplift accumulates, so ranges built from it grew
+the peak 9 % in 1,200 steps — invisible while watching. Displacement that must exist the
+moment its cause does has to be a *function* of the cause, baked as a *delta* against the
+previous bake (an absolute add re-applies itself every rebuild and ramps without bound).
+Measured: zero drift over 100 re-bakes, exactly reversible at height 0.
+
+**Averaging both sides of a margin before taking max/min hides real asymmetry.** Which
+side is "strong" flips from crossing to crossing, so summing sides across ~800 crossings
+averaged a true 4.9–6.0× one-sidedness down to a measured ~1.0–1.3×. Classify strong/weak
+per crossing first, then accumulate. An earlier mechanism was judged on the broken
+instrument; its published figure was never real.
+
 ---
 
 ## Budget

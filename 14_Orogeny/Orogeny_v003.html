@@ -358,15 +358,13 @@ const P = {
   oroH:0.020,                                  // fold displacement baked straight into the crust
   source:3, plateN:22, bwidth:0.045, contFrac:0.42, arcOff:0.056,
   warp:0.18, rough:0.55, advect:1, comp:0, newk:1, macc:1,
-  // foldAmp is in the SOURCE's units, where belt values run to ~3, so it has to
-  // be large to register; 1.6 was invisible. See DESIGN_OPTIONS §23.
   // Near-sharp on both margin types. The per-type separation is wired but does
   // NOT yet behave — see the task list — so convergent is pinned almost as
   // sharp as divergent rather than relying on the asymmetry.
   blendC:0.0, blendD:0.0,   // sharp margins; width comes from the echo, not the blend
   pEdge:0.0, pExt:3.0,
   echoL:0.030, echoV:0.06, backside:0.12, gradFlip:1,  // orogen reach off a sharp margin, and its speed scaling
-  strainK:6.0, foldAmp:14.0, foldFreq:26.0, thinK:1.0,   // see DESIGN_OPTIONS: currently ineffective, 500 was worse
+  thinK:1.0,
   bombard:50, impMin:0.030, impMax:0.090,
   // 0 = the motion-vector field is frozen: seeds do not migrate, so plate
   // geometry is static and only the response to it evolves.
@@ -1263,9 +1261,9 @@ precision highp float; precision highp sampler2DArray;
 ${COMMON}
 ${PLATES}
 ${NOISE_GLSL || ''}
-uniform sampler2DArray uDV, uSF, uT, uPG;
+uniform sampler2DArray uDV, uT, uPG;
 uniform int uFace, uSubduct;
-uniform float uFoldAmp, uFoldFreq, uOceanTc, uThinK, uPExt, uEchoL, uEchoV;
+uniform float uOceanTc, uThinK, uPExt, uEchoL, uEchoV;
 uniform float uOroAmp;
 ${NOISE_GLSL ? 'uniform NoiseParams uNP;' : ''}
 out vec4 o;
@@ -1287,67 +1285,12 @@ float beltGain(vec3 p0, int id, float rg){
   return max(rg*(1.0 + orogenNoise(p0, id)), 0.0);
 }
 
-/* Crumpling. Three things, all borrowed in mechanism from World Orogen's
-   fold-belt subsystem (GPL v3 — read for method, no code taken):
-
-   1. blend smooth fBm → RIDGED noise as the belt strengthens. Ridged noise is
-      creased and sharp-crested; plain fBm is lumpy and never reads as folded.
-   2. raise the frequency inside belts, so an orogen carries visibly finer
-      texture than the ground around it.
-   3. elongate the sampling domain along the stored fold axis, so ridges run
-      parallel to the margin instead of forming isotropic blobs.
-
-   Evaluated at the MATERIAL position, so the pattern is nailed to the rock and
-   rides with it.
-
-   ADDITIVE, and applied wherever strain exists rather than only on the orogenic
-   branches. Multiplying it into the uplift was the obvious form and it failed:
-   strain is carried, so it spreads across 15.8 % of the sphere, while u is
-   concentrated in the shear zone where |∇·v| is large. The product is non-zero
-   only at the margin itself, so folds appeared in a thin line instead of across
-   the belt — high-frequency content in the SOURCE rose 39 %, and the terrain's
-   own roughness rose 3 %. Additive, driven by strain alone, corrugates the whole
-   orogen and keeps corrugating it long after the margin has moved on.
-
-   Zero-mean by construction, so the crust budget is untouched.
-
-   Resolution floor, stated rather than hidden: at 512² a cell is ~18 km, so the
-   tightest fold representable is ~4 cells ≈ 72 km against real fold-and-thrust
-   wavelengths of 10–30 km. This reads as ranges within an orogen, not as
-   individual folds. */
-float foldTerm(vec3 p0, int id){
-  if (uFoldAmp <= 0.0) return 0.0;
-  vec4 sf = texelFetch(uSF, ivec3(gl_FragCoord.xy, uFace), 0);
-  float belt = clamp(sf.x, 0.0, 1.0);
-  if (belt < 0.02) return 0.0;
-
-  vec3 m = matPos(p0, id);
-  vec3 x = m*uFoldFreq*(1.0 + belt*1.5);        // finer texture inside the belt
-  vec3 ax = sf.yzw;
-  if (length(ax) > 1e-6){                        // squash along the fold axis
-    ax = normalize(ax);
-    x -= ax*dot(x, ax)*(1.0 - 1.0/5.7);          // ≈ their tuned 0.85/0.15 ratio
-  }
-  /* DOMAIN-WARPED ridged noise, not bare ridged fBm. This is the difference
-     between crease-lines and lumps: warping the sample position by a second
-     noise field before taking the ridge is what produces long sinuous branching
-     ridges with en-echelon offsets, which is what a fold belt looks like.
-
-     The generator is not new — the noise-belt source in this same file has used
-     it since v001, and its own comment says "long sinuous belts rather than
-     isotropic blobs". Reaching for the unwarped generator here is very likely
-     why the first fold attempt read as roughness rather than folding. */
-  vec3 wv = vec3(fbm(x*0.7 + 11.3, 3), fbm(x*0.7 + 41.7, 3), fbm(x*0.7 + 77.1, 3)) - 0.5;
-  float r = ridged(x + wv*1.4, 4);
-  float tex = mix(fbm(x, 3), r, belt);
-  return uFoldAmp*belt*(tex - 0.5)*2.0;
-}
-
-float strainAt(vec3 dir){                    // + convergent, − divergent
-  int f; vec2 s; dirToFace(normalize(dir), f, s);
-  ivec2 i = clamp(ivec2(floor(s*uN + 1.0)), ivec2(0), ivec2(int(uNT)-1));
-  return -texelFetch(uDV, ivec3(i, f), 0).x;
-}
+/* RETIRED: the strain-driven fold texture (foldTerm) that used to be added
+   here. Three mechanisms were answering "what does compression look like" —
+   this one, the preset noise on the uplift rate above, and the baked fold
+   displacement — two of them sampling the same noise. The bake won: it is
+   present immediately instead of accumulating, works in crustal thickness so
+   isostasy owns the surface, and is reversible. History in DESIGN_OPTIONS. */
 
 void main(){
   vec2 s = fragToS(gl_FragCoord.xy);
@@ -1355,21 +1298,9 @@ void main(){
   int i1, i2; float d1, d2;
   nearestPlates(p, i1, i2, d1, d2);
   float db = 0.5*(d2 - d1);
-  float w  = max(uBWidth, 1e-3);
   float cMe = plateCont(i1), cOt = plateCont(i2);
 
-  float sL = -texelFetch(uDV, ivec3(gl_FragCoord.xy, uFace), 0).x;   // local strain
-  vec2  pg = texelFetch(uPG, ivec3(gl_FragCoord.xy, uFace), 0).xy;  // .x high, .y low
-
-  /* The arc sits inboard of the margin, OUTSIDE the shear zone, where the local
-     strain is already zero — so its amplitude has to come from the margin
-     itself. The margin distance is analytic here, so the nearest margin point is
-     just p walked along the geodesic toward the second seed by that distance.
-     One lookup, no search. */
-  vec3 s2 = plateSeedDir(i2);
-  vec3 t2 = normalize(s2 - p*dot(p, s2));
-  vec3 pm = normalize(p*cos(db) + t2*sin(db));
-  float sM = strainAt(pm);                                            // strain AT the margin
+  vec2 pg = texelFetch(uPG, ivec3(gl_FragCoord.xy, uFace), 0).xy;   // .x high, .y low
 
   float rg = beltRough(p, i1);
   float u;
@@ -1403,8 +1334,7 @@ void main(){
     else if (cMe < 0.5)              u = -pg.x*trench*(uSubduct == 1 ? 1.25 : 0.85);
     else                             u = pg.x*1.05*bg;            // continental arc
   }
-  // Folded crust stays folded whether or not it is still at a margin.
-  o = vec4(u + foldTerm(p, i1), 0.0, 0.0, 1.0);
+  o = vec4(u, 0.0, 0.0, 1.0);
 }`;
 
 /* ══════════════ crust advection ══════════════
@@ -1499,10 +1429,7 @@ precision highp float; precision highp sampler2DArray;
 ${COMMON}
 ${PLATES}
 ${ADVH}
-uniform sampler2DArray uSF;
-uniform float uStrainK;
-layout(location=0) out vec4 o;
-layout(location=1) out vec4 oSF;
+out vec4 o;
 void main(){
   vec2 s = fragToS(gl_FragCoord.xy);
   vec3 p = normalize(faceToDir(uFace, s));
@@ -1577,44 +1504,9 @@ void main(){
   q.z *= comp;
   q.x = isoH(q.z);                           // derived, never carried on its own
   o = q;
-
-  /* ── shortening strain, and the fold axis frozen into the rock ──
-     Carried on the same backtrace as the crust, because folds ARE the rock: a
-     belt has to keep its corrugation long after the collision that made it, and
-     keep it pointing the right way.
-
-     Accumulation is scaled by uAdv, so what builds up is convergence ×
-     displacement — shortening, which is the quantity folds actually record.
-
-     The axis is stored as a 3-vector in MATERIAL space rather than as an angle
-     in a local basis: angles wrap, and blending two of them during advection
-     produces nonsense at the seam where the basis flips. */
-  vec4 sf = fetchDir(uSF, src);
-  float sL = -dvg;                                   // + convergent
-  if (sL > 0.0 && uStrainK > 0.0){
-    float add = sL*uAdv*uStrainK;
-
-    // shortening runs across the margin, i.e. along the divergence gradient
-    vec3 e1, e2; basis(p, e1, e2);
-    float st = 1.5708/uN;
-    float gx = divAt(normalize(p + e1*st)) - divAt(normalize(p - e1*st));
-    float gy = divAt(normalize(p + e2*st)) - divAt(normalize(p - e2*st));
-    vec3 g = e1*gx + e2*gy;
-    if (length(g) > 1e-12){
-      vec3 shorten = normalize(g);
-      vec3 axis = normalize(cross(p, shorten));      // folds run ALONG the margin
-      vec3 axM = matPos(p + axis*1e-3, myId) - matPos(p, myId);
-      if (length(axM) > 1e-12){
-        axM = normalize(axM);
-        vec3 cur = (length(sf.yzw) > 1e-6) ? normalize(sf.yzw) : axM;
-        // fresh strain steers the stored axis; established belts resist
-        sf.yzw = normalize(mix(cur, axM, clamp(add*6.0, 0.0, 1.0)) + 1e-9);
-      }
-    }
-    sf.x = min(sf.x + add, 1.0);
-  }
-  // new ground carries no history
-  oSF = mix(sf, vec4(0.0), clamp(dvg*uAdv, 0.0, 1.0)*uNewK*(1.0 - q.w));
+  /* The carried strain field and fold axis that used to ride this backtrace on
+     a second render target are RETIRED with foldTerm — the baked fold
+     displacement replaced the texture they fed. History in DESIGN_OPTIONS. */
 }`;
 
 const FS_MACC = `#version 300 es
@@ -2608,7 +2500,6 @@ let T = [], F = [], S = null, M = null, MA = null, Uf = null, PL = [];   // fiel
 let PG = [], pgcur = 0;                 // propagated pressure, ping-ponged
 let FD = [], fdcur = 0;                 // fold displacement already baked into the crust
 let VF = null, DVF = null, TA = null;   // plate velocity, its divergence, advection scratch
-let SF = [];                            // (shortening strain, fold axis in material space)
 let DP = [], DV = [], DE = null;                     // droplet textures
 let cur = 0, NT = 0, AREF = 1, UMEAN = 0, plateAngle = 0, crustAngle = 0;
 let UMEAN_RAW = 0, SRC_NORM = 1;   // the field's own mean, and its magnitude normaliser
@@ -2616,8 +2507,8 @@ let advAccum = 0, advPasses = 0;   // angle banked since the last crust resample
 let frameNo = 0, simTime = 0;
 
 function freeAll(){
-  [...T, ...F, ...PL, ...SF, ...PG, S, M, MA, Uf, VF, DVF, TA, ...DP, ...DV, DE].forEach(t => { if(t) gl.deleteTexture(t); });
-  T=[]; F=[]; PL=[]; SF=[]; PG=[]; FD=[]; S=null; M=null; MA=null; Uf=null; VF=null; DVF=null; TA=null; DP=[]; DV=[]; DE=null;
+  [...T, ...F, ...PL, ...PG, ...FD, S, M, MA, Uf, VF, DVF, TA, ...DP, ...DV, DE].forEach(t => { if(t) gl.deleteTexture(t); });
+  T=[]; F=[]; PL=[]; PG=[]; FD=[]; S=null; M=null; MA=null; Uf=null; VF=null; DVF=null; TA=null; DP=[]; DV=[]; DE=null;
 }
 
 function allocate(n, pd){
@@ -2660,11 +2551,6 @@ function allocate(n, pd){
   // one scratch layer for the MacCormack round trip; the reverse trace is done
   // inline in the combine pass so a second is not needed
   TA  = tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f);
-  // (strain, fold axis xyz). The axis is a 3-vector in material space rather
-  // than an angle in a local basis: angles wrap, and blending two of them while
-  // advecting produces nonsense wherever the basis flips.
-  SF  = [tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f),
-         tex2DArray(NT,NT,6, gl.RGBA32F, gl.RGBA, gl.FLOAT, f)];
   DP = [tex2D(PD,PD, gl.RGBA32F), tex2D(PD,PD, gl.RGBA32F)];
   DV = [tex2D(PD,PD, gl.RGBA32F), tex2D(PD,PD, gl.RGBA32F)];
   DE =  tex2D(PD,PD, gl.RGBA32F);
@@ -2791,12 +2677,6 @@ function clearFold(){
   gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
   gl.clearColor(0,0,0,0);
   for(const t of FD) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.clear(gl.COLOR_BUFFER_BIT); }
-}
-// No strain and no fold axis on a fresh planet; both are things the run earns.
-function clearStrain(){
-  gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-  gl.clearColor(0,0,0,0);
-  for(const t of SF) for(let f=0; f<6; f++){ bindLayer(fb, t, f); gl.clear(gl.COLOR_BUFFER_BIT); }
 }
 function buildTerrain(){
   /* A selected noise preset swaps in its own specialized program and mode 4.
@@ -2939,10 +2819,7 @@ function buildMotion(measure){
   const pUD = (npNow && upDivProgramFor(npNow)) || pUpDiv;
   gl.useProgram(pUD); setGrid(pUD); setPlates(pUD);
   gl.uniform1i(U(pUD,'uDV'), unit(0, DVF));
-  gl.uniform1i(U(pUD,'uSF'), unit(3, SF[cur]));
   gl.uniform1i(U(pUD,'uPG'), unit(5, PG[pgcur]));
-  gl.uniform1f(U(pUD,'uFoldAmp'), P.foldAmp);
-  gl.uniform1f(U(pUD,'uFoldFreq'), P.foldFreq);
   gl.uniform1i(U(pUD,'uT'), unit(4, T[cur]));
   gl.uniform1f(U(pUD,'uOceanTc'), OCEAN_H/P.isoK);
   gl.uniform1f(U(pUD,'uThinK'), P.thinK);
@@ -2983,7 +2860,6 @@ function advSetup(p, a){
   gl.uniform1f(U(p,'uComp'), P.comp);
   gl.uniform1f(U(p,'uNewTc'), NEW_CRUST_H/P.isoK);
   gl.uniform1f(U(p,'uNewK'), P.newk);
-  gl.uniform1f(U(p,'uStrainK'), P.strainK);
 }
 /* MacCormack. The plain backtrace is first order and its error is pure
    diffusion, which for a crater rim at ~8 cells across costs about 10 % of the
@@ -3005,22 +2881,10 @@ function advectCrust(a){
   gl.disable(gl.BLEND);
   gl.viewport(0,0,NT,NT);
 
-  // The forward pass carries BOTH fields: crust to target 0, strain and fold
-  // axis to target 1. Only the crust gets the MacCormack correction — strain
-  // and axis are smooth, so first order costs nothing that shows.
   gl.useProgram(pAdvect); advSetup(pAdvect, a);
   gl.uniform1i(U(pAdvect,'uT'),  unit(0, T[cur]));
-  gl.uniform1i(U(pAdvect,'uSF'), unit(4, SF[cur]));
   const dst = P.macc ? TA : T[1-cur];
-  for(let f=0; f<6; f++){
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
-    gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, dst,      0, f);
-    gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, SF[1-cur],0, f);
-    gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
-    gl.uniform1i(U(pAdvect,'uFace'), f); drawQuad();
-  }
-  gl.framebufferTextureLayer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, null, 0, 0);
-  gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  for(let f=0; f<6; f++){ bindLayer(fb, dst, f); gl.uniform1i(U(pAdvect,'uFace'), f); drawQuad(); }
   if (!P.macc){ cur = 1-cur; return; }        // first-order only, for A/B
 
   gl.useProgram(pMacc); advSetup(pMacc, a);
@@ -3044,7 +2908,6 @@ function rebuild(n, pd){
   const got = tryAllocate(n, pd);
   if (got !== n) note('grid fell back to 6 × '+got+'²  (out of memory)', 'bad');
   gl.disable(gl.BLEND);
-  clearStrain();
   buildMetric(); buildSource(); buildTerrain(); seedDroplets();
   cur = 0; frameNo = 0; simTime = 0; advAccum = 0; advPasses = 0; crustAngle = 0;
 }
@@ -3746,7 +3609,7 @@ craterStore.ready().then(refreshCraterPresets);
 $('belt').addEventListener('change', () => buildUplift(false));
 $('sharp').addEventListener('change', () => buildUplift(false));
 // plate geometry also sets the starting continent/ocean split, so terrain rebuilds too
-const rebuildPlates = () => { clearStrain(); buildSource(); buildTerrain(); seedDroplets();
+const rebuildPlates = () => { buildSource(); buildTerrain(); seedDroplets();
                               frameNo = 0; massRef = null; advAccum = 0; advPasses = 0;
                               crustAngle = 0; };
 ['pn','bw','cf','ao','warp','rough','blendC','blendD','echoL'].forEach(id => $(id).addEventListener('change', rebuildPlates));

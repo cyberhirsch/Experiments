@@ -598,6 +598,89 @@ divide by. **It does not reach its target.** Extensional ground settles at −0.
 4.065 → 3.215 and flipping the budget +0.512 % → −0.409 %. Reverted to the low rate.
 Cause and the measurement bug behind it are recorded in task #12.
 
+## 27. Orogen width: blend → echo → directional propagation ✅ v004e
+
+Three attempts at giving a sharp margin a wide orogen, two dead:
+
+- **Wide velocity blends** ✗ — per-type widths (`blendC`/`blendD`) corrupt plate
+  interiors: overlapping transition zones make a rigid rotation (exactly divergence-free
+  by construction) read |∇·v| up to 0.31. The control experiment that caught it: interiors
+  must be silent, measured 0.00 → 0.31 as blendC went 0.05 → 1.95. Both widths now 0.
+- **Echo (decay at read time)** ✗ — `exp(-db/L)` applied in FS_UPDIV never touches the
+  fields, so interiors stay clean, but it has no inherent direction; a bolted-on
+  "faster plate wins" test faked sidedness poorly.
+- **Directional propagation** ✅ — seed the compression spike sharp, then march it along
+  the velocity field with step-doubling (6 passes reach 63 cells), gated by BUOYANCY:
+  continental overrides oceanic, faster wins between like types. Direction of travel alone
+  cannot pick the side — at a convergent margin BOTH plates move toward it; measured
+  symmetric (1.01–1.08×) until the explicit gate went in. True asymmetry 4.9–6.0×, but
+  only after fixing the instrument: averaging the two sides across ~800 crossings before
+  taking max/min hides asymmetry whose sign flips per crossing — classify strong/weak PER
+  CROSSING first. The earlier echo's "1.4×" was measured with the broken instrument and
+  was never a real number.
+
+`smoothstep` → `tanh` for the residual blend profile: S′(0)=0 put a divergence dead-zone
+exactly on the margin axis (the "neutral pressure ridge in the middle"); tanh has maximum
+slope at zero. Axis mean|div| 1.81 → 5.53.
+
+## 28. Two pressure channels, two clocks ✅ v004e
+
+- **PG is RG32F: .x compression (propagated), .y extension (computed at seed, carried
+  through every propagation pass untouched)** — verified bit-identical across reach
+  sweeps. Extension stays a thin sharp line; compression gets the wide gradient. One
+  channel per phenomenon, so work on one cannot disturb the other.
+- **`plateAngle` vs `crustAngle`** — seed migration (Voronoi geometry deforming, "Motion
+  evolution", default 0) is a different clock from crust transport ("Plate speed").
+  Conflating them made the landmass speed and the boundary-deformation speed one knob.
+  Material-frame functions follow `crustAngle` — the rock, not the seeds.
+
+## 29. Noise library: specialization, not dispatch ✅ v004f
+
+One shared GLSL library (`noise-lib.js`) feeds the designer page and the injected shaders
+in the main tool. The first version dispatched 9 bases × 8 combinators with runtime `if`s
+in one shader; GLSL compilers inline every branch, so `evalBaseUnit` appeared 83 times and
+each instance unrolled the 27-cell × 8-impulse kernel scaffold — ~5×10⁴ inner bodies.
+**It crashed the GPU process and took every later WebGL2 context with it.** Base,
+cellular output, combinator, modifiers and remap are now preprocessor defines; exactly one
+of each survives. Swept all 4,480 combinations offline through a preprocessor evaluator:
+one base body each, largest shader 167 lines. Two supporting rules: the domain warp uses a
+fixed cheap value-fBm rather than the selected base (a warp wants smooth and cheap), and
+the finite-difference derivative is compiled only on request (it is a silent 7× on
+everything).
+
+Companion architecture: `noise-designer.html` (standalone page, tile + relief views,
+special simulated modes), `impact-designer.js` (in-document modal; 9 crater-shape params
+threaded through FS_IMPACT *and* the CPU mass-balance integral together, or the ejecta
+solve silently diverges from what is rendered), `preset-store.js` (File System Access API
+folder of .json files with localStorage fallback; the filesystem has no change events, so
+writes bump a localStorage doorbell that fires `storage` in other tabs), and
+`presets-builtin.js` (compiled-in presets that work from file:// with no picker).
+
+## 30. Folding is baked, not grown ✅ v004g — replaces §23's fold texture
+
+The user's requirement: ranges exist the moment the pressure does. Uplift is a RATE — it
+can only accumulate, and measured it grew the peak 9 % in 1,200 steps. So the orogen's
+fold displacement is now a FUNCTION of the current pressure field, written into crustal
+thickness as a DELTA against what the previous bake wrote (the FD texture pair records
+it). Delta, not absolute: 100 consecutive re-bakes drift the peak by exactly 0.0.
+Setting the height to 0 removes precisely what was added. Isostasy stays sole owner of
+the surface (`h = isoH(tc)` throughout), and erosion sees the ranges as real crust.
+
+Thresholds are measured, not chosen: the propagated pressure is violently long-tailed
+(240k samples: p90 = 0, p99 = 14.6, max = 300), so the bake gates on
+`smoothstep(1, 25, PG.x)` — the top ~2–3 % of the sphere, which is the orogen. A linear
+map showed nothing.
+
+The noise itself is the compiled-in Mountains preset (cellular F1×F2, Chebyshev metric,
+billow, warped, folded), hardcoded — not a dropdown — sampled at the material position so
+the pattern rides the crust.
+
+**Retired with this:** §23's strain-driven `foldTerm` texture, and the entire carried
+strain/fold-axis field (SF pair, `strainK`, the second render target on the advection
+pass). Three mechanisms were answering "what does compression look like", two of them
+sampling the same noise; the bake is immediate, reversible and mass-accounted, so it won.
+The advection MRT reverts to a single output.
+
 ## 13. Panel layout ✅ v002
 
 - **Four panels on a pointer-transparent CSS grid** ✅ — container never eats a drag, each
