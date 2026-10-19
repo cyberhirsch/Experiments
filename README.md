@@ -9,10 +9,11 @@ This repository serves as a research journal for exploring the intersection of m
 
 ## 🔬 Current Research (Volume I)
 
-### [№ 01 — Flame Fractals](01_Flame/Flame3d_v003.html)
+### [№ 01 — Flame Fractals](01_Flame/Flame3d_v008.html)
 An implementation of Iterated Function Systems (IFS) based on Scott Draves' Fractal Flame algorithm.
-- **Scope:** 2D and 3D density estimation rendering.
-- **Key Features:** Nonlinear variations, logarithmic color mapping, and statistical super-sampling.
+- **Scope:** 2D and 3D density estimation rendering; realtime 3D IFS up to v008.
+- **Key Features:** Nonlinear variations, logarithmic color mapping, statistical super-sampling, per-orbit hue and emissivity memory, emissive + absorbing material via weighted blended OIT, animated warp, second blend mode.
+- **Exports:** Gaussian splat export (snapshots, splat size, falloff, dust, absorb threshold, Y-up / Y-down COLMAP / Z-up).
 
 ### [№ 02 — Gas Giant (S² FLIP)](02_Gas Giant/FLIPsphere_v001.html)
 Fluid dynamics on a spherical manifold using a 6-face cubemap atlas.
@@ -54,8 +55,23 @@ Seamless planetary erosion — a whole planet held in erosional equilibrium.
 - **Key Features:** Equiangular cubed sphere with 1-texel ghost-cell halos, measured arc-length metric, Lagrangian droplets with a P2G/G2P grant cycle, drifting Euler-pole plates with subduction, a motion-vector source deriving uplift from the divergence of the plate velocity field, local Airy isostasy, mass-conserving impacts, talus, lithification, raymarched shell.
 - **Method:** 6 × 512² crust-column array with the surface derived by isostasy; mass audit closes to 0.02% over 10,000 steps and 0.0003% per crater; isostatic rebound retains 90.7% of relief against 84.2% for rigid crust.
 - **Verification:** Built-in flat, isotropy and mass tests — cube corners perturb a diffusing feature by ≤0.12% of its amplitude.
-- **Versions:** [v001](14_Orogeny/Orogeny_v001.html) droplet erosion · [v002](14_Orogeny/Orogeny_v002.html) plates &amp; impacts · [v003](14_Orogeny/Orogeny_v003.html) crust, drift &amp; subduction.
+- **Versions:** [v001](14_Orogeny/Orogeny_v001.html) droplet erosion · [v002](14_Orogeny/Orogeny_v002.html) plates &amp; impacts · [v003](14_Orogeny/Orogeny_v003.html) crust, drift &amp; subduction · [v006](14_Orogeny/Orogeny_v006.html) planet presets · [v007](14_Orogeny/Orogeny_v007.html) rock &amp; gas layers, strata, lava · [v008](14_Orogeny/Orogeny_v008.html) crater break-up · [v012](14_Orogeny/Orogeny_v012.html) export bake · [v013](14_Orogeny/Orogeny_v013.html) base noise per planet · [v018](14_Orogeny/Orogeny_v018.html) volcanism · [v019](14_Orogeny/Orogeny_v019.html) saved planets, atmosphere, aurora · [v020](14_Orogeny/Orogeny_v020.html) typed slider values · [v021](14_Orogeny/Orogeny_v021.html) bursts obey the Impacts switch · [v022](14_Orogeny/Orogeny_v003.html) bombardment = initial strikes + rate.
+- **Tools:** [noise designer](14_Orogeny/noise-designer_v002.html) · [impact designer](14_Orogeny/impact-designer_v002.html).
 
+### [№ 18 — Galaxy Colonization](18_Galaxy/briefing.md) · *native*
+The spread of a civilisation across the Milky Way, on published numbers rather than invented physics.
+- **Scope:** Galactic structure, sub-light settlement percolation, and the cosmic and civilisational hazards that stall or erase a colony.
+- **Key Features:** Four-component density model (Juric et al. 2008 disks and halo, Wegg &amp; Gerhard 2013 bar, Reid et al. 2019 arms), Kroupa IMF, metallicity-gated habitability, GPU generation and additive point render of 10⁷–10⁸ systems.
+- **Method:** An exponential disk's radial law is *exactly* Gamma(2, h), so R = −h·ln(u₁u₂) samples it in two logarithms — no Newton iteration on an uninvertible CDF.
+- **Measured:** On an RTX 3090 a storage binding holds 179 M systems, so 10⁹ needs six position buffers; one dispatch dimension reaches 16.8 M invocations; 10⁹ systems fit 24 GiB at 19.09 GiB with u32-decade event times, and do not at 26.54 GiB with f64 years.
+- **Landis (1998) reproduced:** colonisation as a single-source shortest path through sites that are colonising with probability P — the whole history is a static field and "now" is a threshold on it. On a k = 6 neighbour graph the colonised fraction goes from 0.2% at P = 0.50 to 88.4% at P = 0.55: a sharp percolation threshold at P ≈ 0.53.
+- **Note:** The only experiment here that is not a web page — 15 GiB of buffer is far past what a browser tab is given. Rust + wgpu + WGSL, `cargo run --release`.
+
+### [№ 28 — CamFluid](28_CamFluid/CamFluid_v003.html)
+The webcam's motion vectors drive a flat 2D fluid, coloured from the webcam's rgb.
+- **Motion vectors:** Lucas-Kanade optical flow on the GPU at 96 px height, with a noise gate and temporal smoothing; shown as a vector field.
+- **Gas:** The Orogeny atmosphere flattened — midpoint advection, motion forcing, vorticity confinement, warm-started Jacobi pressure; the dye carries camera paint plus density.
+- **FLIP:** The Gas Giant solver flattened — particles in float textures, bilinear P2G, the same pressure solve, G2P with a 0.97 FLIP / PIC blend; particle colour from the camera.
 ---
 
 ## 🗺️ Roadmap

@@ -28,6 +28,8 @@ pipe model theory (Shinozaki 1964), and the strand/cylinder sweep geometry.
 ```
 13_Arbor/
   Arbor_v001.html     self-contained experiment (all logic + UI + render + USD export)
+  Arbor_v002.html     v001 + junction-aware mesher (collar mounts, taproot hub)
+  Arbor_v003.html     v002 + seed-on-obstacle growth (roots colonize down the rock)
   assets/
     rock.obj           sample obstacle
   briefing.md          this file
@@ -76,6 +78,11 @@ first-order roots form the root system. Growth is iterative:
    (ellipsoid for oak, cone for spruce); soil attractors in a hemispherical shell
    below ground, augmented with **hug-field points** placed just outside obstacle
    surfaces so roots actively grow toward and wrap around objects.
+   v003: the plant can be **seeded on top of the obstacle** (`cfg.seedPos`,
+   UI "Seed on top of obstacle"). Crown volume and bounds ride on the seed;
+   soil attractors stay below the true ground plane, and the hug field covers
+   the obstacle's whole flank, so the root front space-colonizes down and
+   around the rock before it can reach soil — strangler-fig style.
 2. **Steering** — each tip's direction blends inertia, the space-colonization pull
    toward nearby attractors, a tropism term (phototropism +Y / gravitropism −Y),
    order-scaled for subordinate branches, and noise.
@@ -92,9 +99,23 @@ first-order roots form the root system. Growth is iterative:
 
 ### Mesher
 
-Each skeleton edge becomes a strand: a quad tube between a start ring (branch-point
-radius) and end ring (node radius), 8 segments around. Per-ring UVs: `u = k/8`
-around, `v = arclength/tile` along. Radial ring normals give smooth cylinders.
+v001: each skeleton edge becomes a strand — a quad tube between a start ring
+(branch-point radius) and end ring (node radius), 8 segments around. Per-ring
+UVs: `u = k/8` around, `v = arclength/tile` along. Radial ring normals give
+smooth cylinders. Tubes at forks interpenetrate (known limitation).
+
+v002: one continuous skin per part, grown by a boundary-ring walk (every tip
+carries one open 8-ring). Junctions by type:
+- **codominant split** (child radii within 0.7×): procedural "pair of pants"
+  Y-junction — two lofted panels + crotch web, child rings at r/tan(halfAngle);
+- **thin lateral** (< 0.7× continuation): one wall quad of the continuation
+  segment is cut out and bridged to the lateral's 8-ring (4 quads' worth of
+  tris forming a branch collar); the parent tube stays intact;
+- **base hub**: the trunk skin opens upward, a tapering taproot stub descends
+  below ground, and each root collar-mounts onto its wall.
+Rings stitch joindre-style (nearest-vertex alignment, UV phase carried across
+the seam). Verified per species/seed: 0 non-manifold edges, 0 doubled directed
+edges (globally consistent winding), positive signed volume.
 
 ### USD export
 

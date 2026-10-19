@@ -301,11 +301,11 @@
 
         <div class="grid">
             <!-- № 01 — Flame -->
-            <a href="01_Flame/Flame3d_v003.html" class="card">
+            <a href="01_Flame/Flame3d_v008.html" class="card">
                 <div class="corner tl">fractal<br><b>IFS Renderer</b></div>
                 <div class="corner tr">geometry<br><b>Iterative</b></div>
                 <h3>№ 01 — Flame Fractals</h3>
-                <p>Iterated Function Systems (IFS) rendered in 3D space, creating complex, self-similar organic structures through statistical density estimation.</p>
+                <p>Iterated Function Systems rendered in realtime 3D. Each orbit remembers a hue and an emissivity, so the cloud can both glow and absorb (order-independent transparency), drift under an animated warp, and export as Gaussian splats with snapshots, dust and up-axis options.</p>
                 <div class="launch">Launch Experiment</div>
                 <div class="corner br">Density · 2026</div>
             </a>
@@ -435,9 +435,39 @@
                 <div class="corner tl">geomorphology<br><b>S² Cubed Sphere</b></div>
                 <div class="corner tr">planetary<br><b>Plates &amp; Erosion</b></div>
                 <h3>№ 14 — Orogeny</h3>
-                <p>A whole planet held in erosional equilibrium. Euler-pole plates raise mountain belts, droplets carve drainage networks into them, sediment fills the basins and impacts punch mass-conserving craters. Seamless across the cube: metric-correct operators, ghost-cell halos, and a mass ledger that closes to 0.02%.</p>
+                <p>Whole planets held in erosional equilibrium. Drifting plates raise mountain belts, droplets carve drainage into them, broken-up craters and volcanism reshape the crust, and a gas layer flows above it. Thirteen planet presets, saved planets, atmosphere and aurora, and a tiled bake up to 16k per face. Seamless across the cube, mass ledger closing to 0.02%.</p>
                 <div class="launch">Launch Experiment</div>
                 <div class="corner br">WebGL2 · S² · 2026</div>
+            </a>
+
+            <!-- № 18 — Galaxy Colonization (native) -->
+            <a href="18_Galaxy/briefing.md" class="card">
+                <div class="corner tl">astrophysics<br><b>Percolation</b></div>
+                <div class="corner tr">native<br><b>Rust · wgpu</b></div>
+                <h3>№ 18 — Galaxy Colonization</h3>
+                <p>The spread of a civilisation across the Milky Way on published numbers: 10⁷–10⁸ star systems generated on the GPU, colonisation as a shortest path through sites — a sharp percolation threshold at P ≈ 0.53. Too large for a browser tab: <code>cargo run --release</code>.</p>
+                <div class="launch">Read Briefing</div>
+                <div class="corner br">WGSL · 2026</div>
+            </a>
+
+            <!-- № 19 — Splat Tracer (native) -->
+            <a href="19_SplatTracer/" class="card">
+                <div class="corner tl">rendering<br><b>Gaussian Splats</b></div>
+                <div class="corner tr">native<br><b>Rust · wgpu</b></div>
+                <h3>№ 19 — Splat Tracer</h3>
+                <p>A ray tracer for 3D Gaussian Splatting scenes: drop a trained <code>.ply</code> on the window, fly the training views or orbit freely. Native app: <code>run.bat</code>.</p>
+                <div class="launch">Open Folder</div>
+                <div class="corner br">WGSL · 2026</div>
+            </a>
+
+            <!-- № 28 — CamFluid -->
+            <a href="28_CamFluid/CamFluid_v003.html" class="card">
+                <div class="corner tl">webcam<br><b>Optical Flow</b></div>
+                <div class="corner tr">fluids<br><b>Gas · FLIP</b></div>
+                <h3>№ 28 — CamFluid</h3>
+                <p>The webcam's motion vectors stir a flat 2D fluid: a gas solver after the Orogeny atmosphere, or at the flick of a switch a FLIP particle fluid after the Gas Giant, both coloured from the webcam's own pixels.</p>
+                <div class="launch">Launch Experiment</div>
+                <div class="corner br">WebGL2 · Lucas-Kanade · 2026</div>
             </a>
         </div>
     </main>

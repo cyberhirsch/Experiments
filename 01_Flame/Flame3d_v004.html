@@ -1,0 +1,1911 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>The Fractal Flame - Realtime 3D IFS v004</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=JetBrains+Mono:wght@300;400&display=swap"
+    rel="stylesheet">
+  <style>
+
+    :root {
+      --bg: #070809;
+      --ink: #e6ecf2;
+      --dim: #5a6470;
+      --accent: #7fc7ff;
+      --warm: #ffb474;
+      --line: rgba(230, 236, 242, 0.10);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0 }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      overflow: hidden;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    body {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      grid-template-columns: minmax(0, 1fr);
+      background:
+        radial-gradient(ellipse at 30% 20%, rgba(127,199,255,0.06), transparent 55%),
+        radial-gradient(ellipse at 70% 80%, rgba(255,180,116,0.04), transparent 55%),
+        var(--bg);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='2'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.35 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+      opacity: .4;
+      mix-blend-mode: overlay;
+    }
+
+    header {
+      padding: 22px 32px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid var(--line);
+      z-index: 2;
+    }
+
+    header h1 {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 26px;
+      letter-spacing: 0.02em;
+    }
+
+    header h1 .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-style: normal;
+      font-size: 10px;
+      color: var(--dim);
+      margin-right: 14px;
+      letter-spacing: 0.3em;
+    }
+
+    header .meta {
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      text-align: right;
+    }
+
+    header .meta b {
+      color: var(--accent);
+      font-weight: 400;
+    }
+
+    main {
+      position: relative;
+      overflow: hidden;
+    }
+
+    #stage {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #stage:active {
+      cursor: grabbing;
+    }
+
+    .scanline {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      opacity: .22;
+      background: repeating-linear-gradient(0deg, transparent 0, transparent 3px, rgba(230, 236, 242, 0.045) 4px);
+    }
+
+    .corner {
+      position: absolute;
+      font-size: 9px;
+      color: var(--dim);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      pointer-events: none;
+      z-index: 3;
+      line-height: 1.7;
+    }
+
+    .corner.tl { top: 18px; left: 32px; }
+    .corner.tr { top: 18px; right: 32px; text-align: right; }
+    .corner.bl { bottom: 18px; left: 32px; }
+    .corner.br { bottom: 18px; right: 32px; text-align: right; }
+    .corner b { color: var(--accent); font-weight: 400; }
+
+    .ornament {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Cormorant Garamond', serif;
+      color: var(--dim);
+      font-size: 11px;
+      letter-spacing: 0.35em;
+      z-index: 3;
+      pointer-events: none;
+      font-style: italic;
+    }
+
+    .ornament.top { top: 14px; }
+    .ornament.bot { bottom: 14px; }
+
+    footer {
+      padding: 14px 32px;
+      border-top: 1px solid var(--line);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 18px;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      color: var(--dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      z-index: 2;
+    }
+
+    .tagline {
+      flex: 1 1 180px;
+      min-width: 0;
+      max-width: 32vw;
+      line-height: 1.7;
+    }
+
+    footer .controls {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px 14px;
+      align-items: center;
+    }
+
+    footer button,
+    .toggle {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      cursor: pointer;
+      transition: all .25s ease;
+    }
+
+    footer button:hover,
+    .toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    footer button.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(127, 199, 255, 0.06);
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .select-group {
+      display: grid;
+      grid-template-columns: auto 132px;
+      align-items: center;
+      gap: 9px;
+      color: var(--dim);
+      font-size: 9px;
+      letter-spacing: .22em;
+      white-space: nowrap;
+    }
+
+    select {
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: rgba(7, 8, 9, 0.92);
+      color: var(--ink);
+      font: inherit;
+      font-size: 9px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .toggle input {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 9px;
+      height: 9px;
+      border: 1px solid var(--dim);
+      border-radius: 50%;
+      background: transparent;
+    }
+
+    .toggle input:checked {
+      border-color: var(--accent);
+      background: var(--accent);
+    }
+
+    footer .sep {
+      width: 1px;
+      height: 18px;
+      background: var(--line);
+      margin: 0 4px;
+    }
+
+    footer .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: var(--dim);
+    }
+
+    footer .slider-group .val {
+      color: var(--accent);
+      min-width: 54px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    footer input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 82px;
+      height: 1px;
+      background: var(--line);
+      outline: none;
+      cursor: pointer;
+    }
+
+    footer input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    footer input[type=range]::-moz-range-thumb {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+    }
+
+    #readout {
+      position: absolute;
+      right: 32px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--dim);
+      writing-mode: vertical-rl;
+      z-index: 3;
+      pointer-events: none;
+      text-align: right;
+      line-height: 2;
+    }
+
+    #readout span {
+      color: var(--accent);
+    }
+
+    #status {
+      position: absolute;
+      left: 32px;
+      top: 50%;
+      transform: translateY(-50%) rotate(180deg);
+      font-size: 9px;
+      letter-spacing: 0.25em;
+      color: var(--dim);
+      writing-mode: vertical-rl;
+      z-index: 3;
+      pointer-events: none;
+    }
+
+    .crosshair {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1px;
+      height: 1px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .crosshair::before, .crosshair::after {
+      content: "";
+      position: absolute;
+      background: var(--line);
+    }
+
+    .crosshair::before {
+      width: 22px;
+      height: 1px;
+      left: -11px;
+      top: 0;
+    }
+
+    .crosshair::after {
+      width: 1px;
+      height: 22px;
+      left: 0;
+      top: -11px;
+    }
+
+    #export-panel {
+      position: absolute;
+      right: 32px;
+      bottom: 32px;
+      width: 300px;
+      z-index: 10;
+      display: none;
+      background: rgba(7, 8, 9, 0.94);
+      border: 1px solid var(--line);
+      padding: 18px 20px 20px;
+      backdrop-filter: blur(6px);
+    }
+
+    #export-panel.show { display: block; }
+
+    #export-panel h2 {
+      font-family: 'Cormorant Garamond', serif;
+      font-style: italic;
+      font-weight: 300;
+      font-size: 17px;
+      margin-bottom: 4px;
+    }
+
+    #export-panel .hint {
+      font-size: 9px;
+      color: var(--dim);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      line-height: 1.8;
+      margin-bottom: 14px;
+    }
+
+    #export-panel .row {
+      display: grid;
+      grid-template-columns: 1fr 88px 44px;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 9px;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    #export-panel .row .val {
+      color: var(--accent);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.08em;
+    }
+
+    #export-panel input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 1px;
+      background: var(--line);
+      outline: none;
+      cursor: pointer;
+    }
+
+    #export-panel input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+    }
+
+    #export-panel select {
+      width: 100%;
+      grid-column: 2 / span 2;
+      height: 26px;
+      padding: 0 4px;
+    }
+
+    #export-panel .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    #export-panel button {
+      flex: 1;
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--ink);
+      font-family: inherit;
+      font-size: 9px;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: all .25s ease;
+    }
+
+    #export-panel button:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    #export-panel button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    #export-progress {
+      margin-top: 14px;
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--dim);
+      line-height: 1.9;
+      min-height: 34px;
+    }
+
+    #export-progress b { color: var(--accent); font-weight: 400; }
+
+    #export-bar {
+      height: 1px;
+      background: var(--line);
+      margin-top: 8px;
+    }
+
+    #export-bar i {
+      display: block;
+      height: 1px;
+      width: 0%;
+      background: var(--accent);
+      transition: width .2s linear;
+    }
+
+    .fallback {
+      position: absolute;
+      inset: 0;
+      z-index: 20;
+      display: none;
+      place-items: center;
+      padding: 32px;
+      background: #070809;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.8;
+      text-align: center;
+    }
+
+    .fallback.show {
+      display: grid;
+    }
+
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>
+      <span class="num">№ 04 — V004</span>
+      The Fractal Flame <span style="color:var(--dim);font-size:14px;font-style:normal"> · 3D IFS</span>
+    </h1>
+    <div class="meta">WebGL2 float texture simulation<br><b>256k-16M GPU particles</b> / gaussian splat export</div>
+  </header>
+
+  <main id="viewport">
+    <canvas id="stage"></canvas>
+    <div class="scanline"></div>
+    <div class="fallback" id="fallback"></div>
+
+    <div class="ornament top">the chaos game lifted into a volumetric attractor</div>
+    <div class="corner tl">state texture<br><b>RGBA32F</b><br>x y z color</div>
+    <div class="corner tr">camera orbit<br><b>perspective</b><br>depth aware density</div>
+    <div class="corner bl">variations <b>9 type</b><br>ping pong pass<br>shader IFS</div>
+    <div class="corner br">projection<br><b>blend splats</b><br>living attractor</div>
+    <div class="crosshair"></div>
+    <div id="status">SIM <span id="sim-state">RUNNING</span></div>
+    <div id="readout">fps <span id="fps">0</span> / particles <span id="nn">262,144</span> / iter <span id="it">0</span>
+    </div>
+    <div class="ornament bot">field density / nonlinear recursion / color memory</div>
+
+    <section id="export-panel">
+      <h2>Gaussian splat export</h2>
+      <div class="hint">voxel-fitted 3D gaussians · ply</div>
+
+      <div class="row">
+        <label for="x-samples">Samples</label>
+        <input id="x-samples" type="range" min="1" max="24" step="1" value="4" />
+        <span id="xv-samples" class="val">200M</span>
+      </div>
+      <div class="row">
+        <label for="x-grid">Grid</label>
+        <input id="x-grid" type="range" min="64" max="768" step="32" value="256" />
+        <span id="xv-grid" class="val">256³</span>
+      </div>
+      <div class="row">
+        <label for="x-mincount">Min hits</label>
+        <input id="x-mincount" type="range" min="1" max="200" step="1" value="12" />
+        <span id="xv-mincount" class="val">12</span>
+      </div>
+      <div class="row">
+        <label for="x-scale">Splat size</label>
+        <input id="x-scale" type="range" min="0.4" max="3" step="0.05" value="1.15" />
+        <span id="xv-scale" class="val">1.15</span>
+      </div>
+      <div class="row">
+        <label for="x-intensity">Intensity</label>
+        <input id="x-intensity" type="range" min="0.2" max="16" step="0.1" value="4" />
+        <span id="xv-intensity" class="val">4.0</span>
+      </div>
+      <div class="row">
+        <label for="x-falloff">Falloff</label>
+        <input id="x-falloff" type="range" min="0.3" max="4" step="0.05" value="1.6" />
+        <span id="xv-falloff" class="val">1.60</span>
+      </div>
+      <div class="row">
+        <label for="x-alpha">Alpha</label>
+        <input id="x-alpha" type="range" min="0.01" max="0.6" step="0.01" value="0.07" />
+        <span id="xv-alpha" class="val">0.07</span>
+      </div>
+      <div class="row">
+        <label for="x-up">Up axis</label>
+        <select id="x-up">
+          <option value="y" selected>Y up</option>
+          <option value="ydown">Y down (COLMAP)</option>
+          <option value="z">Z up</option>
+        </select>
+      </div>
+
+      <div class="actions">
+        <button id="x-run" type="button">Export</button>
+        <button id="x-close" type="button">Close</button>
+      </div>
+
+      <div id="export-progress">idle</div>
+      <div id="export-bar"><i></i></div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="tagline">A recursive 3D transformation field rendered directly from GPU state.</div>
+    <div class="controls">
+      <div class="slider-group">
+        <label for="s-particles">Particles</label>
+        <input id="s-particles" type="range" min="262144" max="16777216" step="262144" value="8388608" />
+        <span id="v-particles" class="val">8.00M</span>
+      </div>
+      <div class="slider-group">
+        <label for="s-exposure">Exposure</label>
+        <input id="s-exposure" type="range" min="-20" max="20" step="0.1" value="-5" />
+        <span id="v-exposure" class="val">-5.0 EV</span>
+      </div>
+      <div class="slider-group">
+        <label for="s-size">Size</label>
+        <input id="s-size" type="range" min="0.5" max="3" step="0.1" value="2" />
+        <span id="v-size" class="val">2.0 px</span>
+      </div>
+      <div class="slider-group">
+        <label for="s-speed">Spin</label>
+        <input id="s-speed" type="range" min="0" max="1.2" step="0.01" value="0.22" />
+        <span id="v-speed" class="val">0.22</span>
+      </div>
+      <div class="slider-group">
+        <label for="s-warp">Warp</label>
+        <input id="s-warp" type="range" min="0" max="3" step="0.01" value="1" />
+        <span id="v-warp" class="val">1.00</span>
+      </div>
+      <div class="slider-group">
+        <label for="s-hue">Hue</label>
+        <input id="s-hue" type="range" min="0" max="1" step="0.002" value="0" />
+        <span id="v-hue" class="val">0.000</span>
+      </div>
+      <div class="sep"></div>
+      <div class="select-group">
+        <label for="s-blend">Blend</label>
+        <select id="s-blend">
+          <option value="add" selected>Additive</option>
+          <option value="normal">Normal</option>
+        </select>
+      </div>
+      <label class="toggle"><input id="c-pause" type="checkbox" />Pause</label>
+      <div class="sep"></div>
+      <button id="b-random" type="button">Randomize</button>
+      <button id="b-view" type="button">Reset View</button>
+      <button id="b-export" type="button">Splats</button>
+    </div>
+  </footer>
+
+  <script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.module.min.js"
+  }
+}
+</script>
+
+  <script type="module">
+    import * as THREE from "three";
+
+    const MIN_PT_TEX = 512;
+    const MAX_PT_TEX = 4096;
+    const MIN_PARTICLES = MIN_PT_TEX * MIN_PT_TEX;
+    const MAX_PARTICLES = MAX_PT_TEX * MAX_PT_TEX;
+    const STEPS_PER_FRAME = 3;
+    const XFORM_COUNT = 6;
+    let simSize = MIN_PT_TEX;
+    let simCapacity = MIN_PARTICLES;
+
+    const viewport = document.getElementById("viewport");
+    const canvas = document.getElementById("stage");
+    const fallback = document.getElementById("fallback");
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: false,
+      alpha: false,
+      powerPreference: "high-performance"
+    });
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+    renderer.setClearColor(0x050607, 1);
+
+    const gl = renderer.getContext();
+    if (!(gl instanceof WebGL2RenderingContext)) {
+      fallback.textContent = "WebGL2 is required for the realtime 3D flame.";
+      fallback.classList.add("show");
+      throw new Error("WebGL2 required");
+    }
+
+    if (!gl.getExtension("EXT_color_buffer_float")) {
+      fallback.textContent = "This GPU does not expose EXT_color_buffer_float, which is required for the simulation texture.";
+      fallback.classList.add("show");
+      throw new Error("EXT_color_buffer_float required");
+    }
+
+    const state = {
+      paused: false,
+      blendMode: "add",
+      exposureEv: -5,
+      pointSize: 2,
+      spin: 0.22,
+      warpSpeed: 1,
+      warpTime: 0,
+      huePhase: 0,
+      activeParticles: 8388608,
+      frame: 0,
+      totalIterations: 0,
+      seed: Math.random() * 1000,
+      yaw: -0.68,
+      pitch: 0.34,
+      radius: 7.0,
+      targetYaw: -0.68,
+      targetPitch: 0.34,
+      targetRadius: 7.0
+    };
+
+    function makeTarget(size) {
+      const rt = new THREE.WebGLRenderTarget(size, size, {
+        minFilter: THREE.NearestFilter,
+        magFilter: THREE.NearestFilter,
+        wrapS: THREE.ClampToEdgeWrapping,
+        wrapT: THREE.ClampToEdgeWrapping,
+        format: THREE.RGBAFormat,
+        type: THREE.FloatType,
+        depthBuffer: false,
+        stencilBuffer: false,
+        generateMipmaps: false
+      });
+      rt.texture.name = "flame-state";
+      return rt;
+    }
+
+    let posA = makeTarget(simSize);
+    let posB = makeTarget(simSize);
+    let posRead = posA;
+    let posWrite = posB;
+
+    const quadVertex = `
+in vec3 position;
+in vec2 uv;
+out vec2 vUv;
+
+void main(){
+  vUv = uv;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
+
+    const updateFragment = `
+precision highp float;
+
+in vec2 vUv;
+uniform sampler2D uState;
+uniform vec4 uXforms[24];
+uniform float uWarpTime;
+uniform float uFrame;
+uniform float uSeed;
+out vec4 outState;
+
+float hash21(vec2 p){
+  p = fract(p * vec2(234.34, 435.345));
+  p += dot(p, p + 34.23);
+  return fract(p.x * p.y);
+}
+
+vec3 hash32(vec2 p){
+  vec3 q = vec3(
+    dot(p, vec2(127.1, 311.7)),
+    dot(p, vec2(269.5, 183.3)),
+    dot(p, vec2(419.2, 371.9))
+  );
+  return fract(sin(q) * 43758.5453123);
+}
+
+vec3 seedPoint(vec2 uv, float salt){
+  vec3 h = hash32(uv + vec2(salt, salt * 0.37));
+  return (h - 0.5) * vec3(4.4, 4.4, 3.6);
+}
+
+vec3 variation(vec3 p, int type){
+  float r2 = max(dot(p, p), 0.00012);
+  float r = sqrt(r2);
+  float a = atan(p.y, p.x);
+
+  if (type == 0) return p;
+  if (type == 1) return sin(p * 1.18);
+  if (type == 2) return p / r2;
+  if (type == 3) {
+    float s = sin(r2);
+    float c = cos(r2);
+    return vec3(p.x * s - p.y * c, p.x * c + p.y * s, p.z * 0.82 + sin(r + p.z) * 0.18);
+  }
+  if (type == 4) {
+    return vec3((p.x - p.y) * (p.x + p.y) / r, 2.0 * p.x * p.y / r, p.z * 0.7 + sin(a + p.z) * 0.3);
+  }
+  if (type == 5) return 4.0 * p / (r2 + 4.0);
+  if (type == 6) {
+    float re = 1.0 + 0.48 * p.x + 0.18 * (p.x * p.x - p.y * p.y);
+    float im = 0.48 * p.y + 0.36 * p.x * p.y;
+    float den = max(re * re + im * im, 0.02);
+    return vec3((p.x * re + p.y * im) / den, (p.y * re - p.x * im) / den, p.z + 0.22 * sin(p.x + p.y));
+  }
+  if (type == 7) return vec3(sin(p.x * 1.35), p.y * 0.72 + sin(p.z) * 0.18, cos(p.z * 1.35));
+  return vec3(p.x + 0.25 * sin(p.y * 2.2), p.y + 0.25 * sin(p.z * 1.8), p.z + 0.25 * sin(p.x * 2.0));
+}
+
+void main(){
+  vec4 s = texture(uState, vUv);
+  vec3 p = s.xyz;
+  float colorMemory = s.w;
+
+  float choice = hash21(vUv * 4096.0 + vec2(uSeed, uFrame * 0.071) + p.xy * 0.137);
+  int idx = clamp(int(floor(choice * float(${XFORM_COUNT}))), 0, ${XFORM_COUNT - 1});
+
+  vec4 r0 = uXforms[idx * 4 + 0];
+  vec4 r1 = uXforms[idx * 4 + 1];
+  vec4 r2 = uXforms[idx * 4 + 2];
+  vec4 r3 = uXforms[idx * 4 + 3];
+
+  vec3 q = vec3(
+    dot(r0.xyz, p) + r0.w,
+    dot(r1.xyz, p) + r1.w,
+    dot(r2.xyz, p) + r2.w
+  );
+
+  int varType = int(r3.x + 0.5);
+  q = mix(q, variation(q, varType), clamp(r3.z, 0.0, 1.0));
+
+  float phase = r3.w;
+  q += 0.018 * vec3(
+    sin(uWarpTime * 0.31 + phase + q.y),
+    cos(uWarpTime * 0.27 + phase * 1.7 + q.z),
+    sin(uWarpTime * 0.23 + phase * 0.7 + q.x)
+  );
+
+  float bound = length(q);
+  bool bad = any(isnan(q)) || any(isinf(q)) || bound > 8.5;
+  if (bad) {
+    q = seedPoint(vUv, uSeed + uFrame * 0.001);
+    colorMemory = hash21(vUv + vec2(uSeed, uFrame));
+  } else {
+    colorMemory = mix(colorMemory, r3.y, 0.34);
+  }
+
+  outState = vec4(q, colorMemory);
+}
+`;
+
+    const initFragment = `
+precision highp float;
+
+in vec2 vUv;
+uniform float uSeed;
+out vec4 outState;
+
+float hash21(vec2 p){
+  p = fract(p * vec2(234.34, 435.345));
+  p += dot(p, p + 34.23);
+  return fract(p.x * p.y);
+}
+
+vec3 hash32(vec2 p){
+  vec3 q = vec3(
+    dot(p, vec2(127.1, 311.7)),
+    dot(p, vec2(269.5, 183.3)),
+    dot(p, vec2(419.2, 371.9))
+  );
+  return fract(sin(q) * 43758.5453123);
+}
+
+void main(){
+  vec3 h = hash32(vUv + vec2(uSeed, uSeed * 0.37));
+  vec3 p = (h - 0.5) * vec3(4.4, 4.4, 3.6);
+  outState = vec4(p, hash21(vUv + vec2(uSeed * 0.19, uSeed * 0.71)));
+}
+`;
+
+    const pointVertex = `
+precision highp float;
+
+uniform sampler2D uState;
+uniform float uTexSize;
+uniform float uPointSize;
+uniform float uTime;
+uniform float uExposure;
+uniform float uHue;
+uniform mat4 uModelViewMatrix;
+uniform mat4 uProjectionMatrix;
+out vec3 vColor;
+out float vAlpha;
+out float vDepth;
+
+vec3 palette(float t){
+  t = fract(t);
+  vec3 a = vec3(0.11, 0.38, 0.95);
+  vec3 b = vec3(0.05, 0.94, 0.78);
+  vec3 c = vec3(1.00, 0.32, 0.42);
+  vec3 d = vec3(1.00, 0.78, 0.32);
+  vec3 ab = mix(a, b, smoothstep(0.0, 0.35, t));
+  vec3 cd = mix(c, d, smoothstep(0.55, 1.0, t));
+  return mix(ab, cd, smoothstep(0.28, 0.82, t));
+}
+
+void main(){
+  int id = gl_VertexID;
+  int tex = int(uTexSize);
+  ivec2 px = ivec2(id % tex, id / tex);
+  vec4 s = texelFetch(uState, px, 0);
+
+  vec3 p = s.xyz * 1.16;
+  vec4 mv = uModelViewMatrix * vec4(p, 1.0);
+  float depth = max(0.08, -mv.z);
+
+  gl_Position = uProjectionMatrix * mv;
+  gl_PointSize = clamp(uPointSize, 0.5, 3.0);
+
+  float shell = smoothstep(7.6, 0.8, length(s.xyz));
+  float pulse = 0.82 + 0.18 * sin(uTime * 0.85 + s.z * 2.6 + s.x);
+  vColor = palette(s.w + s.z * 0.055 + uHue) * uExposure;
+  vAlpha = shell * pulse * 0.42;
+  vDepth = depth;
+}
+`;
+
+    const pointFragment = `
+precision highp float;
+
+in vec3 vColor;
+in float vAlpha;
+in float vDepth;
+out vec4 outColor;
+
+void main(){
+  vec2 d = gl_PointCoord - 0.5;
+  float r = length(d);
+  float core = smoothstep(0.48, 0.08, r);
+  float depthFade = smoothstep(16.0, 2.0, vDepth);
+  float alpha = core * vAlpha * depthFade;
+  outColor = vec4(vColor, alpha);
+}
+`;
+
+    const lineVertex = `
+precision highp float;
+
+in vec3 position;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+
+void main(){
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+    const lineFragment = `
+precision highp float;
+
+uniform vec3 uColor;
+uniform float uAlpha;
+out vec4 outColor;
+
+void main(){
+  outColor = vec4(uColor, uAlpha);
+}
+`;
+
+    const updateUniforms = {
+      uState: { value: null },
+      uXforms: { value: new Float32Array(XFORM_COUNT * 4 * 4) },
+      uTime: { value: 0 },
+      uWarpTime: { value: 0 },
+      uFrame: { value: 0 },
+      uSeed: { value: state.seed }
+    };
+
+    const updateMat = new THREE.RawShaderMaterial({
+      uniforms: updateUniforms,
+      vertexShader: quadVertex,
+      fragmentShader: updateFragment,
+      glslVersion: THREE.GLSL3
+    });
+
+    const initUniforms = {
+      uSeed: { value: state.seed }
+    };
+
+    const initMat = new THREE.RawShaderMaterial({
+      uniforms: initUniforms,
+      vertexShader: quadVertex,
+      fragmentShader: initFragment,
+      glslVersion: THREE.GLSL3
+    });
+
+    const simScene = new THREE.Scene();
+    const simCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    const simQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), initMat);
+    simScene.add(simQuad);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(44, 1, 0.02, 60);
+
+    function compileParticleShader(type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, `#version 300 es\n${source}`);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const log = gl.getShaderInfoLog(shader) || "Unknown shader compile error";
+        gl.deleteShader(shader);
+        throw new Error(log);
+      }
+      return shader;
+    }
+
+    function createParticleProgram() {
+      const program = gl.createProgram();
+      const vert = compileParticleShader(gl.VERTEX_SHADER, pointVertex);
+      const frag = compileParticleShader(gl.FRAGMENT_SHADER, pointFragment);
+      gl.attachShader(program, vert);
+      gl.attachShader(program, frag);
+      gl.linkProgram(program);
+      gl.deleteShader(vert);
+      gl.deleteShader(frag);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        const log = gl.getProgramInfoLog(program) || "Unknown particle program link error";
+        gl.deleteProgram(program);
+        throw new Error(log);
+      }
+      return {
+        program,
+        vao: gl.createVertexArray(),
+        uniforms: {
+          uState: gl.getUniformLocation(program, "uState"),
+          uTexSize: gl.getUniformLocation(program, "uTexSize"),
+          uPointSize: gl.getUniformLocation(program, "uPointSize"),
+          uTime: gl.getUniformLocation(program, "uTime"),
+          uExposure: gl.getUniformLocation(program, "uExposure"),
+          uHue: gl.getUniformLocation(program, "uHue"),
+          uModelViewMatrix: gl.getUniformLocation(program, "uModelViewMatrix"),
+          uProjectionMatrix: gl.getUniformLocation(program, "uProjectionMatrix")
+        }
+      };
+    }
+
+    const particlePass = createParticleProgram();
+
+    function makeGuide() {
+      const vertices = [];
+      const rings = 96;
+      const radius = 3.1;
+      for (let plane = 0; plane < 3; plane++) {
+        for (let i = 0; i < rings; i++) {
+          const a = (i / rings) * Math.PI * 2;
+          const b = ((i + 1) / rings) * Math.PI * 2;
+          const p0 = [Math.cos(a) * radius, Math.sin(a) * radius, 0];
+          const p1 = [Math.cos(b) * radius, Math.sin(b) * radius, 0];
+          if (plane === 0) vertices.push(...p0, ...p1);
+          if (plane === 1) vertices.push(p0[0], 0, p0[1], p1[0], 0, p1[1]);
+          if (plane === 2) vertices.push(0, p0[0], p0[1], 0, p1[0], p1[1]);
+        }
+      }
+      vertices.push(-3.8, 0, 0, 3.8, 0, 0, 0, -3.8, 0, 0, 3.8, 0, 0, 0, -3.8, 0, 0, 3.8);
+      const geom = new THREE.BufferGeometry();
+      geom.setAttribute("position", new THREE.BufferAttribute(new Float32Array(vertices), 3));
+      const mat = new THREE.RawShaderMaterial({
+        uniforms: { uColor: { value: new THREE.Color(0x8fb7c6) }, uAlpha: { value: 0.075 } },
+        vertexShader: lineVertex,
+        fragmentShader: lineFragment,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        glslVersion: THREE.GLSL3
+      });
+      return new THREE.LineSegments(geom, mat);
+    }
+
+    const guide = makeGuide();
+    scene.add(guide);
+
+    function rand(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function writeTransform(index, matrix, translation, variation, color, mixAmount, phase) {
+      const e = matrix.elements;
+      const arr = updateUniforms.uXforms.value;
+      const base = index * 16;
+
+      arr[base + 0] = e[0];
+      arr[base + 1] = e[4];
+      arr[base + 2] = e[8];
+      arr[base + 3] = translation.x;
+
+      arr[base + 4] = e[1];
+      arr[base + 5] = e[5];
+      arr[base + 6] = e[9];
+      arr[base + 7] = translation.y;
+
+      arr[base + 8] = e[2];
+      arr[base + 9] = e[6];
+      arr[base + 10] = e[10];
+      arr[base + 11] = translation.z;
+
+      arr[base + 12] = variation;
+      arr[base + 13] = color;
+      arr[base + 14] = mixAmount;
+      arr[base + 15] = phase;
+    }
+
+    function randomizeTransforms() {
+      const variations = [];
+      while (variations.length < 4) {
+        const v = Math.floor(rand(0, 9));
+        if (!variations.includes(v)) variations.push(v);
+      }
+
+      for (let i = 0; i < XFORM_COUNT; i++) {
+        const euler = new THREE.Euler(rand(-2.4, 2.4), rand(-2.4, 2.4), rand(-Math.PI, Math.PI), "XYZ");
+        const rot = new THREE.Matrix4().makeRotationFromEuler(euler);
+        const scale = new THREE.Matrix4().makeScale(rand(0.34, 0.68), rand(0.34, 0.68), rand(0.34, 0.68));
+        const matrix = new THREE.Matrix4().multiplyMatrices(rot, scale);
+        const translation = new THREE.Vector3(rand(-1.15, 1.15), rand(-1.15, 1.15), rand(-1.05, 1.05));
+        const variation = variations[i % variations.length];
+        const color = (i / XFORM_COUNT + rand(-0.12, 0.12) + 1) % 1;
+        const mixAmount = rand(0.32, 0.78);
+        const phase = rand(0, Math.PI * 2);
+        writeTransform(i, matrix, translation, variation, color, mixAmount, phase);
+      }
+
+      updateUniforms.uSeed.value = state.seed;
+    }
+
+    function textureSizeForParticles(count) {
+      const edge = Math.ceil(Math.sqrt(THREE.MathUtils.clamp(count, MIN_PARTICLES, MAX_PARTICLES)));
+      return THREE.MathUtils.clamp(edge, MIN_PT_TEX, MAX_PT_TEX);
+    }
+
+    function resizeSimulation(size) {
+      if (size === simSize) return false;
+
+      posA.dispose();
+      posB.dispose();
+      simSize = size;
+      simCapacity = simSize * simSize;
+      posA = makeTarget(simSize);
+      posB = makeTarget(simSize);
+      posRead = posA;
+      posWrite = posB;
+      return true;
+    }
+
+    function initParticles() {
+      initUniforms.uSeed.value = state.seed;
+      simQuad.material = initMat;
+      renderer.setRenderTarget(posRead);
+      renderer.clear();
+      renderer.render(simScene, simCam);
+      renderer.setRenderTarget(posWrite);
+      renderer.clear();
+      renderer.render(simScene, simCam);
+      renderer.setRenderTarget(null);
+
+      simQuad.material = updateMat;
+      state.frame = 0;
+      state.totalIterations = 0;
+    }
+
+    function resetFlame() {
+      state.seed = Math.random() * 1000;
+      randomizeTransforms();
+      initParticles();
+      for (let i = 0; i < 18; i++) stepSimulation(0.016 * i);
+    }
+
+    function stepSimulation(time) {
+      updateUniforms.uState.value = posRead.texture;
+      updateUniforms.uTime.value = time;
+      updateUniforms.uWarpTime.value = state.warpTime;
+      updateUniforms.uFrame.value = state.frame;
+
+      simQuad.material = updateMat;
+      renderer.setRenderTarget(posWrite);
+      renderer.render(simScene, simCam);
+      renderer.setRenderTarget(null);
+
+      const swap = posRead;
+      posRead = posWrite;
+      posWrite = swap;
+
+      state.frame += 1;
+      state.totalIterations += state.activeParticles;
+    }
+
+    function updateCamera(dt) {
+      if (!state.paused) state.targetYaw += state.spin * dt * 0.22;
+
+      state.yaw = THREE.MathUtils.lerp(state.yaw, state.targetYaw, 0.12);
+      state.pitch = THREE.MathUtils.lerp(state.pitch, state.targetPitch, 0.12);
+      state.radius = THREE.MathUtils.lerp(state.radius, state.targetRadius, 0.12);
+
+      const cp = Math.cos(state.pitch);
+      camera.position.set(
+        Math.sin(state.yaw) * cp * state.radius,
+        Math.sin(state.pitch) * state.radius,
+        Math.cos(state.yaw) * cp * state.radius
+      );
+      camera.lookAt(0, 0, 0);
+    }
+
+    const fpsEl = document.getElementById("fps");
+    const iterEl = document.getElementById("it");
+    const simStateEl = document.getElementById("sim-state");
+
+    let lastTick = performance.now();
+    let fpsTick = performance.now();
+    let frames = 0;
+
+    function exposureMultiplier() {
+      return Math.pow(2, state.exposureEv);
+    }
+
+    function setBlendMode(mode) {
+      gl.enable(gl.BLEND);
+      gl.blendEquation(gl.FUNC_ADD);
+
+      if (mode === "normal") {
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      } else {
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+      }
+    }
+
+    function renderParticlesRaw(time) {
+      const textureProps = renderer.properties.get(posRead.texture);
+      const webglTexture = textureProps && textureProps.__webglTexture;
+      if (!webglTexture) return;
+
+      renderer.resetState();
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.useProgram(particlePass.program);
+      gl.bindVertexArray(particlePass.vao);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, webglTexture);
+      gl.uniform1i(particlePass.uniforms.uState, 0);
+      gl.uniform1f(particlePass.uniforms.uTexSize, simSize);
+      gl.uniform1f(particlePass.uniforms.uPointSize, state.pointSize);
+      gl.uniform1f(particlePass.uniforms.uTime, state.warpTime);
+      gl.uniform1f(particlePass.uniforms.uExposure, exposureMultiplier());
+      gl.uniform1f(particlePass.uniforms.uHue, state.huePhase);
+      gl.uniformMatrix4fv(particlePass.uniforms.uModelViewMatrix, false, camera.matrixWorldInverse.elements);
+      gl.uniformMatrix4fv(particlePass.uniforms.uProjectionMatrix, false, camera.projectionMatrix.elements);
+
+      setBlendMode(state.blendMode);
+      gl.depthMask(false);
+      gl.enable(gl.DEPTH_TEST);
+
+      gl.drawArrays(gl.POINTS, 0, Math.min(state.activeParticles, simCapacity));
+
+      gl.bindVertexArray(null);
+      gl.depthMask(true);
+      renderer.resetState();
+    }
+
+    function simulationSteps() {
+      if (state.activeParticles >= 4194304) return 1;
+      if (state.activeParticles >= 1048576) return 2;
+      return STEPS_PER_FRAME;
+    }
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+
+      const dt = Math.min(0.05, (now - lastTick) * 0.001 || 0.016);
+      const t = now * 0.001;
+      lastTick = now;
+
+      if (!state.paused) {
+        state.warpTime += dt * state.warpSpeed;
+        const steps = simulationSteps();
+        for (let i = 0; i < steps; i++) stepSimulation(t + i * 0.0007);
+      }
+
+      updateCamera(dt);
+      guide.rotation.y = state.warpTime * 0.025;
+      guide.rotation.x = Math.sin(state.warpTime * 0.13) * 0.035;
+
+      renderer.render(scene, camera);
+      renderParticlesRaw(t);
+
+      frames++;
+      if (now - fpsTick > 1000) {
+        fpsEl.textContent = Math.round(frames * 1000 / (now - fpsTick)).toString();
+        frames = 0;
+        fpsTick = now;
+        iterEl.textContent = state.totalIterations.toLocaleString();
+      }
+    }
+
+    function resize() {
+      const rect = viewport.getBoundingClientRect();
+      const w = Math.max(1, Math.floor(rect.width));
+      const h = Math.max(1, Math.floor(rect.height));
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+
+    const drag = {
+      active: false,
+      x: 0,
+      y: 0,
+      yaw: 0,
+      pitch: 0
+    };
+
+    canvas.addEventListener("pointerdown", (event) => {
+      drag.active = true;
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+      drag.yaw = state.targetYaw;
+      drag.pitch = state.targetPitch;
+      canvas.setPointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointermove", (event) => {
+      if (!drag.active) return;
+      const dx = event.clientX - drag.x;
+      const dy = event.clientY - drag.y;
+      state.targetYaw = drag.yaw - dx * 0.006;
+      state.targetPitch = THREE.MathUtils.clamp(drag.pitch - dy * 0.0045, -1.22, 1.22);
+    });
+
+    canvas.addEventListener("pointerup", (event) => {
+      drag.active = false;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    });
+
+    canvas.addEventListener("pointercancel", () => {
+      drag.active = false;
+    });
+
+    canvas.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const scale = Math.exp(event.deltaY * 0.0012);
+      state.targetRadius = THREE.MathUtils.clamp(state.targetRadius * scale, 3.2, 14.0);
+    }, { passive: false });
+
+    const particleSlider = document.getElementById("s-particles");
+    const exposureSlider = document.getElementById("s-exposure");
+    const sizeSlider = document.getElementById("s-size");
+    const speedSlider = document.getElementById("s-speed");
+    const hueSlider = document.getElementById("s-hue");
+    const warpSlider = document.getElementById("s-warp");
+    const blendSelect = document.getElementById("s-blend");
+    const particleValue = document.getElementById("v-particles");
+    const exposureValue = document.getElementById("v-exposure");
+    const sizeValue = document.getElementById("v-size");
+    const speedValue = document.getElementById("v-speed");
+    const hueValue = document.getElementById("v-hue");
+    const warpValue = document.getElementById("v-warp");
+    const pauseToggle = document.getElementById("c-pause");
+    const particleReadout = document.getElementById("nn");
+
+    function formatParticleCount(count) {
+      if (count >= 1048576) return `${(count / 1048576).toFixed(count >= 10485760 ? 1 : 2)}M`;
+      return `${Math.round(count / 1024)}k`;
+    }
+
+    function setActiveParticles(count, shouldInit = true) {
+      const next = THREE.MathUtils.clamp(Math.round(count), MIN_PARTICLES, MAX_PARTICLES);
+      state.activeParticles = next;
+      const neededSize = textureSizeForParticles(next);
+      if (resizeSimulation(neededSize) && shouldInit) initParticles();
+      particleValue.textContent = formatParticleCount(next);
+      particleReadout.textContent = next.toLocaleString();
+    }
+
+    particleSlider.addEventListener("input", () => {
+      setActiveParticles(parseInt(particleSlider.value, 10));
+    });
+
+    exposureSlider.addEventListener("input", () => {
+      state.exposureEv = parseFloat(exposureSlider.value);
+      exposureValue.textContent = `${state.exposureEv.toFixed(1)} EV`;
+    });
+
+    sizeSlider.addEventListener("input", () => {
+      state.pointSize = parseFloat(sizeSlider.value);
+      sizeValue.textContent = `${state.pointSize.toFixed(1)} px`;
+    });
+
+    speedSlider.addEventListener("input", () => {
+      state.spin = parseFloat(speedSlider.value);
+      speedValue.textContent = state.spin.toFixed(2);
+    });
+
+    hueSlider.addEventListener("input", () => {
+      state.huePhase = parseFloat(hueSlider.value);
+      hueValue.textContent = state.huePhase.toFixed(3);
+    });
+
+    warpSlider.addEventListener("input", () => {
+      state.warpSpeed = parseFloat(warpSlider.value);
+      warpValue.textContent = state.warpSpeed > 0 ? state.warpSpeed.toFixed(2) : "off";
+    });
+
+    blendSelect.addEventListener("change", () => {
+      state.blendMode = blendSelect.value;
+    });
+
+    pauseToggle.addEventListener("change", () => {
+      state.paused = pauseToggle.checked;
+      simStateEl.textContent = state.paused ? "PAUSED" : "RUNNING";
+    });
+
+    document.getElementById("b-random").addEventListener("click", resetFlame);
+    document.getElementById("b-view").addEventListener("click", () => {
+      state.targetYaw = -0.68;
+      state.targetPitch = 0.34;
+      state.targetRadius = 7.0;
+    });
+
+    window.addEventListener("resize", resize);
+
+    /* ------------------------------------------------------------------
+       Gaussian splat export
+
+       The chaos game already gives us a 3D point cloud with a colour
+       coordinate. To turn it into 3D gaussians we accumulate many frames of
+       the orbit into a sparse voxel grid, then fit one anisotropic gaussian
+       per occupied cell from the sample mean, the 3x3 sample covariance and
+       the hit count. Covariance follows the flame filaments for free.
+       ------------------------------------------------------------------ */
+
+    const SH_C0 = 0.28209479177387814;
+    const RENDER_SCALE = 1.16;   // matches pointVertex
+    const ORBIT_BOUND = 8.5;     // matches updateFragment reseed test
+    const MAX_CELLS = 3000000;
+
+    function sstep(e0, e1, x) {
+      const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+      return t * t * (3 - 2 * t);
+    }
+
+    // Mirror of palette() in pointVertex, so exported colour matches screen.
+    const PAL_A = [0.11, 0.38, 0.95];
+    const PAL_B = [0.05, 0.94, 0.78];
+    const PAL_C = [1.00, 0.32, 0.42];
+    const PAL_D = [1.00, 0.78, 0.32];
+
+    function paletteInto(t, out) {
+      t = t - Math.floor(t);
+      const w1 = sstep(0.0, 0.35, t);
+      const w2 = sstep(0.55, 1.0, t);
+      const w3 = sstep(0.28, 0.82, t);
+      for (let i = 0; i < 3; i++) {
+        const ab = PAL_A[i] + (PAL_B[i] - PAL_A[i]) * w1;
+        const cd = PAL_C[i] + (PAL_D[i] - PAL_C[i]) * w2;
+        out[i] = ab + (cd - ab) * w3;
+      }
+    }
+
+    function axisMap(mode) {
+      if (mode === "ydown") return (x, y, z, o) => { o[0] = x; o[1] = -y; o[2] = -z; };
+      if (mode === "z") return (x, y, z, o) => { o[0] = x; o[1] = -z; o[2] = y; };
+      return (x, y, z, o) => { o[0] = x; o[1] = y; o[2] = z; };
+    }
+
+    // Sparse voxel accumulator: Map from cell key to a slot in growable
+    // typed arrays holding count, first moments, second moments and colour.
+    class VoxelGrid {
+      constructor(res, minCorner, cellSize) {
+        this.res = res;
+        this.min = minCorner;
+        this.cell = cellSize;
+        this.inv = 1 / cellSize;
+        this.map = new Map();
+        this.cap = 1 << 16;
+        this.count = 0;
+        this.full = false;
+        this.n = new Uint32Array(this.cap);
+        this.m = new Float64Array(this.cap * 3);
+        this.s = new Float64Array(this.cap * 6);
+        this.c = new Float32Array(this.cap * 3);
+      }
+
+      grow() {
+        const cap = Math.min(this.cap * 2, MAX_CELLS);
+        if (cap === this.cap) { this.full = true; return false; }
+        const n = new Uint32Array(cap); n.set(this.n); this.n = n;
+        const m = new Float64Array(cap * 3); m.set(this.m); this.m = m;
+        const s = new Float64Array(cap * 6); s.set(this.s); this.s = s;
+        const c = new Float32Array(cap * 3); c.set(this.c); this.c = c;
+        this.cap = cap;
+        return true;
+      }
+
+      add(x, y, z, r, g, b) {
+        const res = this.res;
+        let ix = ((x - this.min[0]) * this.inv) | 0;
+        let iy = ((y - this.min[1]) * this.inv) | 0;
+        let iz = ((z - this.min[2]) * this.inv) | 0;
+        if (ix < 0) ix = 0; else if (ix >= res) ix = res - 1;
+        if (iy < 0) iy = 0; else if (iy >= res) iy = res - 1;
+        if (iz < 0) iz = 0; else if (iz >= res) iz = res - 1;
+
+        const key = ix + res * (iy + res * iz);
+        let slot = this.map.get(key);
+        if (slot === undefined) {
+          if (this.count >= this.cap && !this.grow()) return;
+          slot = this.count++;
+          this.map.set(key, slot);
+        }
+
+        this.n[slot]++;
+        const m = slot * 3;
+        this.m[m] += x; this.m[m + 1] += y; this.m[m + 2] += z;
+        const s = slot * 6;
+        this.s[s] += x * x; this.s[s + 1] += y * y; this.s[s + 2] += z * z;
+        this.s[s + 3] += x * y; this.s[s + 4] += x * z; this.s[s + 5] += y * z;
+        this.c[m] += r; this.c[m + 1] += g; this.c[m + 2] += b;
+      }
+    }
+
+    // Jacobi eigendecomposition of a symmetric 3x3 given as
+    // [xx, yy, zz, xy, xz, yz]. Returns eigenvalues and column eigenvectors.
+    function eigenSym3(a) {
+      const A = [
+        [a[0], a[3], a[4]],
+        [a[3], a[1], a[5]],
+        [a[4], a[5], a[2]]
+      ];
+      const V = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+      const pairs = [[0, 1], [0, 2], [1, 2]];
+
+      for (let sweep = 0; sweep < 12; sweep++) {
+        const off = A[0][1] * A[0][1] + A[0][2] * A[0][2] + A[1][2] * A[1][2];
+        if (off < 1e-24) break;
+        for (let k = 0; k < 3; k++) {
+          const p = pairs[k][0], q = pairs[k][1];
+          const apq = A[p][q];
+          if (Math.abs(apq) < 1e-22) continue;
+          const theta = (A[q][q] - A[p][p]) / (2 * apq);
+          const sgn = theta >= 0 ? 1 : -1;
+          const t = sgn / (Math.abs(theta) + Math.sqrt(theta * theta + 1));
+          const c = 1 / Math.sqrt(t * t + 1);
+          const s = t * c;
+
+          const app = A[p][p], aqq = A[q][q];
+          A[p][p] = app - t * apq;
+          A[q][q] = aqq + t * apq;
+          A[p][q] = A[q][p] = 0;
+
+          const r = 3 - p - q;
+          const arp = A[r][p], arq = A[r][q];
+          A[r][p] = A[p][r] = c * arp - s * arq;
+          A[r][q] = A[q][r] = s * arp + c * arq;
+
+          for (let i = 0; i < 3; i++) {
+            const vip = V[i][p], viq = V[i][q];
+            V[i][p] = c * vip - s * viq;
+            V[i][q] = s * vip + c * viq;
+          }
+        }
+      }
+      return { values: [A[0][0], A[1][1], A[2][2]], vectors: V };
+    }
+
+    function quatFromColumns(V, out) {
+      // V columns are the eigenvectors; force a right-handed frame.
+      const det =
+        V[0][0] * (V[1][1] * V[2][2] - V[2][1] * V[1][2]) -
+        V[0][1] * (V[1][0] * V[2][2] - V[2][0] * V[1][2]) +
+        V[0][2] * (V[1][0] * V[2][1] - V[2][0] * V[1][1]);
+      const f = det < 0 ? -1 : 1;
+      const m00 = V[0][0], m01 = V[0][1], m02 = V[0][2] * f;
+      const m10 = V[1][0], m11 = V[1][1], m12 = V[1][2] * f;
+      const m20 = V[2][0], m21 = V[2][1], m22 = V[2][2] * f;
+
+      const tr = m00 + m11 + m22;
+      let w, x, y, z;
+      if (tr > 0) {
+        const s = Math.sqrt(tr + 1) * 2;
+        w = 0.25 * s; x = (m21 - m12) / s; y = (m02 - m20) / s; z = (m10 - m01) / s;
+      } else if (m00 > m11 && m00 > m22) {
+        const s = Math.sqrt(1 + m00 - m11 - m22) * 2;
+        w = (m21 - m12) / s; x = 0.25 * s; y = (m01 + m10) / s; z = (m02 + m20) / s;
+      } else if (m11 > m22) {
+        const s = Math.sqrt(1 + m11 - m00 - m22) * 2;
+        w = (m02 - m20) / s; x = (m01 + m10) / s; y = 0.25 * s; z = (m12 + m21) / s;
+      } else {
+        const s = Math.sqrt(1 + m22 - m00 - m11) * 2;
+        w = (m10 - m01) / s; x = (m02 + m20) / s; y = (m12 + m21) / s; z = 0.25 * s;
+      }
+      const len = Math.hypot(w, x, y, z) || 1;
+      out[0] = w / len; out[1] = x / len; out[2] = y / len; out[3] = z / len;
+    }
+
+    const exportPanel = document.getElementById("export-panel");
+    const xProgress = document.getElementById("export-progress");
+    const xBar = document.querySelector("#export-bar i");
+    const xRun = document.getElementById("x-run");
+
+    const xCtl = {
+      samples: document.getElementById("x-samples"),
+      grid: document.getElementById("x-grid"),
+      mincount: document.getElementById("x-mincount"),
+      scale: document.getElementById("x-scale"),
+      intensity: document.getElementById("x-intensity"),
+      falloff: document.getElementById("x-falloff"),
+      alpha: document.getElementById("x-alpha"),
+      up: document.getElementById("x-up")
+    };
+
+    const xOpts = {
+      samples: 200000000,
+      grid: 256,
+      minCount: 12,
+      scale: 1.15,
+      intensity: 4,
+      falloff: 1.6,
+      alpha: 0.07,
+      up: "y"
+    };
+
+    function syncExportUi() {
+      xOpts.samples = parseInt(xCtl.samples.value, 10) * 50000000;
+      xOpts.grid = parseInt(xCtl.grid.value, 10);
+      xOpts.minCount = parseInt(xCtl.mincount.value, 10);
+      xOpts.scale = parseFloat(xCtl.scale.value);
+      xOpts.intensity = parseFloat(xCtl.intensity.value);
+      xOpts.falloff = parseFloat(xCtl.falloff.value);
+      xOpts.alpha = parseFloat(xCtl.alpha.value);
+      xOpts.up = xCtl.up.value;
+      document.getElementById("xv-samples").textContent =
+        xOpts.samples >= 1000000000
+          ? `${(xOpts.samples / 1000000000).toFixed(2)}B`
+          : `${Math.round(xOpts.samples / 1000000)}M`;
+      document.getElementById("xv-grid").textContent = `${xOpts.grid}³`;
+      document.getElementById("xv-mincount").textContent = `${xOpts.minCount}`;
+      document.getElementById("xv-scale").textContent = xOpts.scale.toFixed(2);
+      document.getElementById("xv-intensity").textContent = xOpts.intensity.toFixed(1);
+      document.getElementById("xv-falloff").textContent = xOpts.falloff.toFixed(2);
+      document.getElementById("xv-alpha").textContent = xOpts.alpha.toFixed(2);
+    }
+
+    Object.values(xCtl).forEach((el) => el.addEventListener("input", syncExportUi));
+    syncExportUi();
+
+    function nextFrame() {
+      return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+    }
+
+    function setProgress(text, fraction) {
+      xProgress.innerHTML = text;
+      xBar.style.width = `${Math.round(Math.min(1, Math.max(0, fraction)) * 100)}%`;
+    }
+
+    let readBuffer = null;
+
+    function ensureReadBuffer() {
+      const need = simSize * simSize * 4;
+      if (!readBuffer || readBuffer.length !== need) readBuffer = new Float32Array(need);
+      return readBuffer;
+    }
+
+    function grabState() {
+      const buf = ensureReadBuffer();
+      renderer.readRenderTargetPixels(posRead, 0, 0, simSize, simSize, buf);
+      return buf;
+    }
+
+    function measureBounds(buf, used, remap) {
+      const lo = [Infinity, Infinity, Infinity];
+      const hi = [-Infinity, -Infinity, -Infinity];
+      const p = [0, 0, 0];
+      for (let i = 0; i < used; i++) {
+        const o = i * 4;
+        const x = buf[o], y = buf[o + 1], z = buf[o + 2];
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+        if (x * x + y * y + z * z > ORBIT_BOUND * ORBIT_BOUND) continue;
+        remap(x * RENDER_SCALE, y * RENDER_SCALE, z * RENDER_SCALE, p);
+        for (let k = 0; k < 3; k++) {
+          if (p[k] < lo[k]) lo[k] = p[k];
+          if (p[k] > hi[k]) hi[k] = p[k];
+        }
+      }
+      return { lo, hi };
+    }
+
+    function accumulate(grid, buf, used, remap, huePhase) {
+      const p = [0, 0, 0];
+      const col = [0, 0, 0];
+      let kept = 0;
+      for (let i = 0; i < used; i++) {
+        const o = i * 4;
+        const x = buf[o], y = buf[o + 1], z = buf[o + 2], w = buf[o + 3];
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+        if (x * x + y * y + z * z > ORBIT_BOUND * ORBIT_BOUND) continue;
+        remap(x * RENDER_SCALE, y * RENDER_SCALE, z * RENDER_SCALE, p);
+        paletteInto(w + z * 0.055 + huePhase, col);
+        grid.add(p[0], p[1], p[2], col[0], col[1], col[2]);
+        kept++;
+      }
+      return kept;
+    }
+
+    function buildPly(grid, opts) {
+      const cellSize = grid.cell;
+      const minScale = 0.05 * cellSize * opts.scale;
+      const maxScale = 1.60 * cellSize * opts.scale;
+
+      let maxN = 1;
+      for (let i = 0; i < grid.count; i++) if (grid.n[i] > maxN) maxN = grid.n[i];
+      const logMax = Math.log(1 + maxN);
+
+      const keep = [];
+      for (let i = 0; i < grid.count; i++) {
+        if (grid.n[i] >= opts.minCount && grid.n[i] >= 2) keep.push(i);
+      }
+      if (keep.length === 0) return null;
+
+      const stride = 17;
+      const body = new ArrayBuffer(keep.length * stride * 4);
+      const view = new DataView(body);
+      const quat = [1, 0, 0, 0];
+      const cov = [0, 0, 0, 0, 0, 0];
+      let offset = 0;
+
+      for (let k = 0; k < keep.length; k++) {
+        const i = keep[k];
+        const n = grid.n[i];
+        const m = i * 3, s = i * 6;
+        const mx = grid.m[m] / n, my = grid.m[m + 1] / n, mz = grid.m[m + 2] / n;
+        const bessel = n / (n - 1);
+
+        cov[0] = (grid.s[s] / n - mx * mx) * bessel;
+        cov[1] = (grid.s[s + 1] / n - my * my) * bessel;
+        cov[2] = (grid.s[s + 2] / n - mz * mz) * bessel;
+        cov[3] = (grid.s[s + 3] / n - mx * my) * bessel;
+        cov[4] = (grid.s[s + 4] / n - mx * mz) * bessel;
+        cov[5] = (grid.s[s + 5] / n - my * mz) * bessel;
+
+        const eig = eigenSym3(cov);
+        quatFromColumns(eig.vectors, quat);
+
+        // Density drives radiance, not opacity. Alpha is held low and roughly
+        // constant so that front-to-back compositing degenerates towards the
+        // additive accumulation the screen render uses.
+        const radius = Math.hypot(mx, my, mz) / RENDER_SCALE;
+        const shell = sstep(7.6, 0.8, radius);           // matches pointVertex
+        const density = Math.log(1 + n) / logMax;
+        const bright = Math.pow(density, opts.falloff) * opts.intensity;
+
+        const a = Math.min(0.995, Math.max(0.002, opts.alpha * shell));
+        const logit = Math.log(a / (1 - a));
+
+        const gain = bright * shell;
+        const r = (grid.c[m] / n) * gain;
+        const g = (grid.c[m + 1] / n) * gain;
+        const b = (grid.c[m + 2] / n) * gain;
+
+        view.setFloat32(offset, mx, true); offset += 4;
+        view.setFloat32(offset, my, true); offset += 4;
+        view.setFloat32(offset, mz, true); offset += 4;
+        view.setFloat32(offset, 0, true); offset += 4;   // nx
+        view.setFloat32(offset, 0, true); offset += 4;   // ny
+        view.setFloat32(offset, 0, true); offset += 4;   // nz
+        view.setFloat32(offset, (r - 0.5) / SH_C0, true); offset += 4;
+        view.setFloat32(offset, (g - 0.5) / SH_C0, true); offset += 4;
+        view.setFloat32(offset, (b - 0.5) / SH_C0, true); offset += 4;
+        view.setFloat32(offset, logit, true); offset += 4;
+
+        for (let e = 0; e < 3; e++) {
+          const lam = Math.max(eig.values[e], 0);
+          const sc = Math.min(maxScale, Math.max(minScale, Math.sqrt(lam) * opts.scale));
+          view.setFloat32(offset, Math.log(sc), true); offset += 4;
+        }
+        for (let e = 0; e < 4; e++) {
+          view.setFloat32(offset, quat[e], true); offset += 4;
+        }
+      }
+
+      const header =
+        "ply\n" +
+        "format binary_little_endian 1.0\n" +
+        `element vertex ${keep.length}\n` +
+        "property float x\nproperty float y\nproperty float z\n" +
+        "property float nx\nproperty float ny\nproperty float nz\n" +
+        "property float f_dc_0\nproperty float f_dc_1\nproperty float f_dc_2\n" +
+        "property float opacity\n" +
+        "property float scale_0\nproperty float scale_1\nproperty float scale_2\n" +
+        "property float rot_0\nproperty float rot_1\nproperty float rot_2\nproperty float rot_3\n" +
+        "end_header\n";
+
+      return { blob: new Blob([header, body], { type: "application/octet-stream" }), splats: keep.length };
+    }
+
+    let exporting = false;
+
+    async function runExport() {
+      if (exporting) return;
+      exporting = true;
+      xRun.disabled = true;
+
+      const wasPaused = state.paused;
+      if (wasPaused) {
+        state.paused = false;
+        simStateEl.textContent = "RUNNING";
+      }
+
+      try {
+        const opts = { ...xOpts };
+        const remap = axisMap(opts.up);
+        const used = Math.min(state.activeParticles, simCapacity);
+        const huePhase = state.huePhase;
+
+        setProgress("measuring bounds", 0.01);
+        await nextFrame();
+        const bounds = measureBounds(grabState(), used, remap);
+        if (!Number.isFinite(bounds.lo[0])) throw new Error("no finite orbit points");
+
+        let span = 0;
+        for (let k = 0; k < 3; k++) span = Math.max(span, bounds.hi[k] - bounds.lo[k]);
+        span *= 1.04;
+        const centre = bounds.lo.map((v, k) => (v + bounds.hi[k]) * 0.5);
+        const minCorner = centre.map((v) => v - span * 0.5);
+        const cellSize = span / opts.grid;
+
+        const grid = new VoxelGrid(opts.grid, minCorner, cellSize);
+
+        let gathered = 0;
+        while (gathered < opts.samples) {
+          await nextFrame();
+          gathered += accumulate(grid, grabState(), used, remap, huePhase);
+          setProgress(
+            `sampling <b>${(gathered / 1e6).toFixed(1)}M</b> / ${(opts.samples / 1e6).toFixed(0)}M` +
+            `<br>cells <b>${grid.count.toLocaleString()}</b>${grid.full ? " (capped)" : ""}`,
+            gathered / opts.samples
+          );
+          if (grid.full && grid.count >= MAX_CELLS) break;
+        }
+
+        setProgress("fitting gaussians", 0.99);
+        await nextFrame();
+        const result = buildPly(grid, opts);
+        if (!result) throw new Error("no cell passed the min hits threshold");
+
+        const url = URL.createObjectURL(result.blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `flame_splats_${Date.now()}.ply`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 8000);
+
+        setProgress(
+          `done · <b>${result.splats.toLocaleString()}</b> splats` +
+          `<br><b>${(result.blob.size / 1048576).toFixed(1)} MB</b> ply saved`,
+          1
+        );
+      } catch (err) {
+        setProgress(`failed · ${err.message}`, 0);
+        console.error(err);
+      } finally {
+        if (wasPaused) {
+          state.paused = true;
+          simStateEl.textContent = "PAUSED";
+        }
+        exporting = false;
+        xRun.disabled = false;
+      }
+    }
+
+    xRun.addEventListener("click", runExport);
+    document.getElementById("x-close").addEventListener("click", () => {
+      exportPanel.classList.remove("show");
+    });
+    document.getElementById("b-export").addEventListener("click", () => {
+      exportPanel.classList.toggle("show");
+    });
+
+    setActiveParticles(parseInt(particleSlider.value, 10), false);
+    randomizeTransforms();
+    initParticles();
+    resize();
+    requestAnimationFrame(animate);
+  </script>
+</body>
+
+</html>

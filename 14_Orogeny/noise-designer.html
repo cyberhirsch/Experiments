@@ -73,6 +73,47 @@
     border:1px solid var(--line);padding:8px 10px;display:inline-block}
   a.back:hover{border-color:var(--accent);color:var(--accent)}
   #stub{font-size:9px;line-height:1.7;color:var(--dim);opacity:.75;padding:8px 0}
+  /* layer stack (composite mode) */
+  .layer{border:1px solid var(--line);padding:6px 8px;margin:8px 0}
+  .layer.sel{border-color:var(--accent)}
+  .layerhead{display:flex;align-items:center;gap:5px;font-size:9.5px}
+  .layerhead .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+  .layerhead .nm:hover{color:var(--accent)}
+  .layer.sel .layerhead .nm{color:var(--accent)}
+  .layerhead button{flex:0 0 auto;min-width:0;padding:3px 6px;font-size:8px;letter-spacing:0}
+  .layer .row{margin:7px 0}
+  .layer .chk{margin:5px 0}
+  /* gradient editor */
+  #gradBar{position:relative;height:34px;margin:8px 0 4px;cursor:copy;touch-action:none}
+  #gradFill{position:absolute;left:0;right:0;top:0;height:18px;border:1px solid var(--line)}
+  #gradHandles{position:absolute;left:0;right:0;top:18px;height:16px}
+  .gstop{position:absolute;top:2px;width:10px;height:12px;margin-left:-5px;border:1px solid var(--dim);
+    cursor:ew-resize;touch-action:none}
+  .gstop.sel{border-color:var(--accent);outline:1px solid var(--accent)}
+  .gradstop{display:flex;align-items:flex-end;gap:8px;margin:8px 0}
+  .gradstop input[type=color]{width:34px;height:26px;border:1px solid var(--line);background:transparent;
+    padding:0;cursor:pointer;flex:0 0 auto}
+  .gradstop button{flex:0 0 auto;min-width:0;padding:5px 8px;font-size:9px;letter-spacing:0}
+  /* The drop-down list itself. Natively it is an OS widget — white-on-system-blue on
+     Windows, out of character with the panel. Where the browser supports
+     customisable selects (appearance: base-select, Chromium 135+), the button and its
+     popup become ordinary styled elements; elsewhere this block is skipped and the
+     native popup remains. Listboxes (select[size]) are left alone: they are not
+     popups and are already styled above. */
+  @supports (appearance: base-select){
+    select:not([size]), select:not([size])::picker(select){appearance:base-select}
+    select:not([size]){display:flex;align-items:center;justify-content:space-between;gap:8px}
+    select:not([size])::picker-icon{color:var(--dim);transition:transform .2s}
+    select:not([size]):open::picker-icon{transform:rotate(180deg);color:var(--accent)}
+    select:not([size])::picker(select){background:rgba(5,7,10,0.97);border:1px solid var(--line);
+      padding:4px 0;margin-top:2px;backdrop-filter:blur(8px);box-shadow:0 10px 30px rgba(0,0,0,.55)}
+    select:not([size]) option{font-family:inherit;font-size:10px;letter-spacing:.1em;color:var(--ink);
+      background:transparent;padding:7px 10px;cursor:pointer;border:0}
+    select:not([size]) option::checkmark{color:var(--accent)}
+    select:not([size]) option:hover, select:not([size]) option:focus-visible{background:rgba(143,200,232,0.12);color:var(--accent);outline:none}
+    select:not([size]) option:checked{color:var(--accent)}
+    select:not([size]) option:disabled{opacity:.4;cursor:not-allowed}
+  }
 </style>
 </head>
 <body>
@@ -84,14 +125,34 @@
       <h1>Noise designer</h1>
       <div class="sub">№ 14 Orogeny · procedural noise catalog</div>
     </div>
-    <div class="row" style="min-width:160px">
+    <div class="row" style="min-width:240px">
       <label>Mode</label>
       <div class="btns" style="margin-top:0">
-        <button id="modeComposable" class="active">Composable</button>
+        <button id="modeComposable" class="active" title="One noise">Composable</button>
+        <button id="modeComposite" title="A stack of up to 4 noises, blended in one shader">Composite</button>
         <button id="modeSpecial">Special</button>
       </div>
     </div>
-    <div class="row" style="min-width:140px">
+    <div class="row" style="min-width:130px">
+      <label>Shape</label>
+      <select id="shape">
+        <option value="tile" selected>Tile — flat plane</option>
+        <option value="sphere">Sphere — planet</option>
+      </select>
+    </div>
+    <div class="row sph" style="min-width:120px;display:none">
+      <label>Displace <b id="vDisp"></b></label>
+      <input type="range" id="disp" min="0" max="0.3" step="0.005" value="0.04">
+    </div>
+    <div class="row sph" style="min-width:100px;display:none">
+      <label>Bake / face</label>
+      <select id="bakeRes">
+        <option value="256">256²</option>
+        <option value="512" selected>512²</option>
+        <option value="1024">1024²</option>
+      </select>
+    </div>
+    <div class="row tileonly" style="min-width:140px" title="Tile only — on the sphere the radius is 1, as on the planet">
       <label>View scale <b id="vScale"></b></label>
       <input type="range" id="scale" min="0.3" max="12" step="0.1" value="3">
     </div>
@@ -111,6 +172,7 @@
       <label>Light <b id="vLight"></b></label>
       <input type="range" id="light" min="0" max="6.283" step="0.02" value="2.3">
     </div>
+    <div class="note" id="viewNote" style="align-self:center;max-width:280px"></div>
     <a class="back" href="Orogeny_v003.html" target="_blank" rel="opener" style="margin-left:auto">← Back to Orogeny</a>
   </div>
 
@@ -119,12 +181,33 @@
     <div class="note">Click a list, then <b>↑ ↓</b> to audition — each step renders. The
       <b>‹ ›</b> buttons do the same for the popup selects, which cannot receive arrow keys
       while their popup is open.</div>
+    <div id="layerPanel" style="display:none"></div>
     <div id="composablePanel"></div>
     <div id="specialPanel" style="display:none"></div>
   </div>
 
   <div id="right" class="panel">
-    <h2>Presets</h2>
+    <h2>Gradient map</h2>
+    <div class="chk"><input type="checkbox" id="gradOn"><label for="gradOn">Colour by gradient</label></div>
+    <div class="row"><label>Ramp</label><select id="gradPreset"></select></div>
+    <div id="gradBar"><div id="gradFill"></div><div id="gradHandles"></div></div>
+    <div class="note">Click the bar to add a stop · drag a marker to move it · click a marker to edit it.</div>
+    <div class="gradstop">
+      <input type="color" id="gradColor" title="Stop colour">
+      <div class="row" style="flex:1;margin:0">
+        <label>Stop at <b id="vGradPos"></b></label>
+        <input type="range" id="gradPos" min="0" max="1" step="0.005">
+      </div>
+      <button id="gradDel" title="Delete this stop (at least two remain)">✕</button>
+    </div>
+    <div class="row"><label>Value at left <b id="vGradLo"></b></label>
+      <input type="range" id="gradLo" min="-1" max="1" step="0.01" value="-1"></div>
+    <div class="row"><label>Value at right <b id="vGradHi"></b></label>
+      <input type="range" id="gradHi" min="-1" max="1" step="0.01" value="1"></div>
+    <div class="note">Maps the final noise value (−1…1, or the range above) to colour in the height-ramp
+      and relief-tint views, tile and sphere alike. Saved with the preset; the planet tool ignores it.</div>
+
+    <h2 style="margin-top:22px">Presets</h2>
     <div class="row"><input type="text" id="presetName" placeholder="preset name"></div>
     <div class="btns">
       <button id="saveNew">Save as new</button>
@@ -153,9 +236,15 @@ const STORE_KEY = 'orogeny.noisePresets';
 
 /* ═══════════════════════════ WebGL2 bootstrap ═══════════════════════════ */
 const canvas = $('c');
-const gl = canvas.getContext('webgl2', {antialias:false, depth:false, alpha:false});
+/* depth:true for the sphere view, the only pass that needs a depth test — a
+   displaced sphere occludes itself at the limb. */
+const gl = canvas.getContext('webgl2', {antialias:false, depth:true, alpha:false});
 if (!gl){ document.body.innerHTML = '<div style="padding:40px;color:#e6ecf2">WebGL2 is required.</div>'; throw new Error('no webgl2'); }
 const extCBF = gl.getExtension('EXT_color_buffer_float');
+/* Linear filtering of R32F. Without it the baked cube map is sampled NEAREST,
+   which shows as texel-sized facets in the sphere's shading. */
+const extFloatLinear = gl.getExtension('OES_texture_float_linear');
+const uloc = (p, n) => gl.getUniformLocation(p, n);
 
 function sh(type, src){
   const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
@@ -176,6 +265,30 @@ void main(){
   gl_Position = vec4(pos[gl_VertexID], 0.0, 1.0);
 }`;
 function drawQuad(){ gl.drawArrays(gl.TRIANGLES, 0, 3); }
+
+/* ─── the display ramp, shared by every composable-noise view ───
+   Gradient map off: the original two-colour blue mix, unchanged. On: a 256x1
+   texture built from the stops, indexed by the value remapped through the
+   user's range. A runtime uniform rather than a #define — the branch holds one
+   texture read and no noise evaluation, so specializing it would only split
+   the program cache for nothing. */
+const GLSL_RAMP = `
+uniform sampler2D uGrad;
+uniform int uGradOn;
+uniform vec2 uGradRange;     // value at the left / right end of the ramp
+vec3 ramp(float t){
+  if (uGradOn != 0){
+    float v = t*2.0 - 1.0;
+    float g = clamp((v - uGradRange.x)/max(uGradRange.y - uGradRange.x, 1e-4), 0.0, 1.0);
+    return texture(uGrad, vec2(g*(255.0/256.0) + 0.5/256.0, 0.5)).rgb;   // texel centres
+  }
+  t = clamp(t, 0.0, 1.0);
+  return mix(vec3(0.02,0.05,0.09), vec3(0.56,0.78,0.91), t);
+}
+/* relief-over-ramp lifts the blue ramp so its dark end still shows shading;
+   a user's gradient is shown as authored */
+float rampLift(){ return uGradOn != 0 ? 0.0 : 0.10; }
+`;
 
 /* ─── composable-noise tile preview ───
    One program PER (base, combinator, modifier-flags) combination, compiled on
@@ -200,12 +313,7 @@ uniform vec2 uRes;
 uniform float uScale, uReliefH, uLightAz;
 uniform NoiseParams uNP;
 out vec4 o;
-
-vec3 ramp(float t){
-  t = clamp(t, 0.0, 1.0);
-  return mix(vec3(0.02,0.05,0.09), vec3(0.56,0.78,0.91), t);
-}
-
+${GLSL_RAMP}
 void main(){
   vec2 uv = (gl_FragCoord.xy/uRes.xy - 0.5);
   uv.x *= uRes.x/uRes.y;
@@ -227,7 +335,7 @@ void main(){
   #if OG_VIEW == 1
     vec3 base = vec3(0.62, 0.70, 0.78);
   #else
-    vec3 base = ramp(v*0.5+0.5) + 0.10;   // relief over the height ramp
+    vec3 base = ramp(v*0.5+0.5) + rampLift();   // relief over the height ramp
   #endif
   o = vec4(base*(amb + 0.85*dif), 1.0);
 #endif
@@ -237,6 +345,298 @@ void main(){
   catch(e){ console.error('noise program failed for ' + key, e); }
   tileProgs.set(key, p);          // cache failures too, so we retry only once
   return p;
+}
+
+/* ─── bake programs: evaluate the noise ONCE per texel into an R32F target ───
+   Used for every sphere view and for composites on the tile. Two reasons:
+
+   · Cost. A composite is up to four full specialized noises in one program,
+     and the direct relief view above calls evalNoise three times per pixel.
+     Three evaluations of a four-layer stack is the inlining multiplier that
+     took the GPU down once already. The bake calls it exactly once; shading
+     then reads the texture.
+   · Orbiting. The sphere's noise does not change when the camera does, so
+     baking it into a cube map means dragging re-shades a texture instead of
+     re-evaluating the noise.
+
+   The source goes through glslForAny, which for a composite also emits an
+   evalNoise(p, np) alias — so one template serves single and composite, and
+   the uNP uniform below is simply unused in the composite case. Render
+   targets are R32F, which needs EXT_color_buffer_float; the reaction-
+   diffusion preview already depends on the same extension. */
+const bakeProgs = new Map();
+function bakeProgramFor(x, target){
+  const key = target + '|' + N.keyForAny(x);
+  if (bakeProgs.has(key)) return bakeProgs.get(key);
+  const main = target === 'cube' ? `
+/* GL cube-map face orientation (ES 3.0 spec table 3.21), inverted: face f,
+   texel (s,t) in [0,1]^2 -> the direction a samplerCube lookup reads it at. */
+vec3 cubeDir(int f, vec2 ab){
+  if (f == 0) return vec3( 1.0, -ab.y, -ab.x);
+  if (f == 1) return vec3(-1.0, -ab.y,  ab.x);
+  if (f == 2) return vec3( ab.x,  1.0,  ab.y);
+  if (f == 3) return vec3( ab.x, -1.0, -ab.y);
+  if (f == 4) return vec3( ab.x, -ab.y,  1.0);
+  return             vec3(-ab.x, -ab.y, -1.0);
+}
+void main(){
+  vec2 ab = gl_FragCoord.xy/uRes*2.0 - 1.0;
+  /* the unit direction, exactly as the planet's FS_INIT passes it */
+  o = vec4(evalNoise(normalize(cubeDir(uFace, ab)), uNP), 0.0, 0.0, 1.0);
+}` : `
+void main(){
+  /* the same plane, scale and aspect as the direct tile program */
+  vec2 uv = (gl_FragCoord.xy/uRes.xy - 0.5);
+  uv.x *= uRes.x/uRes.y;
+  o = vec4(evalNoise(vec3(uv*uScale, 0.0), uNP), 0.0, 0.0, 1.0);
+}`;
+  const src = `#version 300 es
+precision highp float;
+${N.glslForAny(x)}
+uniform NoiseParams uNP;
+uniform vec2 uRes;
+uniform float uScale;
+uniform int uFace;
+out vec4 o;
+${main}`;
+  let p = null;
+  try { p = prog(VS_QUAD, src); }
+  catch(e){ console.error('bake program failed for ' + key, e); }
+  bakeProgs.set(key, p);
+  return p;
+}
+const bakeFbo = gl.createFramebuffer();
+
+/* ─── tile view for composites: bake at canvas resolution, then shade ───
+   Shading reproduces the direct program's view modes exactly, with the same
+   one-pixel forward differences, just read from the texture. */
+const FS_SHADEFLAT = `#version 300 es
+precision highp float; precision highp sampler2D;
+uniform sampler2D uH;
+uniform vec2 uRes;
+uniform float uScale, uReliefH, uLightAz;
+uniform int uView;
+out vec4 o;
+${GLSL_RAMP}
+void main(){
+  ivec2 c = ivec2(gl_FragCoord.xy), mx = ivec2(uRes) - 1;
+  float v = texelFetch(uH, c, 0).r;
+  if (uView == 0){ o = vec4(ramp(v*0.5+0.5), 1.0); return; }
+  float vx = texelFetch(uH, min(c + ivec2(1,0), mx), 0).r;
+  float vy = texelFetch(uH, min(c + ivec2(0,1), mx), 0).r;
+  float e = uScale/uRes.y;
+  vec3 n = normalize(vec3(-(vx-v)*uReliefH/e, -(vy-v)*uReliefH/e, 1.0));
+  vec3 L = normalize(vec3(cos(uLightAz), sin(uLightAz), 0.75));
+  float dif = max(dot(n, L), 0.0);
+  float amb = 0.30 + 0.20*n.z;
+  vec3 base = (uView == 1) ? vec3(0.62, 0.70, 0.78) : ramp(v*0.5+0.5) + rampLift();
+  o = vec4(base*(amb + 0.85*dif), 1.0);
+}`;
+/* Compiled on first use, inside a try: a failure here should cost the view
+   that needs it, not the whole page. */
+let pShadeFlat;
+function shadeFlatProg(){
+  if (pShadeFlat === undefined){
+    try { pShadeFlat = prog(VS_QUAD, FS_SHADEFLAT); }
+    catch(e){ console.error('tile shade program failed', e); pShadeFlat = null; }
+  }
+  return pShadeFlat;
+}
+let flatTex = null, flatSig = '';
+function ensureFlatTex(){
+  if (flatTex && flatTex._w === canvas.width && flatTex._h === canvas.height) return;
+  if (flatTex) gl.deleteTexture(flatTex);
+  flatTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, flatTex);
+  gl.texStorage2D(gl.TEXTURE_2D, 1, gl.R32F, canvas.width, canvas.height);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  flatTex._w = canvas.width; flatTex._h = canvas.height;
+  flatSig = '';
+}
+
+/* ─── sphere view ───
+   The noise is sampled with the UNIT DIRECTION, exactly as the planet tool's
+   terrain init does (evalNoise(normalize(faceToDir(face, s)), uNP)), so what
+   is on this sphere is what the planet starts from — including whatever a
+   3D field looks like where a flat tile never looked. It is baked into an
+   R32F cube map (gnomonic texel layout, where the planet's grid is
+   equiangular: the field is identical, only where the texels fall differs),
+   then drawn on a cube-sphere mesh that optionally displaces radially and
+   is shaded from the cube map's own finite differences. */
+const VS_SPHERE = `#version 300 es
+precision highp float; precision highp samplerCube;
+layout(location=0) in vec3 aPos;
+uniform mat4 uVP;
+uniform samplerCube uCube;
+uniform float uDisp;
+out vec3 vDir;
+void main(){
+  vec3 d = normalize(aPos);
+  float h = textureLod(uCube, d, 0.0).r;
+  vDir = d;
+  gl_Position = uVP*vec4(d*(1.0 + uDisp*h), 1.0);
+}`;
+const FS_SPHERE = `#version 300 es
+precision highp float; precision highp samplerCube;
+in vec3 vDir;
+uniform samplerCube uCube;
+uniform float uReliefH, uLightAz, uTexel;
+uniform vec3 uCamR, uCamU, uCamB;    // camera right / up / back, world space
+uniform int uView;
+out vec4 o;
+${GLSL_RAMP}
+float H(vec3 d){ return texture(uCube, d).r; }
+void main(){
+  vec3 d = normalize(vDir);
+  float v = H(d);
+  if (uView == 0){ o = vec4(ramp(v*0.5+0.5), 1.0); return; }
+  /* tangential gradient by central differences one texel either side. The
+     basis flips near the z poles, but g1*e1 + g2*e2 is basis-independent, so
+     the flip leaves no seam. */
+  vec3 up = abs(d.z) < 0.9 ? vec3(0.0,0.0,1.0) : vec3(1.0,0.0,0.0);
+  vec3 e1 = normalize(cross(up, d)), e2 = cross(d, e1);
+  float e = uTexel;
+  float g1 = (H(normalize(d + e1*e)) - H(normalize(d - e1*e)))/(2.0*e);
+  float g2 = (H(normalize(d + e2*e)) - H(normalize(d - e2*e)))/(2.0*e);
+  /* the tile view's relief normal, with the surface's own up in place of z */
+  vec3 n = normalize(d - uReliefH*(g1*e1 + g2*e2));
+  /* the tile's light, in camera space: azimuth turns it in the screen plane,
+     0.75 toward the viewer — so the slider means the same thing on both */
+  vec3 L = normalize(cos(uLightAz)*uCamR + sin(uLightAz)*uCamU + 0.75*uCamB);
+  float dif = max(dot(n, L), 0.0);
+  float amb = 0.30 + 0.20*max(dot(n, d), 0.0);
+  vec3 base = (uView == 1) ? vec3(0.62, 0.70, 0.78) : ramp(v*0.5+0.5) + rampLift();
+  o = vec4(base*(amb + 0.85*dif), 1.0);
+}`;
+let pSphere;
+function sphereProg(){
+  if (pSphere === undefined){
+    try { pSphere = prog(VS_SPHERE, FS_SPHERE); }
+    catch(e){ console.error('sphere program failed', e); pSphere = null; }
+  }
+  return pSphere;
+}
+
+/* same face table as cubeDir() in the bake, so mesh and texture agree */
+const CUBE_FACES = [
+  (a,b) => [ 1, -b, -a], (a,b) => [-1, -b,  a],
+  (a,b) => [ a,  1,  b], (a,b) => [ a, -1, -b],
+  (a,b) => [ a, -b,  1], (a,b) => [-a, -b, -1],
+];
+/* Cube-sphere, equiangular spacing (like the planet's grid) so triangles stay
+   near-uniform. Faces carry their own edge vertices; the duplicates land on
+   the same direction, so the displaced surface stays closed. */
+let sphereMesh = null;
+function buildSphereMesh(M){
+  const V = M + 1, nv = 6*V*V;
+  const pos = new Float32Array(nv*3), idx = new Uint32Array(6*M*M*6);
+  let v = 0, k = 0;
+  for (let f=0; f<6; f++){
+    const base = v;
+    for (let j=0; j<=M; j++) for (let i=0; i<=M; i++){
+      const a = Math.tan((i/M*2 - 1)*Math.PI/4), b = Math.tan((j/M*2 - 1)*Math.PI/4);
+      const d = CUBE_FACES[f](a, b);
+      pos[v*3] = d[0]; pos[v*3+1] = d[1]; pos[v*3+2] = d[2]; v++;
+    }
+    for (let j=0; j<M; j++) for (let i=0; i<M; i++){
+      const i00 = base + j*V + i, i10 = i00 + 1, i01 = i00 + V, i11 = i01 + 1;
+      idx[k++] = i00; idx[k++] = i10; idx[k++] = i11;
+      idx[k++] = i00; idx[k++] = i11; idx[k++] = i01;
+    }
+  }
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  const vb = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+  gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0);
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+  const ib = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  gl.bindVertexArray(null);           // leave the default VAO as the rest of the page expects
+  return { vao, count: k };
+}
+
+let cubeTex = null, cubeRes = 0, cubeSig = '';
+function ensureCube(R){
+  if (cubeTex && cubeRes === R) return;
+  if (cubeTex) gl.deleteTexture(cubeTex);
+  cubeTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeTex);
+  gl.texStorage2D(gl.TEXTURE_CUBE_MAP, 1, gl.R32F, R, R);
+  const filt = extFloatLinear ? gl.LINEAR : gl.NEAREST;
+  gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, filt);
+  gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, filt);
+  gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  cubeRes = R; cubeSig = '';
+}
+/* Re-bakes only when the noise or the resolution changed; camera, light,
+   relief and gradient changes reuse the bake. */
+function bakeCube(x){
+  const R = state.bakeRes;
+  const sig = JSON.stringify(x) + '|' + R;
+  ensureCube(R);
+  if (sig === cubeSig) return true;
+  const p = bakeProgramFor(x, 'cube');
+  if (!p) return false;
+  gl.useProgram(p);
+  gl.uniform2f(uloc(p,'uRes'), R, R);
+  N.uploadAny(gl, p, 'uNP', x);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, bakeFbo);
+  gl.viewport(0, 0, R, R);
+  for (let f=0; f<6; f++){
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_CUBE_MAP_POSITIVE_X + f, cubeTex, 0);
+    gl.uniform1i(uloc(p,'uFace'), f);
+    drawQuad();
+  }
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  cubeSig = sig;
+  return true;
+}
+
+/* ─── small column-major matrix helpers for the orbit camera ─── */
+function mPerspective(fovy, aspect, near, far){
+  const f = 1/Math.tan(fovy/2), nf = 1/(near - far);
+  return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
+}
+function vNorm(a){ const l = Math.hypot(a[0],a[1],a[2]) || 1; return [a[0]/l, a[1]/l, a[2]/l]; }
+function vCross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function vDot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function mLookAt(eye, target, up){
+  const z = vNorm([eye[0]-target[0], eye[1]-target[1], eye[2]-target[2]]);
+  const x = vNorm(vCross(up, z)), y = vCross(z, x);
+  return { m: new Float32Array([x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
+                                -vDot(x,eye), -vDot(y,eye), -vDot(z,eye), 1]), x, y, z };
+}
+function mMul(a, b){
+  const o = new Float32Array(16);
+  for (let c=0; c<4; c++) for (let r=0; r<4; r++){
+    let s = 0; for (let k=0; k<4; k++) s += a[k*4+r]*b[c*4+k];
+    o[c*4+r] = s;
+  }
+  return o;
+}
+
+/* ─── the gradient map's texture ─── */
+const gradTex = gl.createTexture();
+function uploadGradient(){
+  gl.bindTexture(gl.TEXTURE_2D, gradTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, N.gradientTexels(state.grad, 256));
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+function setRamp(p, unitIdx){
+  gl.activeTexture(gl.TEXTURE0 + unitIdx); gl.bindTexture(gl.TEXTURE_2D, gradTex);
+  gl.uniform1i(uloc(p,'uGrad'), unitIdx);
+  gl.uniform1i(uloc(p,'uGradOn'), state.gradOn ? 1 : 0);
+  gl.uniform2f(uloc(p,'uGradRange'), state.grad.range[0], state.grad.range[1]);
 }
 
 /* ─── diamond-square: precompute on CPU, display as a texture ─── */
@@ -444,7 +844,25 @@ const state = {
   scale: 3,
   view: 1, reliefH: 0.12, lightAz: 2.3,
   currentPresetId: null,
+
+  /* state.np is "the parameter set the generator panel is editing". In
+     Composable mode that is state.single; in Composite mode it is the SAME
+     OBJECT as the selected layer's np, so the existing panel edits the layer
+     in place without knowing layers exist. setMode keeps the pointer right. */
+  single: null,
+  comp: null,                     // { mode:'composite', layers:[{ np, blend, weight, mask }] }
+  layerSel: 0,
+
+  shape: 'tile',                  // 'tile' | 'sphere'
+  disp: 0.04,                     // sphere radial displacement per unit of value
+  bakeRes: 512,                   // cube-map texels per face edge
+  cam: { yaw: 0.6, pitch: 0.3, dist: 4.0 },
+
+  gradOn: false,
+  grad: { stops: N.GRADIENT_PRESETS[0].stops.map(s => ({ t:s.t, color:s.color.slice() })), range: [-1, 1] },
+  gradSel: 0,
 };
+state.single = state.np;
 
 /* ─── stepping through a list and rendering each entry ───
    Three mechanisms, because no single one covers every case:
@@ -515,7 +933,15 @@ function renderControl(container, key, obj, onChange){
 }
 
 function buildComposablePanel(){
+  /* Every structural change to a noise comes through here, which is exactly
+     when a layer's label (base · combinator) can change. */
+  buildLayerPanel();
   const root = $('composablePanel'); root.innerHTML = '';
+  if (state.mode === 'composite'){
+    const g = document.createElement('div'); g.className = 'grp';
+    g.textContent = 'Editing layer ' + (state.layerSel + 1);
+    root.appendChild(g);
+  }
 
   const baseGrp = document.createElement('div'); baseGrp.className = 'grp'; baseGrp.textContent = 'Base';
   root.appendChild(baseGrp);
@@ -606,6 +1032,149 @@ function buildComposablePanel(){
     const el = root.querySelector('[data-focus="' + state._focus + '"]');
     if (el) el.focus({ preventScroll:true });
   }
+}
+
+/* ─── composite layer stack ───
+   Blend, weight and mask are uniforms in the generated shader (noise-lib.js
+   explains why that is safe), so changing them only re-renders. Adding,
+   removing, reordering a layer or changing its base/combinator recompiles. */
+function layerLabel(np){
+  const v = N.variantFor(np), c = N.COMBINATORS.find(x => x.id === np.combinator);
+  return v.label + (c && c.id ? ' · ' + c.label : '');
+}
+function cloneNp(np){ return JSON.parse(JSON.stringify(np)); }
+/* After a reorder or delete, a mask must keep pointing at the same LAYER, not
+   the same slot. map(oldIndex) -> newIndex, or -1 if that layer is gone. */
+function remapMasks(map){
+  state.comp.layers.forEach((L, i) => {
+    if (!L.mask || L.mask.src !== 'layer') return;
+    const j = map(L.mask.layer);
+    L.mask = (j < 0 || j === i) ? null : Object.assign({}, L.mask, { layer: j });
+  });
+}
+function selectLayer(i){
+  state.layerSel = i;
+  state.np = state.comp.layers[i].np;
+  state._focus = null;
+  buildComposablePanel(); render();
+}
+function buildLayerPanel(){
+  const root = $('layerPanel'); root.innerHTML = '';
+  if (state.mode !== 'composite' || !state.comp) return;
+  const Ls = state.comp.layers;
+
+  const grp = document.createElement('div'); grp.className = 'grp'; grp.textContent = 'Layers';
+  root.appendChild(grp);
+  const intro = document.createElement('div'); intro.className = 'note';
+  intro.textContent = 'Applied top to bottom onto mid-grey, in one shader. Every layer is evaluated '
+    + 'at every sample, so a mask can use any of them — and cost adds up per layer. '
+    + 'A layer at weight 0 contributes only as a mask.';
+  root.appendChild(intro);
+
+  Ls.forEach((L, i) => {
+    const box = document.createElement('div'); box.className = 'layer' + (i === state.layerSel ? ' sel' : '');
+    const head = document.createElement('div'); head.className = 'layerhead';
+    const nm = document.createElement('div'); nm.className = 'nm';
+    nm.textContent = (i + 1) + ' · ' + layerLabel(L.np);
+    nm.title = 'Edit this layer';
+    nm.onclick = () => selectLayer(i);
+    head.appendChild(nm);
+    const mk = (txt, title, fn, disabled) => {
+      const b = document.createElement('button'); b.textContent = txt; b.title = title;
+      b.disabled = !!disabled; b.onclick = fn; head.appendChild(b);
+    };
+    const swap = (a, b) => {
+      [Ls[a], Ls[b]] = [Ls[b], Ls[a]];
+      remapMasks(j => j === a ? b : (j === b ? a : j));
+      state.layerSel = (state.layerSel === a) ? b : (state.layerSel === b ? a : state.layerSel);
+      selectLayer(state.layerSel);
+    };
+    mk('↑', 'Move up', () => swap(i, i - 1), i === 0);
+    mk('↓', 'Move down', () => swap(i, i + 1), i === Ls.length - 1);
+    mk('✕', 'Remove layer', () => {
+      Ls.splice(i, 1);
+      remapMasks(j => j === i ? -1 : (j > i ? j - 1 : j));
+      selectLayer(Math.max(0, Math.min(state.layerSel > i ? state.layerSel - 1 : state.layerSel, Ls.length - 1)));
+    }, Ls.length <= 1);
+    box.appendChild(head);
+
+    if (i === 0){
+      const n = document.createElement('div'); n.className = 'note';
+      n.textContent = 'Base layer — always mixes onto mid-grey.';
+      box.appendChild(n);
+      /* the blend of the first layer is fixed to mix; keep the record honest */
+      L.blend = 'mix';
+    } else {
+      const row = document.createElement('div'); row.className = 'row';
+      const lab = document.createElement('label'); lab.textContent = 'Blend'; row.appendChild(lab);
+      const sel = document.createElement('select');
+      N.BLEND_MODES.forEach(b => { const o = document.createElement('option'); o.value = b.key; o.textContent = b.label; sel.appendChild(o); });
+      sel.value = L.blend;
+      sel.onchange = () => { L.blend = sel.value; render(); };
+      row.appendChild(stepWrap(sel));
+      box.appendChild(row);
+    }
+
+    {
+      const row = document.createElement('div'); row.className = 'row';
+      const lab = document.createElement('label');
+      const b = document.createElement('b'); b.textContent = (+L.weight).toFixed(2);
+      lab.textContent = 'Weight '; lab.appendChild(b); row.appendChild(lab);
+      const inp = document.createElement('input'); inp.type = 'range';
+      inp.min = 0; inp.max = 2; inp.step = 0.01; inp.value = L.weight;
+      inp.title = 'Above 1 the blend extrapolates past its target';
+      inp.oninput = () => { L.weight = parseFloat(inp.value); b.textContent = L.weight.toFixed(2); render(); };
+      row.appendChild(inp);
+      box.appendChild(row);
+    }
+
+    {
+      const row = document.createElement('div'); row.className = 'row';
+      const lab = document.createElement('label'); lab.textContent = 'Mask'; row.appendChild(lab);
+      const sel = document.createElement('select');
+      const opt = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+      opt('none', 'None');
+      Ls.forEach((_, j) => { if (j !== i) opt('layer:' + j, 'Layer ' + (j + 1)); });
+      if (i > 0) opt('result', 'Result so far');
+      sel.value = !L.mask ? 'none' : (L.mask.src === 'result' ? 'result' : 'layer:' + L.mask.layer);
+      if (!sel.value) sel.value = 'none';
+      const inv = document.createElement('input'); inv.type = 'checkbox'; inv.id = 'maskinv_' + i;
+      inv.checked = !!(L.mask && L.mask.invert); inv.disabled = !L.mask;
+      sel.onchange = () => {
+        const v = sel.value, invert = inv.checked;
+        L.mask = v === 'none' ? null
+               : v === 'result' ? { src:'result', invert }
+               : { src:'layer', layer: parseInt(v.slice(6)), invert };
+        inv.disabled = !L.mask;
+        render();
+      };
+      inv.onchange = () => { if (L.mask){ L.mask.invert = inv.checked; render(); } };
+      row.appendChild(stepWrap(sel));
+      box.appendChild(row);
+      const chk = document.createElement('div'); chk.className = 'chk';
+      const il = document.createElement('label'); il.htmlFor = inv.id; il.textContent = 'Invert mask';
+      chk.appendChild(inv); chk.appendChild(il);
+      box.appendChild(chk);
+    }
+    root.appendChild(box);
+  });
+
+  const btns = document.createElement('div'); btns.className = 'btns';
+  const add = document.createElement('button');
+  add.textContent = Ls.length >= N.MAX_LAYERS ? 'Max ' + N.MAX_LAYERS + ' layers' : 'Add layer';
+  add.disabled = Ls.length >= N.MAX_LAYERS;
+  add.title = 'Copies the selected layer with a different seed';
+  add.onclick = () => {
+    if (Ls.length >= N.MAX_LAYERS) return;
+    const np = cloneNp(Ls[state.layerSel].np);
+    const k = Ls.length;
+    const s = np.seed || [0,0,0];
+    np.seed = [(s[0]||0) + 17.17*k, (s[1]||0) + 5.31*k, (s[2]||0) + 9.73*k];   // arbitrary offsets: a different instance of the same noise
+    Ls.push({ np, blend:'add', weight:0.5, mask:null });
+    selectLayer(Ls.length - 1);
+  };
+  btns.appendChild(add);
+  root.appendChild(btns);
 }
 
 function buildSpecialPanel(){
@@ -704,11 +1273,30 @@ async function refreshPresetList(){
     const nm = document.createElement('div'); nm.className = 'nm';
     nm.textContent = p.name + (p.builtin ? ' · built-in' : '');
     nm.title = p.builtin ? 'Load (compiled in; save to make your own copy)' : 'Load';
+    nm.title = (p.mode === 'composite' ? 'Composite · ' : '') + nm.title;
     nm.onclick = () => {
       state.mode = p.mode || 'composable';
-      state.np = Object.assign(N.defaultParams(), p.np || {});
+      if (state.mode === 'composite'){
+        if (N.isComposite(p)){
+          // a fresh, defaults-completed copy: editing must not mutate the cache
+          state.comp = N.normalizeComposite(p);
+          state.layerSel = 0;
+        } else state.mode = 'composable';          // malformed record — show what we can
+      }
+      /* A composite carries no np; leave the single noise as it was so that
+         switching back to Composable returns to it. Everything else loads as
+         it always did. */
+      if (state.mode !== 'composite' || p.np) state.single = Object.assign(N.defaultParams(), p.np || {});
       state.specialKind = p.specialKind || state.specialKind;
       state.special = Object.assign(state.special, p.special || {});
+      /* the ramp is part of the preset: present -> on and loaded, absent -> off */
+      const g = normalizeGradient(p.gradient);
+      state.gradOn = !!g;
+      if (g){
+        state.grad = g; state.gradSel = 0; $('gradPreset').value = '';
+        if (state.view === 1){ state.view = 2; $('view').value = '2'; }   // grey relief would hide it
+      }
+      syncGradientUi(); uploadGradient();
       state.currentPresetId = p.id; $('presetName').value = p.name; $('saveOver').disabled = false;
       setMode(state.mode); buildComposablePanel(); buildSpecialPanel(); render();
     };
@@ -724,9 +1312,22 @@ async function refreshPresetList(){
   describeStore();
 }
 
+/* Preset formats:
+     single     { id, name, mode:'composable'|'special', np, specialKind, special, gradient? }
+     composite  { id, name, mode:'composite', layers:[{ np, blend, weight, mask }], gradient? }
+   A composite deliberately has NO np: every consumer written before
+   composites filters on p.np, so they skip it instead of misreading it. */
 function currentPreset(id){
-  return { id, name: $('presetName').value.trim(), mode: state.mode, np: state.np,
-           specialKind: state.specialKind, special: state.special };
+  let p;
+  if (state.mode === 'composite'){
+    p = { id, name: $('presetName').value.trim(), mode: 'composite',
+          layers: N.normalizeComposite(state.comp).layers };
+  } else {
+    p = { id, name: $('presetName').value.trim(), mode: state.mode, np: state.single,
+          specialKind: state.specialKind, special: state.special };
+  }
+  if (state.gradOn && state.mode !== 'special') p.gradient = cleanGradient(state.grad);
+  return p;
 }
 $('saveNew').onclick = async () => {
   const p = currentPreset(undefined);
@@ -757,13 +1358,217 @@ $('pickFolder').onclick = async () => {
 /* ═══════════════════════════ mode + render loop ═══════════════════════════ */
 function setMode(m){
   state.mode = m;
+  if (m === 'composite'){
+    /* entering for the first time: start the stack from the current noise */
+    if (!state.comp || !state.comp.layers.length)
+      state.comp = { mode:'composite', layers:[{ np: cloneNp(state.single), blend:'mix', weight:1, mask:null }] };
+    state.layerSel = Math.max(0, Math.min(state.layerSel, state.comp.layers.length - 1));
+    state.np = state.comp.layers[state.layerSel].np;
+  } else {
+    state.np = state.single;
+  }
   $('modeComposable').classList.toggle('active', m === 'composable');
+  $('modeComposite').classList.toggle('active', m === 'composite');
   $('modeSpecial').classList.toggle('active', m === 'special');
-  $('composablePanel').style.display = m === 'composable' ? '' : 'none';
+  $('composablePanel').style.display = (m === 'composable' || m === 'composite') ? '' : 'none';
+  $('layerPanel').style.display = m === 'composite' ? '' : 'none';
   $('specialPanel').style.display = m === 'special' ? '' : 'none';
+  syncShapeUi();                  // the orbit cursor depends on the mode too
 }
-$('modeComposable').onclick = () => setMode('composable');
-$('modeSpecial').onclick = () => setMode('special');
+/* the panel now edits a different object per mode, so it has to be rebuilt */
+const switchMode = m => { state._focus = null; setMode(m); buildComposablePanel(); render(); };
+$('modeComposable').onclick = () => switchMode('composable');
+$('modeComposite').onclick  = () => switchMode('composite');
+$('modeSpecial').onclick    = () => switchMode('special');
+
+/* ─── shape: tile or sphere ─── */
+function syncShapeUi(){
+  document.querySelectorAll('.sph').forEach(el => el.style.display = state.shape === 'sphere' ? '' : 'none');
+  document.querySelectorAll('.tileonly').forEach(el => el.style.opacity = state.shape === 'sphere' ? '0.35' : '');
+  canvas.style.cursor = (state.shape === 'sphere' && state.mode !== 'special') ? 'grab' : '';
+}
+$('shape').onchange = e => { state.shape = e.target.value; syncShapeUi(); render(); };
+wireStepper($('shape'));
+$('disp').oninput = e => { state.disp = parseFloat(e.target.value); $('vDisp').textContent = state.disp.toFixed(3); render(); };
+$('vDisp').textContent = state.disp.toFixed(3);
+$('bakeRes').onchange = e => { state.bakeRes = parseInt(e.target.value); render(); };
+
+/* orbit: drag rotates, wheel zooms — sphere view only */
+const sphereActive = () => state.shape === 'sphere' && state.mode !== 'special';
+let orbitDrag = null;
+canvas.addEventListener('pointerdown', e => {
+  if (!sphereActive()) return;
+  orbitDrag = { x: e.clientX, y: e.clientY };
+  canvas.setPointerCapture(e.pointerId);
+  canvas.style.cursor = 'grabbing';
+});
+canvas.addEventListener('pointermove', e => {
+  if (!orbitDrag) return;
+  state.cam.yaw  -= (e.clientX - orbitDrag.x)*0.008;
+  state.cam.pitch = Math.max(-1.45, Math.min(1.45, state.cam.pitch + (e.clientY - orbitDrag.y)*0.008));
+  orbitDrag = { x: e.clientX, y: e.clientY };
+  render();
+});
+const endOrbit = () => { if (orbitDrag){ orbitDrag = null; syncShapeUi(); } };
+canvas.addEventListener('pointerup', endOrbit);
+canvas.addEventListener('pointercancel', endOrbit);
+canvas.addEventListener('wheel', e => {
+  if (!sphereActive()) return;
+  e.preventDefault();
+  state.cam.dist = Math.max(1.25, Math.min(12, state.cam.dist*Math.exp(e.deltaY*0.001)));
+  render();
+}, { passive:false });
+
+/* ═══════════════════════════ gradient map editor ═══════════════════════════
+   Stops are kept in edit order, not sorted: the selection is an index, and a
+   stop dragged past its neighbour should stay the stop you are holding. The
+   texture build sorts a copy. */
+const toHex = c => '#' + c.map(x => Math.round(Math.max(0, Math.min(1, x))*255).toString(16).padStart(2, '0')).join('');
+const fromHex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)/255);
+const r3 = x => Math.round(x*1000)/1000;
+function normalizeGradient(g){
+  if (!g || !Array.isArray(g.stops)) return null;
+  const stops = g.stops
+    .filter(s => s && isFinite(+s.t) && Array.isArray(s.color) && s.color.length >= 3)
+    .map(s => ({ t: Math.max(0, Math.min(1, +s.t)), color: s.color.slice(0, 3).map(Number) }));
+  if (stops.length < 2) return null;
+  const r = Array.isArray(g.range) && g.range.length === 2 && g.range.every(v => isFinite(+v))
+    ? [+g.range[0], +g.range[1]] : [-1, 1];
+  return { stops, range: r };
+}
+function cleanGradient(g){
+  return {
+    stops: g.stops.slice().sort((a, b) => a.t - b.t).map(s => ({ t: r3(s.t), color: s.color.map(r3) })),
+    range: [r3(g.range[0]), r3(g.range[1])],
+  };
+}
+function cssGradient(stops){
+  const s = stops.slice().sort((a, b) => a.t - b.t);
+  return 'linear-gradient(to right,' + s.map(st =>
+    'rgb(' + st.color.map(x => Math.round(Math.max(0, Math.min(1, x))*255)).join(',') + ') ' + (st.t*100).toFixed(2) + '%').join(',') + ')';
+}
+(function fillGradPresets(){
+  const sel = $('gradPreset');
+  const o0 = document.createElement('option'); o0.value = ''; o0.textContent = '— custom —'; sel.appendChild(o0);
+  N.GRADIENT_PRESETS.forEach(g => { const o = document.createElement('option'); o.value = g.key; o.textContent = g.label; sel.appendChild(o); });
+  sel.value = N.GRADIENT_PRESETS[0].key;
+})();
+/* Rebuild the bar, its markers and the stop editor from state. Not called
+   during a drag: replacing the marker under the pointer would drop the
+   pointer capture. */
+function syncGradientUi(){
+  const g = state.grad;
+  state.gradSel = Math.max(0, Math.min(state.gradSel, g.stops.length - 1));
+  $('gradOn').checked = state.gradOn;
+  $('gradFill').style.background = cssGradient(g.stops);
+  const hs = $('gradHandles'); hs.innerHTML = '';
+  g.stops.forEach((s, i) => {
+    const h = document.createElement('div');
+    h.className = 'gstop' + (i === state.gradSel ? ' sel' : '');
+    h.style.left = (s.t*100) + '%';
+    h.style.background = toHex(s.color);
+    h.addEventListener('pointerdown', e => startStopDrag(e, i, h));
+    hs.appendChild(h);
+  });
+  syncStopEditor();
+  $('gradLo').value = g.range[0]; $('vGradLo').textContent = g.range[0].toFixed(2);
+  $('gradHi').value = g.range[1]; $('vGradHi').textContent = g.range[1].toFixed(2);
+}
+function syncStopEditor(){
+  const s = state.grad.stops[state.gradSel];
+  $('gradColor').value = toHex(s.color);
+  $('gradPos').value = s.t; $('vGradPos').textContent = s.t.toFixed(3);
+  $('gradDel').disabled = state.grad.stops.length <= 2;
+}
+/* any edit implies you want to see it */
+function gradEdited(markCustom){
+  if (markCustom) $('gradPreset').value = '';
+  if (!state.gradOn){
+    state.gradOn = true; $('gradOn').checked = true;
+    if (state.view === 1){ state.view = 2; $('view').value = '2'; }   // grey relief would hide the ramp
+  }
+  uploadGradient(); render();
+}
+function barT(e){
+  const r = $('gradBar').getBoundingClientRect();
+  return Math.max(0, Math.min(1, (e.clientX - r.left)/Math.max(r.width, 1)));
+}
+function startStopDrag(e, i, el){
+  e.stopPropagation(); e.preventDefault();
+  state.gradSel = i;
+  document.querySelectorAll('#gradHandles .gstop').forEach((h, k) => h.classList.toggle('sel', k === i));
+  syncStopEditor();
+  el.setPointerCapture(e.pointerId);
+  const move = ev => {
+    const s = state.grad.stops[i];
+    s.t = barT(ev);
+    el.style.left = (s.t*100) + '%';
+    $('gradFill').style.background = cssGradient(state.grad.stops);
+    $('gradPos').value = s.t; $('vGradPos').textContent = s.t.toFixed(3);
+    gradEdited(true);
+  };
+  const up = () => {
+    el.removeEventListener('pointermove', move);
+    el.removeEventListener('pointerup', up);
+    el.removeEventListener('pointercancel', up);
+  };
+  el.addEventListener('pointermove', move);
+  el.addEventListener('pointerup', up);
+  el.addEventListener('pointercancel', up);
+}
+$('gradBar').addEventListener('pointerdown', e => {
+  if (e.target.classList.contains('gstop')) return;
+  const t = barT(e);
+  state.grad.stops.push({ t, color: N.gradientColorAt(state.grad.stops, t) });   // new stop takes the colour already there
+  state.gradSel = state.grad.stops.length - 1;
+  syncGradientUi(); gradEdited(true);
+});
+$('gradOn').onchange = e => {
+  state.gradOn = e.target.checked;
+  if (state.gradOn && state.view === 1){ state.view = 2; $('view').value = '2'; }
+  render();
+};
+$('gradPreset').onchange = e => {
+  const g = N.GRADIENT_PRESETS.find(x => x.key === e.target.value);
+  if (!g) return;
+  state.grad.stops = g.stops.map(s => ({ t: s.t, color: s.color.slice() }));
+  state.gradSel = 0;
+  syncGradientUi(); gradEdited(false);
+};
+wireStepper($('gradPreset'));
+$('gradColor').oninput = e => {
+  const s = state.grad.stops[state.gradSel];
+  s.color = fromHex(e.target.value);
+  const h = $('gradHandles').children[state.gradSel]; if (h) h.style.background = e.target.value;
+  $('gradFill').style.background = cssGradient(state.grad.stops);
+  gradEdited(true);
+};
+$('gradPos').oninput = e => {
+  const s = state.grad.stops[state.gradSel];
+  s.t = parseFloat(e.target.value); $('vGradPos').textContent = s.t.toFixed(3);
+  const h = $('gradHandles').children[state.gradSel]; if (h) h.style.left = (s.t*100) + '%';
+  $('gradFill').style.background = cssGradient(state.grad.stops);
+  gradEdited(true);
+};
+$('gradDel').onclick = () => {
+  if (state.grad.stops.length <= 2) return;
+  state.grad.stops.splice(state.gradSel, 1);
+  state.gradSel = Math.max(0, state.gradSel - 1);
+  syncGradientUi(); gradEdited(true);
+};
+/* the two ends stay ordered: pushing one past the other drags it along */
+$('gradLo').oninput = e => {
+  const r = state.grad.range;
+  r[0] = parseFloat(e.target.value);
+  if (r[0] > r[1] - 0.02){ r[1] = Math.min(1, r[0] + 0.02); r[0] = r[1] - 0.02; }
+  syncGradientUi(); gradEdited(false);
+};
+$('gradHi').oninput = e => {
+  const r = state.grad.range;
+  r[1] = parseFloat(e.target.value);
+  if (r[1] < r[0] + 0.02){ r[0] = Math.max(-1, r[1] - 0.02); r[1] = r[0] + 0.02; }
+  syncGradientUi(); gradEdited(false);
+};
 $('scale').oninput = e => { state.scale = parseFloat(e.target.value); $('vScale').textContent = state.scale.toFixed(1); render(); };
 $('vScale').textContent = state.scale.toFixed(1);
 $('view').onchange = e => { state.view = parseInt(e.target.value); render(); };
@@ -780,10 +1585,97 @@ function resize(){
 }
 window.addEventListener('resize', () => { resize(); render(); });
 
+/* what the composable views evaluate: the single noise, or the whole stack */
+function noiseNow(){
+  return state.mode === 'composite' ? { mode:'composite', layers: state.comp.layers } : state.np;
+}
+function failView(msg){
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.clearColor(0.10,0.03,0.03,1); gl.clear(gl.COLOR_BUFFER_BIT);
+  if (msg) $('viewNote').textContent = msg;
+}
+
+function renderFlatBaked(x){
+  if (!extCBF) return failView('This view needs EXT_color_buffer_float (float render targets), which this browser does not expose.');
+  const pS = shadeFlatProg();
+  if (!pS) return failView('Tile shading program failed to compile — see the console.');
+  ensureFlatTex();
+  const sig = JSON.stringify(x) + '|' + canvas.width + 'x' + canvas.height + '|' + state.scale;
+  if (sig !== flatSig){
+    const pB = bakeProgramFor(x, 'flat');
+    if (!pB) return failView('Noise program failed to compile — see the console.');
+    gl.useProgram(pB);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, bakeFbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, flatTex, 0);
+    gl.viewport(0,0,canvas.width,canvas.height);
+    gl.uniform2f(uloc(pB,'uRes'), canvas.width, canvas.height);
+    gl.uniform1f(uloc(pB,'uScale'), state.scale);
+    N.uploadAny(gl, pB, 'uNP', x);
+    drawQuad();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    flatSig = sig;
+  }
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.useProgram(pS);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, flatTex);
+  gl.uniform1i(uloc(pS,'uH'), 0);
+  gl.uniform2f(uloc(pS,'uRes'), canvas.width, canvas.height);
+  gl.uniform1f(uloc(pS,'uScale'), state.scale);
+  gl.uniform1f(uloc(pS,'uReliefH'), state.reliefH);
+  gl.uniform1f(uloc(pS,'uLightAz'), state.lightAz);
+  gl.uniform1i(uloc(pS,'uView'), state.view);
+  setRamp(pS, 1);
+  drawQuad();
+}
+
+function renderSphere(x){
+  if (!extCBF) return failView('The sphere view needs EXT_color_buffer_float (float render targets), which this browser does not expose.');
+  const pS = sphereProg();
+  if (!pS) return failView('Sphere program failed to compile — see the console.');
+  if (!bakeCube(x)) return failView('Noise program failed to compile — see the console.');
+  if (!sphereMesh) sphereMesh = buildSphereMesh(192);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0,0,canvas.width,canvas.height);
+  gl.clearColor(0.02,0.03,0.045,1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+
+  const c = state.cam, cp = Math.cos(c.pitch);
+  const eye = [c.dist*cp*Math.sin(c.yaw), c.dist*Math.sin(c.pitch), c.dist*cp*Math.cos(c.yaw)];
+  const look = mLookAt(eye, [0,0,0], [0,1,0]);
+  const proj = mPerspective(35*Math.PI/180, canvas.width/Math.max(canvas.height,1), 0.05, 50);
+  const vp = mMul(proj, look.m);
+
+  gl.useProgram(pS);
+  gl.uniformMatrix4fv(uloc(pS,'uVP'), false, vp);
+  gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeTex);
+  gl.uniform1i(uloc(pS,'uCube'), 0);
+  gl.uniform1f(uloc(pS,'uDisp'), state.disp);
+  gl.uniform1f(uloc(pS,'uReliefH'), state.reliefH);
+  gl.uniform1f(uloc(pS,'uLightAz'), state.lightAz);
+  gl.uniform1f(uloc(pS,'uTexel'), 2.0/state.bakeRes);   // angular size of one texel at a face centre
+  gl.uniform3fv(uloc(pS,'uCamR'), look.x);
+  gl.uniform3fv(uloc(pS,'uCamU'), look.y);
+  gl.uniform3fv(uloc(pS,'uCamB'), look.z);
+  gl.uniform1i(uloc(pS,'uView'), state.view);
+  setRamp(pS, 1);
+  gl.bindVertexArray(sphereMesh.vao);
+  gl.drawElements(gl.TRIANGLES, sphereMesh.count, gl.UNSIGNED_INT, 0);
+  gl.bindVertexArray(null);
+  gl.disable(gl.DEPTH_TEST);
+}
+
 function render(){
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.viewport(0,0,canvas.width,canvas.height);
-  if (state.mode === 'composable'){
+  $('viewNote').textContent = '';
+  if (state.mode === 'composable' || state.mode === 'composite'){
+    const x = noiseNow();
+    if (state.shape === 'sphere') return renderSphere(x);
+    /* composites always go through the bake (see bakeProgramFor) */
+    if (state.mode === 'composite') return renderFlatBaked(x);
     const pTile = tileProgramFor(state.np, state.view);
     if (!pTile){ gl.clearColor(0.10,0.03,0.03,1); gl.clear(gl.COLOR_BUFFER_BIT); return; }
     gl.useProgram(pTile);
@@ -792,6 +1684,7 @@ function render(){
     gl.uniform1f(gl.getUniformLocation(pTile,'uReliefH'), state.reliefH);
     gl.uniform1f(gl.getUniformLocation(pTile,'uLightAz'), state.lightAz);
     N.uploadNoiseParams(gl, pTile, 'uNP', state.np);
+    setRamp(pTile, 1);
     drawQuad();
   } else if (state.specialKind === 'diamondSquare' && dsTex){
     gl.useProgram(pHeightTex);
@@ -831,7 +1724,8 @@ function frame(){
   requestAnimationFrame(frame);
 }
 
-resize(); rdSeed(); buildComposablePanel(); buildSpecialPanel(); render(); frame();
+resize(); rdSeed(); uploadGradient(); syncGradientUi(); syncShapeUi();
+buildComposablePanel(); buildSpecialPanel(); render(); frame();
 store.ready().then(refreshPresetList);
 </script>
 </body>

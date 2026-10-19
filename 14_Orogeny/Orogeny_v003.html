@@ -1560,6 +1560,79 @@ void main(){
   o.x = isoH(o.z);
 }`;
 
+/* ── the fold record rides the crust ──────────────────────────────────────
+   bakeFold writes the fold into the crust as dNew − dOld, where dOld (FD) is
+   what the last bake put there. The crust is advected between bakes; if FD is
+   not, the subtraction lands where the fold USED to be while the moved copy
+   stays in the rock. Every rebake (every PLATE_EVERY steps) then leaves the
+   previous pattern behind, displaced by the drift since — and the residues
+   stack into combed spikes trailing the orogen in the direction of motion.
+   So FD takes exactly the trip T takes: same backtrace, same fault clamp, same
+   MacCormack correction and limiter, and it is wiped where fresh seafloor
+   replaces the column (that crust never carried the fold). */
+const FS_FDADV = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+${ADVH}
+uniform sampler2DArray uFD;
+out vec4 o;
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 p = normalize(faceToDir(uFace, s));
+  int myId = int(texelFetch(uVF, ivec3(gl_FragCoord.xy, uFace), 0).w + 0.5);
+  vec3 vr = cross(plateOmega(myId), p);
+  float t = -uAdv;
+  vec3 src = geoStep(p, vr, t);
+  for (int k=0; k<4; k++){
+    if (plateAt(src) == myId) break;
+    t *= 0.5;
+    src = geoStep(p, vr, t);
+  }
+  float fd = fetchDir(uFD, src).x;
+  float dvg = texelFetch(uDV, ivec3(gl_FragCoord.xy, uFace), 0).x;
+  float type = fetchDir(uT, src).w;
+  fd *= 1.0 - clamp(dvg*uAdv, 0.0, 1.0)*uNewK*(1.0 - type);
+  float ex = -dvg*uAdv;
+  if (ex > 0.0) ex = mix(-ex*float(uSubduct), ex, type);
+  fd *= exp(clamp(ex*uComp, -0.35, 0.35));
+  o = vec4(fd, 0.0, 0.0, 1.0);
+}`;
+const FS_FDMACC = `#version 300 es
+precision highp float; precision highp sampler2DArray;
+${COMMON}
+${PLATES}
+${ADVH}
+uniform sampler2DArray uFD, uTA;
+out vec4 o;
+void main(){
+  vec2 s = fragToS(gl_FragCoord.xy);
+  vec3 p = normalize(faceToDir(uFace, s));
+  int myId = int(texelFetch(uVF, ivec3(gl_FragCoord.xy, uFace), 0).w + 0.5);
+  vec3 vr = cross(plateOmega(myId), p);
+  float t = -uAdv;
+  vec3 src = geoStep(p, vr, t);
+  for (int k=0; k<4; k++){
+    if (plateAt(src) == myId) break;
+    t *= 0.5;
+    src = geoStep(p, vr, t);
+  }
+  float qh = texelFetch(uTA, ivec3(gl_FragCoord.xy, uFace), 0).x;
+  float dvg = texelFetch(uDV, ivec3(gl_FragCoord.xy, uFace), 0).x;
+  float type = fetchDir(uT, src).w;
+  if (clamp(dvg*uAdv, 0.0, 1.0)*uNewK*(1.0 - type) > 0.02){ o = vec4(qh, 0.0, 0.0, 1.0); return; }
+  float qn = texelFetch(uFD, ivec3(gl_FragCoord.xy, uFace), 0).x;
+  float qt = fetchDir(uTA, geoStep(p, vr, -t)).x;
+  int f; vec2 sc; dirToFace(normalize(src), f, sc);
+  vec2 pp = sToUv(sc)*uNT - 0.5;
+  ivec2 i0 = ivec2(floor(pp)), mx = ivec2(int(uNT)-1);
+  float a = texelFetch(uFD, ivec3(clamp(i0,            ivec2(0), mx), f), 0).x;
+  float b = texelFetch(uFD, ivec3(clamp(i0+ivec2(1,0), ivec2(0), mx), f), 0).x;
+  float c = texelFetch(uFD, ivec3(clamp(i0+ivec2(0,1), ivec2(0), mx), f), 0).x;
+  float e = texelFetch(uFD, ivec3(clamp(i0+ivec2(1,1), ivec2(0), mx), f), 0).x;
+  o = vec4(clamp(qh + (qn - qt)*0.5, min(min(a,b), min(c,e)), max(max(a,b), max(c,e))), 0.0, 0.0, 1.0);
+}`;
+
 /* ─────────────────── pass 0c: initial terrain ─────────────────── */
 /* Built twice: once plain, and once per custom noise preset with the shared
    noise library injected. NOISE_GLSL is '' for the built-in build, so the
@@ -2487,6 +2560,8 @@ function upDivProgramFor(np){
 }
 const pAdvect = prog(VS_QUAD, FS_ADVECT);
 const pMacc   = prog(VS_QUAD, FS_MACC);
+const pFdAdv  = prog(VS_QUAD, FS_FDADV);
+const pFdMacc = prog(VS_QUAD, FS_FDMACC);
 const pRender = prog(VS_QUAD, FS_RENDER);
 const pDSeed  = prog(VS_QUAD, FS_DSEED);
 
@@ -2880,18 +2955,37 @@ function advSetup(p, a){
 function advectCrust(a){
   gl.disable(gl.BLEND);
   gl.viewport(0,0,NT,NT);
+  const tBefore = T[cur];      // the fold record traces against the same pre-step crust
 
   gl.useProgram(pAdvect); advSetup(pAdvect, a);
   gl.uniform1i(U(pAdvect,'uT'),  unit(0, T[cur]));
   const dst = P.macc ? TA : T[1-cur];
   for(let f=0; f<6; f++){ bindLayer(fb, dst, f); gl.uniform1i(U(pAdvect,'uFace'), f); drawQuad(); }
-  if (!P.macc){ cur = 1-cur; return; }        // first-order only, for A/B
+  if (!P.macc){ cur = 1-cur; advectFold(a, tBefore); return; }        // first-order only, for A/B
 
   gl.useProgram(pMacc); advSetup(pMacc, a);
   gl.uniform1i(U(pMacc,'uT'),  unit(0, T[cur]));
   gl.uniform1i(U(pMacc,'uTA'), unit(3, TA));
   for(let f=0; f<6; f++){ bindLayer(fb, T[1-cur], f); gl.uniform1i(U(pMacc,'uFace'), f); drawQuad(); }
   cur = 1-cur;
+  advectFold(a, tBefore);
+}
+// FD → TA (forward), then FD + TA → FD' (MacCormack). TA is free again once the crust is done.
+function advectFold(a, tBefore){
+  if (!FD.length) return;
+  gl.useProgram(pFdAdv); advSetup(pFdAdv, a);
+  gl.uniform1i(U(pFdAdv,'uT'),  unit(0, tBefore));
+  gl.uniform1i(U(pFdAdv,'uFD'), unit(3, FD[fdcur]));
+  const dst = P.macc ? TA : FD[1-fdcur];
+  for(let f=0; f<6; f++){ bindLayer(fb, dst, f); gl.uniform1i(U(pFdAdv,'uFace'), f); drawQuad(); }
+  if (P.macc){
+    gl.useProgram(pFdMacc); advSetup(pFdMacc, a);
+    gl.uniform1i(U(pFdMacc,'uT'),  unit(0, tBefore));
+    gl.uniform1i(U(pFdMacc,'uFD'), unit(3, FD[fdcur]));
+    gl.uniform1i(U(pFdMacc,'uTA'), unit(4, TA));
+    for(let f=0; f<6; f++){ bindLayer(fb, FD[1-fdcur], f); gl.uniform1i(U(pFdMacc,'uFace'), f); drawQuad(); }
+  }
+  fdcur = 1-fdcur;
 }
 
 // 0 = noise belts, 1 = analytic plates (static), 2 = advected id field, 3 = motion vectors

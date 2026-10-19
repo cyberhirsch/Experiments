@@ -11,6 +11,17 @@
      BASE_VARIANTS, BASE_KINDS, COMBINATORS, MODIFIERS, REMAP_MODES,
      SPECIAL_KINDS, PARAM_SCHEMA, defaultParams, uploadNoiseParams,
      variantFor
+   Composites (a layer stack evaluated in one shader — see the section below
+   glslForParams for the naming scheme and the layer cap):
+     MAX_LAYERS, BLEND_MODES, isComposite, normalizeComposite,
+     glslForComposite(comp, opts) / compositeKey / uploadCompositeParams,
+     glslForAny / keyForAny / uploadAny — single-or-composite dispatch
+   Gradient maps (display-only colour ramps carried on a preset):
+     GRADIENT_PRESETS, gradientColorAt, gradientTexels
+   High detail (all opt-in; an existing preset compiles and evaluates as before):
+     MAX_OCTAVES (16), setNoiseCut(gl, prog, cut), octaveWeights(np, cut),
+     effectiveOctaves(x, cut); compile with {cut:true} and key with
+     keyForAny(x, {cut:true}). See "band limit" in the GLSL below.
 
    ── Why specialization, not runtime dispatch ──────────────────────────────
    The first version branched on base and combinator with runtime ifs inside
@@ -83,7 +94,11 @@ float ridged(vec3 p, int oct){
 }
 `;
 
-const GLSL_BODY = `
+/* GLSL_BODY is two halves, split only so a COMPOSITE can emit the first half
+   once and the second half once per layer (see glslForComposite). Single-noise
+   output is GLSL_PRELUDE + GLSL_LAYER, which is the same string as before the
+   split, byte for byte. */
+const GLSL_PRELUDE = `
 /* not in the main tool's COMMON block, so always compiled */
 vec3 hash33(vec3 q){
   vec3 p3 = fract(q*vec3(0.1031, 0.1030, 0.0973));
@@ -113,7 +128,9 @@ struct NoiseParams {
   int   remapMode;
   float rFreq, rAmt, rThresh, rSoft;
 };
+`;
 
+const GLSL_LAYER = `
 /* ═══════════════════ base generators — one survives ═══════════════════ */
 
 #if OG_BASE == 2
@@ -368,43 +385,168 @@ float evalBaseUnit(vec3 p, NoiseParams np){
 #endif
 }
 
-/* ═══════════════════ combinator — one survives ═══════════════════ */
+/* ═══════════════════ band limit — opt-in (OG_CUT) ═══════════════════
+   A consumer that knows its sample spacing passes it as uNoiseCut, in the
+   units of the p it hands to evalNoise (a pixel's width on the designer's
+   tile, a texel's angle on a cube map). Each octave is then weighted by how
+   well that spacing resolves it:
+
+     sp_i = uNoiseCut * freq * lacunarity^i      lattice cells per sample
+     w_i  = 1 - smoothstep(0.25, 0.5, sp_i)
+
+   so an octave is whole while it gets four or more samples per cell, gone at
+   two (the Nyquist edge for a band whose period is one cell), and cross-fades
+   in between. The 0.25 / 0.5 edges are a CHOICE made from that sampling
+   argument, not a measurement. Octave 0 is never faded: with every octave
+   gone there would be nothing left to average, and a field whose coarsest
+   feature is below one sample is noise however it is drawn.
+
+   The fade weights the octave's contribution AND its share of the
+   normalizer, so in the four averaging combinators (fBm, turbulence, ridged,
+   billow) every octave has the same distribution and the field's expected
+   value does not move as octaves fade in and out — only its fine structure
+   does. Hybrid MF and multifractal are not averages; there a faded octave
+   contributes nothing (hybrid) or a factor of 1 (multifractal), which drops
+   that octave's share of the mean along with its detail.
+
+   Once one octave is fully faded every finer one is too (lacunarity >= 1.5),
+   so the loop breaks there. That is also what keeps fp32 honest at high
+   octave counts: the coordinate at octave i is lacunarity^i * freq * |p|,
+   which for 16 octaves at lacunarity 3 and frequency 50 would pass 2^24 and
+   stop resolving lattice cells at all — but any octave that fine is far
+   below any real sample spacing, faded, and never evaluated.
+
+   uNoiseCut = 0 makes every weight exactly 1. OG_CUT 0 (the default) does not
+   compile any of this: the code below is the code that was here before. */
+#if OG_CUT
+float ogCutQ(NoiseParams np){
+  float c = uNoiseCut*np.freq;
+  #if OG_ANISO
+    c *= max(np.aniStretch, 1.0);      // the stretch compresses one axis
+  #endif
+  return c;
+}
+float ogOctFade(float sp){ return 1.0 - smoothstep(0.25, 0.5, sp); }
+#endif
+
+/* The original fbm()/ridged() fast path, extended. They live in the host's
+   COMMON block and are capped at 8 octaves with no fade, and they cannot be
+   changed without changing every Orogeny version. These copies have the same
+   constants (2.03 / 2.07, gain 0.5, lacunarity ignored, as there), run to
+   OG_OCTMAX and take the fade. Without OG_CUT the statements are the
+   originals', so at 8 octaves or fewer the value is the same — and going from
+   8 to 9 octaves adds one octave rather than switching to combFbm's
+   different normalization. */
+#if OG_BASE == 1 && (OG_CUT || OG_OCTMAX > 8)
+float ogFbmV(vec3 p, int oct, float sp){
+  float a=0.5, s=0.0, n=0.0;
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=oct) break;
+  #if OG_CUT
+    float w = (i == 0) ? 1.0 : ogOctFade(sp);
+    if (w <= 0.0) break;
+    s += a*w*vnoise(p); n += a*w; sp *= 2.03;
+  #else
+    s += a*vnoise(p); n += a;
+  #endif
+    p *= 2.03; a *= 0.5; }
+  return s/max(n,1e-5);
+}
+float ogRidgedV(vec3 p, int oct, float sp){
+  float a=0.5, s=0.0, n=0.0;
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=oct) break;
+  #if OG_CUT
+    float w = (i == 0) ? 1.0 : ogOctFade(sp);
+    if (w <= 0.0) break;
+    s += a*w*(1.0 - abs(vnoise(p)*2.0-1.0)); n += a*w; sp *= 2.07;
+  #else
+    s += a*(1.0 - abs(vnoise(p)*2.0-1.0)); n += a;
+  #endif
+    p *= 2.07; a *= 0.5; }
+  return s/max(n,1e-5);
+}
+#endif
+
+/* ═══════════════════ combinator — one survives ═══════════════════
+   Loops run to OG_OCTMAX: 8, as always, unless the preset asks for more than
+   8 octaves, when the program is compiled with 16. Doubling the bound for
+   everyone would double the unrolled code of every existing program for
+   nothing. Each combinator has its loop twice, under #if OG_CUT / #else, so
+   evalBaseUnit is still instantiated exactly once in whichever survives. */
 
 #if OG_COMB == 1 || OG_COMB == 7
 float combFbm(vec3 p, NoiseParams np){
   float amp=0.5, s=0.0, n=0.0; vec3 q=p;
-  for(int i=0;i<8;i++){ if(i>=np.octaves) break; s += amp*evalBaseUnit(q,np); n += amp; q *= np.lacunarity; amp *= np.gain; }
+#if OG_CUT
+  float sp = ogCutQ(np);
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break;
+    float w = (i == 0) ? 1.0 : ogOctFade(sp); if (w <= 0.0) break;
+    s += amp*w*evalBaseUnit(q,np); n += amp*w; q *= np.lacunarity; amp *= np.gain; sp *= np.lacunarity; }
+#else
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break; s += amp*evalBaseUnit(q,np); n += amp; q *= np.lacunarity; amp *= np.gain; }
+#endif
   return s/max(n,1e-5);
 }
 #endif
 #if OG_COMB == 2
 float combTurbulence(vec3 p, NoiseParams np){
   float amp=0.5, s=0.0, n=0.0; vec3 q=p;
-  for(int i=0;i<8;i++){ if(i>=np.octaves) break; s += amp*abs(evalBaseUnit(q,np)); n += amp; q *= np.lacunarity; amp *= np.gain; }
+#if OG_CUT
+  float sp = ogCutQ(np);
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break;
+    float w = (i == 0) ? 1.0 : ogOctFade(sp); if (w <= 0.0) break;
+    s += amp*w*abs(evalBaseUnit(q,np)); n += amp*w; q *= np.lacunarity; amp *= np.gain; sp *= np.lacunarity; }
+#else
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break; s += amp*abs(evalBaseUnit(q,np)); n += amp; q *= np.lacunarity; amp *= np.gain; }
+#endif
   return s/max(n,1e-5)*2.0-1.0;
 }
 #endif
 #if OG_COMB == 3
 float combRidged(vec3 p, NoiseParams np){
   float amp=0.5, s=0.0, n=0.0; vec3 q=p;
-  for(int i=0;i<8;i++){ if(i>=np.octaves) break; s += amp*(1.0-abs(evalBaseUnit(q,np))); n += amp; q *= np.lacunarity; amp *= np.gain; }
+#if OG_CUT
+  float sp = ogCutQ(np);
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break;
+    float w = (i == 0) ? 1.0 : ogOctFade(sp); if (w <= 0.0) break;
+    s += amp*w*(1.0-abs(evalBaseUnit(q,np))); n += amp*w; q *= np.lacunarity; amp *= np.gain; sp *= np.lacunarity; }
+#else
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break; s += amp*(1.0-abs(evalBaseUnit(q,np))); n += amp; q *= np.lacunarity; amp *= np.gain; }
+#endif
   return s/max(n,1e-5)*2.0-1.0;
 }
 #endif
 #if OG_COMB == 4
 float combBillow(vec3 p, NoiseParams np){
   float amp=0.5, s=0.0, n=0.0; vec3 q=p;
-  for(int i=0;i<8;i++){ if(i>=np.octaves) break; s += amp*(2.0*abs(evalBaseUnit(q,np))-1.0); n += amp; q *= np.lacunarity; amp *= np.gain; }
+#if OG_CUT
+  float sp = ogCutQ(np);
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break;
+    float w = (i == 0) ? 1.0 : ogOctFade(sp); if (w <= 0.0) break;
+    s += amp*w*(2.0*abs(evalBaseUnit(q,np))-1.0); n += amp*w; q *= np.lacunarity; amp *= np.gain; sp *= np.lacunarity; }
+#else
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break; s += amp*(2.0*abs(evalBaseUnit(q,np))-1.0); n += amp; q *= np.lacunarity; amp *= np.gain; }
+#endif
   return s/max(n,1e-5);
 }
 #endif
 #if OG_COMB == 5
 float combHybridMF(vec3 p, NoiseParams np){
   float offset=0.7, weight=1.0, s=0.0, amp=1.0; vec3 q=p;
-  for(int i=0;i<8;i++){
+#if OG_CUT
+  float sp = ogCutQ(np);
+#endif
+  for(int i=0;i<OG_OCTMAX;i++){
     if(i>=np.octaves) break;
+#if OG_CUT
+    float w = (i == 0) ? 1.0 : ogOctFade(sp); if (w <= 0.0) break;
+    sp *= np.lacunarity;
+#endif
     float sig = (evalBaseUnit(q,np)+offset)*amp;
+#if OG_CUT
+    s += w*weight*sig;
+#else
     s += weight*sig;
+#endif
     weight = clamp(weight*clamp(sig,0.0,1.0), 0.0, 1.0);
     q *= np.lacunarity; amp *= np.gain;
   }
@@ -414,7 +556,14 @@ float combHybridMF(vec3 p, NoiseParams np){
 #if OG_COMB == 6
 float combMultifractal(vec3 p, NoiseParams np){
   float s=1.0, amp=1.0; vec3 q=p;
-  for(int i=0;i<8;i++){ if(i>=np.octaves) break; s *= (evalBaseUnit(q,np)*amp*0.5+1.0); q *= np.lacunarity; amp *= np.gain; }
+#if OG_CUT
+  float sp = ogCutQ(np);
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break;
+    float w = (i == 0) ? 1.0 : ogOctFade(sp); if (w <= 0.0) break;
+    s *= mix(1.0, evalBaseUnit(q,np)*amp*0.5+1.0, w); q *= np.lacunarity; amp *= np.gain; sp *= np.lacunarity; }
+#else
+  for(int i=0;i<OG_OCTMAX;i++){ if(i>=np.octaves) break; s *= (evalBaseUnit(q,np)*amp*0.5+1.0); q *= np.lacunarity; amp *= np.gain; }
+#endif
   return clamp(s-1.0, -1.0, 1.0);
 }
 #endif
@@ -437,15 +586,39 @@ vec3 applyAniso(vec3 p, float angle, float stretch){
   xy.x *= max(stretch, 0.05);
   return vec3(xy, p.z);
 }
+/* Under OG_CUT the warp fields take the same fade: an aliased warp field
+   jitters the lookup position from sample to sample, which reads as noise in
+   the result even when every octave of the warped field is itself resolved.
+   ogFbm3 is fbm(x, 3) — same constants — with the per-octave weight. The
+   warp's own stretching of the domain is NOT folded into the cut; a strong
+   warp compresses some regions below the spacing the cut assumes. */
+#if OG_CUT && (OG_WARP || OG_CURL)
+float ogFbm3(vec3 p, float sp){
+  float a=0.5, s=0.0, n=0.0;
+  for(int i=0;i<3;i++){
+    float w = (i == 0) ? 1.0 : ogOctFade(sp);
+    s += a*w*vnoise(p); n += a*w; p *= 2.03; a *= 0.5; sp *= 2.03; }
+  return s/max(n,1e-5);
+}
+#endif
 #if OG_WARP
 vec3 domainWarp(vec3 p, NoiseParams np){
   vec3 q = p;
   int iters = clamp(np.warpIter, 1, 4);
+#if OG_CUT
+  float sw = ogCutQ(np)*0.7;           // the warp field is sampled at q*0.7
+#endif
   for(int i=0;i<4;i++){
     if (i>=iters) break;
+#if OG_CUT
+    vec3 w = vec3(ogFbm3(q*0.7 + vec3( 3.1,  1.7,  9.2), sw),
+                  ogFbm3(q*0.7 + vec3(13.7,  5.3,  2.1), sw),
+                  ogFbm3(q*0.7 + vec3(29.3, 17.9,  4.4), sw)) - 0.5;
+#else
     vec3 w = vec3(fbm(q*0.7 + vec3( 3.1,  1.7,  9.2), 3),
                   fbm(q*0.7 + vec3(13.7,  5.3,  2.1), 3),
                   fbm(q*0.7 + vec3(29.3, 17.9,  4.4), 3)) - 0.5;
+#endif
     q = q + w*np.warpAmt;
   }
   return q;
@@ -454,9 +627,16 @@ vec3 domainWarp(vec3 p, NoiseParams np){
 #if OG_CURL
 vec3 curlWarp(vec3 p, NoiseParams np){
   float e = 0.05;
+#if OG_CUT
+  float sc = ogCutQ(np);
+  float n1 = ogFbm3(p+vec3(0,e,0),sc), n2 = ogFbm3(p-vec3(0,e,0),sc);
+  float n3 = ogFbm3(p+vec3(0,0,e),sc), n4 = ogFbm3(p-vec3(0,0,e),sc);
+  float n5 = ogFbm3(p+vec3(e,0,0),sc), n6 = ogFbm3(p-vec3(e,0,0),sc);
+#else
   float n1 = fbm(p+vec3(0,e,0),3), n2 = fbm(p-vec3(0,e,0),3);
   float n3 = fbm(p+vec3(0,0,e),3), n4 = fbm(p-vec3(0,0,e),3);
   float n5 = fbm(p+vec3(e,0,0),3), n6 = fbm(p-vec3(e,0,0),3);
+#endif
   vec3 c = vec3((n1-n2)-(n3-n4), (n3-n4)-(n5-n6), (n5-n6)-(n1-n2)) / (2.0*e);
   return p + c*np.curlAmt;
 }
@@ -513,11 +693,26 @@ float evalNoise(vec3 p, NoiseParams np){
 #if OG_BASE == 1 && !OG_WARP && !OG_CURL && !OG_ANISO && (OG_COMB == 1 || OG_COMB == 3)
   /* bit-identical fast path: the original fbm()/ridged() on value noise, so
      the main tool's existing terrain init reproduces exactly. Fold and remap,
-     when enabled, are applied after and do not disturb that equivalence. */
+     when enabled, are applied after and do not disturb that equivalence.
+     Past 8 octaves or with the band limit on, the extended copies take over
+     (see ogFbmV); at 8 or fewer without the cut, nothing here changed. */
+  #if OG_CUT || OG_OCTMAX > 8
+    #if OG_CUT
+      float sp0 = ogCutQ(np);
+    #else
+      float sp0 = 0.0;
+    #endif
+    #if OG_COMB == 1
+      v = ogFbmV(q, np.octaves, sp0)*2.0-1.0;
+    #else
+      v = ogRidgedV(q, np.octaves, sp0)*2.0-1.0;
+    #endif
+  #else
   #if OG_COMB == 1
     v = fbm(q, np.octaves)*2.0-1.0;
   #else
     v = ridged(q, np.octaves)*2.0-1.0;
+  #endif
   #endif
 #else
   #if OG_ANISO
@@ -572,11 +767,13 @@ vec4 evalNoiseD(vec3 p, NoiseParams np){
 #endif
 `;
 
-function glslFor(base, comb, opts){
-  opts = opts || {};
+const GLSL_BODY = GLSL_PRELUDE + GLSL_LAYER;
+
+/* The specialization switches for one noise. Factored out so glslFor and the
+   per-layer emitter in glslForComposite cannot drift apart. */
+function defineLines(base, comb, opts){
   const kmode = base === 7 ? 1 : (base === 8 ? 2 : 0);
   return [
-    opts.omitShared ? '' : GLSL_SHARED,
     '#define OG_BASE '  + (base|0),
     '#define OG_COMB '  + (comb|0),
     '#define OG_FIDX '  + (opts.fIndex|0),
@@ -587,16 +784,40 @@ function glslFor(base, comb, opts){
     '#define OG_FOLD '  + (opts.fold  ? 1 : 0),
     '#define OG_REMAP ' + (opts.remap|0),
     '#define OG_WANT_DERIV ' + (opts.deriv ? 1 : 0),
+    /* added for high detail; both default to the old behaviour. Every older
+       page gets these two lines too, and with them nothing in the body differs. */
+    '#define OG_OCTMAX ' + ((opts.octMax|0) > 8 ? 16 : 8),
+    '#define OG_CUT '    + (opts.cut ? 1 : 0),
+  ];
+}
+const OG_MACROS = ['OG_BASE','OG_COMB','OG_FIDX','OG_KMODE','OG_WARP','OG_CURL',
+                   'OG_ANISO','OG_FOLD','OG_REMAP','OG_WANT_DERIV','OG_OCTMAX','OG_CUT'];
+/* the band-limit uniform: declared once per program, only when asked for */
+const CUT_UNIFORM = 'uniform float uNoiseCut;   // sample spacing in p units; 0 = no band limit';
+const MAX_OCTAVES = 16;
+
+function glslFor(base, comb, opts){
+  opts = opts || {};
+  return [
+    opts.omitShared ? '' : GLSL_SHARED,
+    ...defineLines(base, comb, opts),
+    ...(opts.cut ? [CUT_UNIFORM] : []),
     GLSL_BODY,
   ].join('\n');
 }
 /* Program cache key. fIndex only participates when the base is cellular, so
-   the other bases do not fragment the cache into twelve identical programs. */
+   the other bases do not fragment the cache into twelve identical programs.
+   The octave bound only appears when it is not the old 8, so every key an
+   existing page has ever built is unchanged. The cut is a per-PROGRAM option
+   the host chooses, not a preset property, so it is not in here — a host
+   that compiles with {cut:true} keys on keyForAny(x, {cut:true}). */
 function glslKey(np){
   const fi = (np.base === 4) ? (np.fIndex|0) : 0;
   return [np.base, np.combinator, fi, np.warpOn?1:0, np.curlOn?1:0,
-          np.aniOn?1:0, np.foldOn?1:0, np.remapMode|0].join('_');
+          np.aniOn?1:0, np.foldOn?1:0, np.remapMode|0].join('_')
+       + ((np.octaves|0) > 8 ? '_o16' : '');
 }
+/* opts.cut — compile the band limit in (declares uNoiseCut; see setNoiseCut) */
 function glslForParams(np, opts){
   opts = (typeof opts === 'boolean') ? { deriv: opts } : (opts || {});
   return glslFor(np.base, np.combinator, {
@@ -604,7 +825,328 @@ function glslForParams(np, opts){
     warp: !!np.warpOn, curl: !!np.curlOn, aniso: !!np.aniOn,
     fold: !!np.foldOn, remap: np.remapMode|0,
     deriv: !!opts.deriv, omitShared: !!opts.omitShared,
+    octMax: np.octaves|0, cut: !!opts.cut,
   });
+}
+
+/* ─── band-limit helpers for hosts ─── */
+/* Set the cut on a program compiled with {cut:true}: the spacing between
+   neighbouring samples, in the units of the p passed to evalNoise. A no-op on
+   a program without the uniform, so it is safe to call unconditionally. */
+function setNoiseCut(gl, prog, cut){
+  const l = gl.getUniformLocation(prog, 'uNoiseCut');
+  if (l) gl.uniform1f(l, Math.max(0, +cut || 0));
+}
+const smooth01 = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a)/(b - a))); return t*t*(3 - 2*t); };
+/* JS mirror of the shader's per-octave weights for one noise at a given cut:
+   the same lacunarity the shader uses (the value fast path's fixed 2.03 /
+   2.07 included), the same anisotropy factor, the same early stop. */
+function octaveWeights(np, cut){
+  const p = Object.assign(defaultParams(), np);
+  const comb = p.combinator|0;
+  if (comb === 0) return [1];
+  const fast = p.base === 1 && !p.warpOn && !p.curlOn && !p.aniOn && (comb === 1 || comb === 3);
+  const lac = fast ? (comb === 1 ? 2.03 : 2.07) : p.lacunarity;
+  const n = Math.max(1, Math.min(MAX_OCTAVES, p.octaves|0));
+  let sp = Math.max(0, +cut || 0)*p.freq*(p.aniOn && !fast ? Math.max(p.aniStretch, 1) : 1);
+  const w = [];
+  for (let i=0; i<n; i++){
+    const wi = i === 0 ? 1 : 1 - smooth01(0.25, 0.5, sp);
+    if (wi <= 0) break;
+    w.push(wi); sp *= lac;
+  }
+  return w;
+}
+/* { active, total }: the summed weights (fractional while an octave fades)
+   against the octaves asked for. For a composite, one entry per layer. */
+function effectiveOctaves(x, cut){
+  const one = np => {
+    const p = Object.assign(defaultParams(), np);
+    const total = (p.combinator|0) === 0 ? 1 : Math.max(1, Math.min(MAX_OCTAVES, p.octaves|0));
+    return { active: octaveWeights(p, cut).reduce((a, b) => a + b, 0), total };
+  };
+  return isComposite(x) ? normalizeComposite(x).layers.map(L => one(L.np)) : one(x);
+}
+
+/* ═══════════════════════════ composites ═══════════════════════════
+   A layer stack: up to MAX_LAYERS full noise parameter sets, each with a blend
+   mode, a weight and an optional mask, evaluated in ONE shader.
+
+   ── Why the generated code does not collide ──────────────────────────────
+   Every layer needs its own specialization (OG_BASE, OG_COMB, ...), and the
+   preprocessor constants are global. So each layer is emitted as its own copy
+   of GLSL_LAYER, bracketed by its #defines and by #undefs of all ten macros,
+   and every FUNCTION that copy defines is renamed with a _L<i> suffix
+   (evalNoise -> evalNoise_L0, cellular -> cellular_L2, ...). The list of names
+   is not hand-maintained: it is scraped from GLSL_LAYER below, so a generator
+   added to the library later is renamed automatically. The only other global
+   in GLSL_LAYER is the OG_KMAX macro, which is identical in every copy and is
+   wrapped in #ifndef so the second kernel-family layer does not redefine it.
+   hash33, NoiseParams and the GLSL_SHARED helpers are layer-independent and are
+   emitted once.
+
+   ── Why blend, weight and mask are uniforms, not #defines ─────────────────
+   The rule this library lives by is that HEAVY code must not be duplicated
+   behind runtime branches. The blend switch below holds nine one-line float
+   expressions and the mask switch five scalar selects; no branch contains a
+   noise evaluation. So they are runtime uniforms, and changing a blend mode or
+   a mask in the designer does not recompile. Only the per-layer noise
+   specialization participates in the cache key.
+
+   ── Why a cap of 4 ────────────────────────────────────────────────────────
+   Two budgets, both linear in the layer count:
+     · Code size. Each layer is one full specialized evalNoise — the same body
+       a single-noise program has — and ALL layers are evaluated at every
+       sample, because a mask may reference any layer, before or after. A
+       program with N layers is roughly N single-noise programs inlined into
+       one. Any host that calls evalNoise k times per fragment (the designer's
+       direct relief view calls it three times) multiplies that again, which is
+       why the designer renders composites through a bake pass that calls it
+       exactly once.
+     · Uniform space. NoiseParams has 34 members. WebGL2 guarantees only 224
+       fragment uniform vectors, and an implementation may spend a whole vec4
+       per scalar member, so four layers can cost up to 136 vectors before the
+       host's own uniforms. A sixth layer would reach 204.
+   Four keeps both well inside what the single-noise path already proved safe.
+
+   ── Value convention ───────────────────────────────────────────────────────
+   Each layer's evalNoise output in [-1,1] is mapped to u in [0,1] and clamped,
+   blending happens in [0,1] (where multiply, screen and overlay mean what
+   they mean in an image editor), and the result goes back to [-1,1] so that
+   evalComposite is a drop-in replacement for evalNoise. The accumulator
+   starts at 0.5 — signed zero — and layer 0 always MIXES onto it, so layer 0
+   at weight 1 is the layer itself and at weight 0.5 is that layer at half
+   contrast. ADD and SUBTRACT are signed: they add (u - 0.5), i.e. they add
+   detail around the current value instead of lifting the whole field. Nothing
+   clamps the accumulator, so stacked adds can leave [-1,1]; the gradient map
+   clamps, the planet's terrain init takes the value as it comes.            */
+const MAX_LAYERS = 4;
+const BLEND_MODES = [
+  { id:0, key:'mix',        label:'Mix (lerp)' },
+  { id:1, key:'add',        label:'Add (signed)' },
+  { id:2, key:'subtract',   label:'Subtract (signed)' },
+  { id:3, key:'multiply',   label:'Multiply' },
+  { id:4, key:'screen',     label:'Screen' },
+  { id:5, key:'overlay',    label:'Overlay' },
+  { id:6, key:'max',        label:'Max (lighten)' },
+  { id:7, key:'min',        label:'Min (darken)' },
+  { id:8, key:'difference', label:'Difference' },
+];
+function blendId(key){
+  const b = BLEND_MODES.find(x => x.key === key || x.id === key);
+  return b ? b.id : 0;
+}
+
+/* function names DEFINED by GLSL_LAYER: any line at column 0 that reads
+   "<type> <name>(" — bodies are indented, so calls never match */
+const LAYER_SYMBOLS = (function(){
+  const re = /^(?:float|int|vec[234]|ivec[234]|bool|mat[234])\s+([A-Za-z_]\w*)\s*\(/gm;
+  const s = new Set(); let m;
+  while ((m = re.exec(GLSL_LAYER))) s.add(m[1]);
+  return [...s];
+})();
+const LAYER_SYM_RE = new RegExp('\\b(' + LAYER_SYMBOLS.join('|') + ')\\b', 'g');
+
+function isComposite(x){
+  return !!(x && x.mode === 'composite' && Array.isArray(x.layers) &&
+            x.layers.some(L => L && L.np));
+}
+
+/* Accepts a composite preset, a bare {layers} or a layers array. Returns a
+   fresh object with every np completed from defaults, at most MAX_LAYERS
+   layers, and masks that point at a layer which does not exist dropped. Safe
+   to call on records hand-edited or written by an older designer. */
+function normalizeComposite(c){
+  const src = (Array.isArray(c) ? c : (c && c.layers) || []).filter(L => L && L.np).slice(0, MAX_LAYERS);
+  const n = src.length;
+  const layers = src.map((L, i) => {
+    let mask = null;
+    const m = L.mask;
+    if (m && m.src === 'result' && i > 0) mask = { src:'result', invert: !!m.invert };
+    else if (m && m.src === 'layer' && (m.layer|0) >= 0 && (m.layer|0) < n && (m.layer|0) !== i)
+      mask = { src:'layer', layer: m.layer|0, invert: !!m.invert };
+    const w = +L.weight;
+    return {
+      np: Object.assign(defaultParams(), L.np),
+      blend: BLEND_MODES[blendId(L.blend)].key,
+      weight: isFinite(w) ? w : 1,
+      mask,
+    };
+  });
+  return { mode:'composite', layers };
+}
+
+function optsForParams(np, cut){
+  return {
+    fIndex: (np.base === 4) ? np.fIndex : 0,
+    warp: !!np.warpOn, curl: !!np.curlOn, aniso: !!np.aniOn,
+    fold: !!np.foldOn, remap: np.remapMode|0, deriv: false,
+    octMax: np.octaves|0, cut: !!cut,
+  };
+}
+function layerGlsl(np, i, cut){
+  const body = GLSL_LAYER
+    .replace('#define OG_KMAX 4', '#ifndef OG_KMAX\n#define OG_KMAX 4\n#endif')
+    .replace(LAYER_SYM_RE, '$1_L' + i);
+  return [
+    '/* ─── composite layer ' + i + ' ─── */',
+    ...defineLines(np.base|0, np.combinator|0, optsForParams(np, cut)),
+    body,
+    ...OG_MACROS.map(m => '#undef ' + m),
+  ].join('\n');
+}
+
+/* glslForComposite(comp, opts) -> GLSL defining
+     float evalComposite(vec3 p)          — [-1,1], like evalNoise
+   plus its own uniforms:
+     uniform NoiseParams    <prefix>L<i>;  one per layer
+     uniform CompositeLayer <prefix>C<i>;  blend / weight / mask per layer
+   opts.prefix      uniform prefix, default 'uComp'
+   opts.omitShared  as for glslFor — drop the hash13/vnoise/fbm/ridged copies
+   opts.alias       also define float evalNoise(vec3 p, NoiseParams np) that
+                    ignores np and returns evalComposite(p). A host shader
+                    written against the single-noise signature — one that
+                    declares `uniform NoiseParams uNP;` and calls
+                    evalNoise(p, uNP) — then takes a composite unchanged.  */
+function glslForComposite(comp, opts){
+  opts = opts || {};
+  const pre = opts.prefix || 'uComp';
+  const c = normalizeComposite(comp);
+  const n = c.layers.length;
+  const out = [opts.omitShared ? '' : GLSL_SHARED, GLSL_PRELUDE];
+  if (opts.cut) out.push(CUT_UNIFORM);   // one cut for the whole stack: it is the HOST's sample spacing
+  c.layers.forEach((L, i) => out.push(layerGlsl(L.np, i, !!opts.cut)));
+  out.push(`
+/* ═══════════════════ composite: ${n} layer${n === 1 ? '' : 's'} ═══════════════════ */
+struct CompositeLayer { int blend; float weight; int maskSrc; int maskInv; };
+${c.layers.map((L, i) => `uniform NoiseParams ${pre}L${i};\nuniform CompositeLayer ${pre}C${i};`).join('\n')}
+
+/* target value of one blend, in [0,1] space; the weight is applied by mix() */
+float ogCompBlend(float r, float u, int mode){
+  if (mode == 1) return r + (u - 0.5);
+  if (mode == 2) return r - (u - 0.5);
+  if (mode == 3) return r*u;
+  if (mode == 4) return 1.0 - (1.0 - r)*(1.0 - u);
+  if (mode == 5) return r < 0.5 ? 2.0*r*u : 1.0 - 2.0*(1.0 - r)*(1.0 - u);
+  if (mode == 6) return max(r, u);
+  if (mode == 7) return min(r, u);
+  if (mode == 8) return abs(r - u);
+  return u;
+}
+/* maskSrc: -1 none, 0..3 that layer's own u, 4 the result so far */
+float ogCompMask(CompositeLayer c, float r, float u0, float u1, float u2, float u3){
+  if (c.maskSrc < 0) return 1.0;
+  float m = (c.maskSrc == 0) ? u0 : (c.maskSrc == 1) ? u1 : (c.maskSrc == 2) ? u2
+          : (c.maskSrc == 3) ? u3 : r;
+  m = clamp(m, 0.0, 1.0);
+  return (c.maskInv != 0) ? 1.0 - m : m;
+}
+
+float evalComposite(vec3 p){
+${[0,1,2,3].map(i => i < n
+    ? `  float u${i} = clamp(evalNoise_L${i}(p, ${pre}L${i})*0.5 + 0.5, 0.0, 1.0);`
+    : `  float u${i} = 0.0;`).join('\n')}
+  float r = 0.5;
+${c.layers.map((L, i) => i === 0
+    ? `  r = mix(r, u0, ${pre}C0.weight*ogCompMask(${pre}C0, r, u0, u1, u2, u3));   // layer 0 always mixes`
+    : `  r = mix(r, ogCompBlend(r, u${i}, ${pre}C${i}.blend), ${pre}C${i}.weight*ogCompMask(${pre}C${i}, r, u0, u1, u2, u3));`).join('\n')}
+  return r*2.0 - 1.0;
+}
+${opts.alias ? 'float evalNoise(vec3 p, NoiseParams np){ return evalComposite(p); }' : ''}
+`);
+  return out.join('\n');
+}
+/* Cache key. Only the per-layer specialization changes the program; blend,
+   weight and mask are uniforms. The layer count is implied by the parts. */
+function compositeKey(comp){
+  const c = normalizeComposite(comp);
+  return 'C' + c.layers.length + ':' + c.layers.map(L => glslKey(L.np)).join('+');
+}
+function uploadCompositeParams(gl, prog, name, comp){
+  const pre = name || 'uComp';
+  const c = normalizeComposite(comp);
+  c.layers.forEach((L, i) => {
+    uploadNoiseParams(gl, prog, pre + 'L' + i, L.np);
+    const loc = f => gl.getUniformLocation(prog, pre + 'C' + i + '.' + f);
+    let l;
+    if ((l = loc('blend')))   gl.uniform1i(l, i === 0 ? 0 : blendId(L.blend));
+    if ((l = loc('weight')))  gl.uniform1f(l, L.weight);
+    const ms = !L.mask ? -1 : (L.mask.src === 'result' ? 4 : (L.mask.layer|0));
+    if ((l = loc('maskSrc'))) gl.uniform1i(l, ms);
+    if ((l = loc('maskInv'))) gl.uniform1i(l, L.mask && L.mask.invert ? 1 : 0);
+  });
+}
+
+/* Single-or-composite dispatch, so a host can hold either and not care.
+   A composite is always emitted with the evalNoise alias and the default
+   uniform prefix; `name` is the host's NoiseParams uniform and is used only
+   for a single noise. */
+function glslForAny(x, opts){
+  opts = opts || {};
+  return isComposite(x)
+    ? glslForComposite(x, { omitShared: !!opts.omitShared, alias: true, cut: !!opts.cut })
+    : glslForParams(x, opts);
+}
+/* opts.cut must match what the program was compiled with; without it the key
+   is exactly what it always was */
+function keyForAny(x, opts){
+  return (isComposite(x) ? compositeKey(x) : glslKey(x)) + (opts && opts.cut ? '|cut' : '');
+}
+function uploadAny(gl, prog, name, x){
+  if (isComposite(x)) uploadCompositeParams(gl, prog, 'uComp', x);
+  else uploadNoiseParams(gl, prog, name, x);
+}
+
+/* ═══════════════════════════ gradient maps ═══════════════════════════
+   A colour ramp over the final value, stored on a preset as
+     gradient: { stops: [{ t, color:[r,g,b] }], range: [lo, hi] }
+   colour components in 0..1, t in 0..1 along the ramp, range in VALUE space
+   ([-1,1] by default: lo maps to t=0, hi to t=1). Display only — consumers
+   that do not colour by it (the planet tool) ignore the field.            */
+const GRADIENT_PRESETS = [
+  { key:'designer', label:'Designer blue', stops:[
+      {t:0, color:[0.02,0.05,0.09]}, {t:1, color:[0.56,0.78,0.91]} ] },
+  { key:'terrain', label:'Terrain', stops:[
+      {t:0.00, color:[0.03,0.08,0.20]}, {t:0.44, color:[0.13,0.34,0.55]},
+      {t:0.50, color:[0.80,0.74,0.54]}, {t:0.56, color:[0.32,0.50,0.23]},
+      {t:0.74, color:[0.44,0.39,0.33]}, {t:0.90, color:[0.62,0.60,0.58]},
+      {t:1.00, color:[0.96,0.97,0.98]} ] },
+  { key:'ice', label:'Ice', stops:[
+      {t:0, color:[0.04,0.09,0.18]}, {t:0.40, color:[0.33,0.53,0.73]},
+      {t:0.75, color:[0.76,0.88,0.95]}, {t:1, color:[1,1,1]} ] },
+  { key:'lava', label:'Lava', stops:[
+      {t:0, color:[0.02,0.01,0.01]}, {t:0.45, color:[0.25,0.03,0.02]},
+      {t:0.70, color:[0.85,0.25,0.03]}, {t:0.88, color:[1.0,0.65,0.10]},
+      {t:1, color:[1.0,0.95,0.70]} ] },
+  { key:'desert', label:'Desert', stops:[
+      {t:0, color:[0.36,0.22,0.14]}, {t:0.40, color:[0.66,0.45,0.27]},
+      {t:0.75, color:[0.86,0.70,0.48]}, {t:1, color:[0.97,0.90,0.74]} ] },
+  { key:'grey', label:'Grey', stops:[
+      {t:0, color:[0,0,0]}, {t:1, color:[1,1,1]} ] },
+];
+/* linear interpolation in the stored (display) space; stops need not be sorted */
+function gradientColorAt(stops, t){
+  const s = (stops || []).slice().sort((a,b) => a.t - b.t);
+  if (!s.length) return [t,t,t];
+  if (t <= s[0].t) return s[0].color.slice();
+  for (let i=1;i<s.length;i++){
+    if (t <= s[i].t){
+      const a = s[i-1], b = s[i], f = (t - a.t)/Math.max(b.t - a.t, 1e-6);
+      return [0,1,2].map(k => a.color[k] + (b.color[k] - a.color[k])*f);
+    }
+  }
+  return s[s.length-1].color.slice();
+}
+/* n RGBA8 texels, ready for texImage2D(..., n, 1, ...) */
+function gradientTexels(gradient, n){
+  n = n || 256;
+  const out = new Uint8Array(n*4), stops = (gradient && gradient.stops) || GRADIENT_PRESETS[0].stops;
+  for (let i=0;i<n;i++){
+    const c = gradientColorAt(stops, i/(n-1));
+    for (let k=0;k<3;k++) out[i*4+k] = Math.max(0, Math.min(255, Math.round(c[k]*255)));
+    out[i*4+3] = 255;
+  }
+  return out;
 }
 
 /* ═══════════════════════════ JS-side catalog ═══════════════════════════ */
@@ -718,7 +1260,9 @@ const PARAM_SCHEMA = {
   waveAngle:    { label:'Angle offset',    type:'range', min:0, max:6.283, step:0.01, default:0 },
   kernelBW:     { label:'Bandwidth',       type:'range', min:0.05, max:2, step:0.01, default:0.4 },
   kernelOrient: { label:'Orientation',     type:'range', min:0, max:6.283, step:0.01, default:0 },
-  octaves:      { label:'Octaves',         type:'range', min:1, max:8, step:1, default:5 },
+  /* max 16: above 8 the program compiles with a 16-iteration bound (glslKey
+     gains '_o16'); 8 or fewer compiles exactly as it always did */
+  octaves:      { label:'Octaves',         type:'range', min:1, max:16, step:1, default:5 },
   lacunarity:   { label:'Lacunarity',      type:'range', min:1.5, max:3.0, step:0.01, default:2.03 },
   gain:         { label:'Gain',            type:'range', min:0.2, max:0.8, step:0.01, default:0.5 },
   terraceSteps: { label:'Steps',           type:'range', min:2, max:16, step:1, default:6 },
@@ -793,5 +1337,13 @@ window.OrogenyNoise = {
   BASE_KINDS, BASE_VARIANTS, COMBINATORS, MODIFIERS, REMAP_MODES, SPECIAL_KINDS,
   PARAM_SCHEMA, defaultParams, uploadNoiseParams,
   glslFor, glslForParams, glslKey, variantFor,
+  // composites
+  MAX_LAYERS, BLEND_MODES, isComposite, normalizeComposite,
+  glslForComposite, compositeKey, uploadCompositeParams,
+  glslForAny, keyForAny, uploadAny,
+  // high detail: octave headroom and the opt-in band limit
+  MAX_OCTAVES, setNoiseCut, octaveWeights, effectiveOctaves,
+  // gradient maps
+  GRADIENT_PRESETS, gradientColorAt, gradientTexels,
 };
 })();

@@ -2,3 +2,31 @@ Flame/flame_draves.pdf
 Flame/Flame.html
 
 _info/
+
+# commercially viable — kept private
+15_Caves/
+16_Settlement/
+17_Terraform/
+20_Asteroid/
+21_SciFiTextures/
+22_Greebler/
+23_SpaceDebris/
+24_ExhaustFX/
+25_GaussFX/
+26_SoundFX/
+27_iTrack/
+13_Arbor/Arbor_v002.html
+13_Arbor/Arbor_v003.html
+14_Orogeny/Orogeny_v0[0-9][0-9].html
+!14_Orogeny/Orogeny_v001.html
+!14_Orogeny/Orogeny_v002.html
+!14_Orogeny/Orogeny_v003.html
+!14_Orogeny/Orogeny_v005.html
+14_Orogeny/impact-designer.html
+14_Orogeny/impact-designer_v002.html
+14_Orogeny/noise-designer_v002.html
+14_Orogeny/planet-presets.js
+
+# build output
+target/
+19_SplatTracer/compare_out/

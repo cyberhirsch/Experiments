@@ -1,0 +1,20 @@
+[package]
+name = "galaxy_colonization"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bytemuck = "1.25.2"
+egui = "0.36.2"
+egui-wgpu = "0.36.2"
+egui-winit = "0.36.2"
+egui_plot = "0.37.0"
+glam = "0.33.7"
+kiddo = "6.3.0"
+pollster = "1.0.1"
+rayon = "1.12.0"
+wgpu = "30.0.1"
+winit = "0.30.13"
+
+[dev-dependencies]
+naga = { version = "30.0.1", features = ["wgsl-in"] }
