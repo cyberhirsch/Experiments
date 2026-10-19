@@ -146,3 +146,17 @@ class, also the start values), High, Medium, Low. Cost keys only.
 | Low | 96 | 64 | 0.5 | 16 | 65k | 2.0 |
 
 Motion vectors start off (V shows them).
+
+## v012 — one preset list
+
+`CamFluid_v012.html`. The tier buttons are gone. *Presets* (per solver) is one list: built in
+(Default · 3090, High, Medium, Low: the full default look with that tier's cost keys), then saved.
+Load / Save / Delete (built-ins cannot be deleted) / Export / Import. The loaded preset's name shows
+in the stats until a setting changes.
+
+Saved presets now load exactly: keys a preset lacks (saved by an older version) get the value that
+reproduces that version (borders closed, softness 0, breakup 0, edge 1, curve 1, no life fade, hard
+points, fill on, no emission) instead of today's defaults, which had changed the look.
+
+Presets live in the browser's storage per origin: ones saved with the file opened from disk do not
+appear on GitHub Pages and vice versa; Export / Import moves them.
