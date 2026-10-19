@@ -67,7 +67,7 @@ The spread of a civilisation across the Milky Way, on published numbers rather t
 - **Landis (1998) reproduced:** colonisation as a single-source shortest path through sites that are colonising with probability P — the whole history is a static field and "now" is a threshold on it. On a k = 6 neighbour graph the colonised fraction goes from 0.2% at P = 0.50 to 88.4% at P = 0.55: a sharp percolation threshold at P ≈ 0.53.
 - **Note:** The only experiment here that is not a web page — 15 GiB of buffer is far past what a browser tab is given. Rust + wgpu + WGSL, `cargo run --release`.
 
-### [№ 28 — CamFluid](https://cyberhirsch.github.io/Experiments/28_CamFluid/CamFluid_v012.html) · [source](28_CamFluid/CamFluid_v012.html)
+### [№ 28 — CamFluid](https://cyberhirsch.github.io/Experiments/28_CamFluid/CamFluid_v013.html) · [source](28_CamFluid/CamFluid_v013.html)
 The webcam's motion vectors drive a flat 2D fluid, coloured from the webcam's rgb.
 - **Motion vectors:** Lucas-Kanade optical flow on the GPU at 96 px height, with a noise gate and temporal smoothing; shown as a vector field.
 - **Gas:** The Orogeny atmosphere flattened — midpoint advection, motion forcing, vorticity confinement, warm-started Jacobi pressure; the dye carries camera paint plus density.

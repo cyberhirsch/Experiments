@@ -160,3 +160,28 @@ points, fill on, no emission) instead of today's defaults, which had changed the
 
 Presets live in the browser's storage per origin: ones saved with the file opened from disk do not
 appear on GitHub Pages and vice versa; Export / Import moves them.
+
+## v013 — Seb's presets as the start look
+
+`CamFluid_v013.html`, `presets-seb.json` (the export the values come from). The start look is
+"Gas Cam 3090" and "Flip Cam open 3090" (motion vectors off), at a light cost tier. Built-in tiers
+per solver keep that look and change only the cost keys:
+
+| Gas | grid | dye | vectors | render | iter |
+|---|---|---|---|---|---|
+| Default | 160 | 2× | 96 | 0.75 | 4 |
+| Medium | 256 | 2× | 128 | 1 | 4 |
+| High | 384 | 3× | 192 | 1 | 4 |
+| 3090 | 512 | 4× | 240 | 1 | 4 |
+
+| FLIP | grid | vectors | render | iter | particles | point |
+|---|---|---|---|---|---|---|
+| Default | 192 | 96 | 0.75 | 4 | 262k | 4.2 |
+| Medium | 256 | 128 | 1 | 4 | 524k | 3.6 |
+| High | 384 | 192 | 1 | 4 | 1.0M | 3.0 |
+| 3090 | 512 | 240 | 1 | 4 | 2.1M | 2.6 |
+
+(4 pressure iterations is part of the saved look, so it stays in every tier; fewer particles get
+larger points.) All of Seb's saved presets are also built in (group "seb"), so they exist on every
+machine and on GitHub Pages. Loading a preset always restarts the FLIP particles. A new version
+starts from the newest older version's settings (v013 → v012 → … → v003).
