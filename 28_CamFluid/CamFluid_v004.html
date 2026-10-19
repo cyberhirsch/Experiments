@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>№ 28 — CamFluid · v004</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#cfe9f5; --dim:rgba(207,233,245,0.45); --faint:rgba(207,233,245,0.16); --accent:#7fe0ff; --bg:#000; }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'JetBrains Mono',ui-monospace,monospace;font-weight:300;overflow:hidden}
+  #c{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .fui{position:fixed;pointer-events:none;font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);line-height:1.8}
+  .fui b{color:var(--ink);font-weight:400}
+  .tl{left:28px;top:24px} .tr{right:28px;top:24px;text-align:right} .bl{left:28px;bottom:22px} .br{right:28px;bottom:22px;text-align:right}
+  .title{font-size:13px;letter-spacing:.38em;color:var(--ink)}
+  .br-c{position:fixed;width:22px;height:22px;border:1px solid var(--faint);pointer-events:none}
+  .c1{left:12px;top:12px;border-right:0;border-bottom:0} .c2{right:12px;top:12px;border-left:0;border-bottom:0}
+  .c3{left:12px;bottom:12px;border-right:0;border-top:0} .c4{right:12px;bottom:12px;border-left:0;border-top:0}
+  .switch{pointer-events:auto;display:inline-flex;border:1px solid var(--faint);margin-top:6px}
+  .switch button{background:none;border:0;color:var(--dim);font:inherit;letter-spacing:.3em;padding:6px 14px;cursor:pointer;text-transform:uppercase}
+  .switch button.on{color:#000;background:var(--accent)}
+  .switch button:hover:not(.on){color:var(--ink)}
+  #panel{position:fixed;right:28px;top:118px;width:280px;max-height:calc(100vh - 170px);overflow-y:auto;padding:12px 14px;border:1px solid var(--faint);background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);display:none}
+  #panel.on{display:block}
+  #panel .switch{display:flex;margin:2px 0 4px} #panel .switch button{flex:1;padding:5px 4px;letter-spacing:.18em;font-size:9px}
+  .grp{margin:10px 0 4px;color:var(--ink);letter-spacing:.3em;font-size:9px;border-top:1px solid var(--faint);padding-top:8px}
+  .grp:first-child{margin-top:0;border-top:0;padding-top:0}
+  .grp i{font-style:normal;color:var(--dim);letter-spacing:.14em}
+  .row{display:grid;grid-template-columns:1fr 100px 40px;gap:6px;align-items:center;margin:5px 0}
+  .row .v{text-align:right;color:var(--ink)}
+  input[type=range]{-webkit-appearance:none;width:100%;height:1px;background:var(--faint);outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;background:var(--accent);cursor:pointer}
+  .chk{display:flex;gap:8px;align-items:center;margin:5px 0;cursor:pointer}
+  .chk input{accent-color:var(--accent)}
+  select{background:#000;border:1px solid var(--faint);color:var(--ink);font:inherit;letter-spacing:.1em;padding:2px 4px;width:100%}
+  .strip{display:block;width:100%;height:8px;margin:3px 0 6px;border:1px solid var(--faint)}
+  #start{position:fixed;inset:0;display:grid;place-items:center;text-align:center}
+  #start button{background:none;border:1px solid var(--accent);color:var(--accent);font:inherit;font-size:12px;letter-spacing:.4em;padding:14px 26px;cursor:pointer}
+  #start button:hover{background:rgba(127,224,255,0.08)}
+  #start p{margin-top:16px;font-size:10px;letter-spacing:.22em;color:var(--dim)}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="br-c c1"></div><div class="br-c c2"></div><div class="br-c c3"></div><div class="br-c c4"></div>
+<div class="fui tl"><div class="title">CAMFLUID</div><div>№ 28 · v004 — motion → fluid</div></div>
+<div class="fui tr"><div>solver</div><div class="switch" id="mode"><button data-m="gas">Gas</button><button data-m="flip">FLIP</button></div><br><div class="switch"><button id="setbtn">Settings</button></div></div>
+<div class="fui bl" id="stats"></div>
+<div class="fui br">H settings · V vectors · C camera<br>G / F solver · R reset · Space pause</div>
+<div id="panel" class="on"></div>
+<div id="start"><div><button id="go">[ Initialize sensor ]</button><p>The webcam drives the fluid. Nothing leaves this browser.</p></div></div>
+<video id="cam" playsinline muted style="display:none"></video>
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   № 28 — CamFluid · v004
+
+   v004: your own presets, per solver. Save the current solver's whole
+   set under a name, load, overwrite, delete; export all presets as JSON
+   and import them again (merged by name). Stored in localStorage under
+   camfluid.presets as { gas: { name: settings }, flip: { ... } }.
+
+   v003:
+   - Settings are kept per solver (Gas and FLIP each have their own
+     resolution, forces, colour and view); switching solver switches the
+     whole set.
+   - GPU presets per solver: Low GPU / Default / High GPU. They set only
+     the cost keys (grid, dye detail, vector grid, render scale, pressure
+     iterations, particles, point size), never forces or colour.
+   - Colour: the scene renders linear into a half-float target and a
+     post pass grades it: exposure (EV), temperature, saturation, hue
+     shift, tone map (clamp / Reinhard / ACES), contrast, gamma.
+   - Velocity gradients: a gradient map (14 palettes plus Direction, hue
+     from the flow angle) over the speed |v| / speed range, blended with
+     the camera colour (Gradient mix). Gas samples the grid velocity per
+     pixel (Field shows it outside the dye too); FLIP colours each
+     particle by its own velocity.
+
+   v002: settings in view; particles up to 2.1M; resolution and force
+   strength controls.
+
+   The webcam's motion vectors drive a 2D fluid; the colour comes from the
+   webcam's rgb. Two solvers on one flat grid (closed box, square cells,
+   the grid matches the screen's aspect):
+
+   - Gas (after the Orogeny atmosphere, №14 v007/v010, flattened): curl,
+     semi-Lagrangian MIDPOINT advection of velocity and dye, forcing
+     (motion vectors, vorticity confinement, damping), divergence,
+     warm-started Jacobi, projection. The dye carries rgb PAINT plus
+     density (v010: colour is advected, not a value mapped afterwards).
+   - FLIP (after the Gas Giant, №02, flattened): particles in float
+     textures; P2G as additive bilinear splats (4 corners per particle),
+     normalise, forcing, keep the pre-projection grid, the same pressure
+     solve, G2P with the FLIP / PIC blend (0.97), RK2 advection, wall
+     bounce, random respawn. Particle colour is sampled from the webcam
+     at birth and drifts towards the webcam colour under it (Live colour).
+
+   Motion vectors: Lucas-Kanade optical flow on the GPU. Luminance of the
+   mirrored camera, Ix / Iy / It from the mean and difference of two
+   frames, the structure-tensor products blurred (separable Gaussian),
+   then the 2x2 solve with a small ridge term, a noise gate and temporal
+   smoothing. Flow (pixels per camera frame) becomes grid cells per second.
+
+   Forcing: v += (strength · flow - v) · clamp(push · |flow| · 6 dt).
+   ═══════════════════════════════════════════════════════════════════════ */
+'use strict';
+const $ = (id) => document.getElementById(id);
+const canvas = $('c');
+const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, premultipliedAlpha: false, preserveDrawingBuffer: false });
+if (!gl) document.body.innerHTML = '<p style="padding:40px">WebGL2 is needed.</p>';
+if (!gl.getExtension('EXT_color_buffer_float')) console.warn('EXT_color_buffer_float missing');
+
+/* ── gradients (stops, dark → bright); the last entry is Direction, hue from the flow angle ── */
+const GRADS = [
+  ['FUI cyan', '000000 04202c 0e5a78 3fb8e0 7fe0ff e8fbff'],
+  ['Inferno', '000004 420a68 932667 dd513a fca50a fcffa4'],
+  ['Magma', '000004 3b0f70 8c2981 de4968 fe9f6d fcfdbf'],
+  ['Plasma', '0d0887 6a00a8 b12a90 e16462 fca636 f0f921'],
+  ['Viridis', '440154 414487 2a788e 22a884 7ad151 fde725'],
+  ['Turbo', '30123b 4662d7 36aaf9 1ae4b6 72fe5e c8ef34 faba39 f66b19 ca2a04 7a0403'],
+  ['Fire', '000000 3a0500 a01e00 f05a00 ffb400 fff5c0'],
+  ['Ice', '000000 0b1f3a 1f5f9e 4fb3e8 bdf0ff ffffff'],
+  ['Neon', '05000f 3c00a0 ff00c8 00f0ff ffffff'],
+  ['Toxic', '000000 0a2a10 1a8a30 a0ff40 f8ffd0'],
+  ['Sunset', '0b0221 3d1a6e b23a74 f2665b fbb45c fff1c1'],
+  ['Ocean', '000814 00335c 0a6e8a 38b2ac a7f3d0'],
+  ['Copper', '000000 3a1a0a 8a4a20 d08850 ffd0a0'],
+  ['Mono', '000000 ffffff'],
+  ['Direction', null],
+];
+const DIR = GRADS.length - 1;
+const stops = (g) => g[1].split(' ').map((h) => [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]);
+function gradAt(g, t) {   // 0..1 → [r,g,b] 0..255
+  if (!g[1]) { const c = hsv(t * 360, 1, 1); return c; }
+  const s = stops(g), x = t * (s.length - 1), i = Math.min(s.length - 2, Math.floor(x)), f = x - i;
+  return s[i].map((v, k) => v + (s[i + 1][k] - v) * f);
+}
+function hsv(h, s, v) { const f = (n) => { const k = (n + h / 60) % 6; return 255 * (v - v * s * Math.max(0, Math.min(k, 4 - k, 1))); }; return [f(5), f(3), f(1)]; }
+
+/* ── settings: one set per solver ── */
+const COLOR_DEF = { grad: 0, gradMix: 0, vmax: 60, field: 0, exposure: 0, temp: 0, saturation: 1, hue: 0, tone: 0, contrast: 1, gamma: 1, camA: 0, vectors: true };
+const DEF = {
+  gas: { res: 144, dyeK: 2, flowRes: 96, scale: 1, iters: 30, strength: 1, push: 1, swirl: 18, damp: 0.25,
+    gate: 0.25, flowSmooth: 0.55, flowGain: 1, inject: 2.5, fade: 0.35, ambient: 0, ...COLOR_DEF },
+  flip: { res: 128, flowRes: 96, scale: 1, iters: 30, strength: 1, push: 1.2, swirl: 10, damp: 0.15,
+    gate: 0.25, flowSmooth: 0.55, flowGain: 1, count: 256, flip: 0.97, respawn: 0.15, live: 0.6, pt: 1.6, add: false, palpha: 0.85, ...COLOR_DEF },
+};
+const PRESETS = {
+  gas: {
+    low:  { res: 96,  dyeK: 1, flowRes: 64,  scale: 0.5, iters: 16 },
+    high: { res: 288, dyeK: 3, flowRes: 160, scale: 1,   iters: 60 },
+  },
+  flip: {
+    low:  { res: 96,  flowRes: 64,  scale: 0.5, iters: 16, count: 256,  pt: 2.0 },
+    high: { res: 256, flowRes: 160, scale: 1,   iters: 50, count: 1024, pt: 1.2 },
+  },
+};
+const ST = { mode: 'gas', gas: { ...DEF.gas }, flip: { ...DEF.flip } };
+try {
+  const s = JSON.parse(localStorage.getItem('camfluid.v004') || '{}');
+  if (s.mode === 'flip') ST.mode = 'flip';
+  for (const m of ['gas', 'flip']) if (s[m]) Object.assign(ST[m], s[m]);
+} catch (e) { /* storage off */ }
+let P = ST[ST.mode];
+const save = () => { try { localStorage.setItem('camfluid.v004', JSON.stringify(ST)); } catch (e) { /* storage off */ } };
+// user presets
+const UP = { gas: {}, flip: {} };
+try { const u = JSON.parse(localStorage.getItem('camfluid.presets') || '{}'); for (const m of ['gas', 'flip']) if (u[m]) Object.assign(UP[m], u[m]); } catch (e) { /* storage off */ }
+const saveUP = () => { try { localStorage.setItem('camfluid.presets', JSON.stringify(UP)); } catch (e) { /* storage off */ } };
+let userSel = '';
+function presetName() {
+  for (const k of ['low', 'high']) if (Object.entries(PRESETS[ST.mode][k]).every(([key, v]) => P[key] === v)) return k;
+  if (Object.keys(PRESETS[ST.mode].low).every((key) => P[key] === DEF[ST.mode][key])) return 'default';
+  return '';
+}
+
+/* ── GL helpers ── */
+const VS = `#version 300 es
+out vec2 vUv;
+void main(){ vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2); vUv = p; gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); }`;
+const HEAD = `#version 300 es
+precision highp float;
+precision highp sampler2D;
+in vec2 vUv;
+uniform vec2 uTexel;
+`;
+function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(src.split('\n').map((l, i) => (i + 1) + ': ' + l).join('\n')); throw new Error(gl.getShaderInfoLog(s)); } return s; }
+function prog(fs, vs = VS) {
+  const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  p.loc = {}; return p;
+}
+function setU(p, name, v) {
+  let l = p.loc[name]; if (l === undefined) l = p.loc[name] = gl.getUniformLocation(p, name);
+  if (l === null) return;
+  if (v && v.isTex) { gl.activeTexture(gl.TEXTURE0 + p.unit); gl.bindTexture(gl.TEXTURE_2D, v.tex); gl.uniform1i(l, p.unit++); }
+  else if (typeof v === 'number') gl.uniform1f(l, v);
+  else if (v && v.int !== undefined) gl.uniform1i(l, v.int);
+  else if (v.length === 2) gl.uniform2fv(l, v); else if (v.length === 3) gl.uniform3fv(l, v); else if (v.length === 4) gl.uniform4fv(l, v);
+}
+const VAO = gl.createVertexArray();
+function texture(w, h, internal, format, type, filter) {
+  const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  return t;
+}
+// a render target with 1..3 colour attachments
+function target(w, h, n = 1, f32 = false) {
+  const internal = f32 ? gl.RGBA32F : gl.RGBA16F, type = f32 ? gl.FLOAT : gl.HALF_FLOAT, filter = f32 ? gl.NEAREST : gl.LINEAR;
+  const texs = Array.from({ length: n }, () => texture(w, h, internal, gl.RGBA, type, filter));
+  const fbo = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  texs.forEach((t, i) => gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0 + i, gl.TEXTURE_2D, t, 0));
+  gl.drawBuffers(texs.map((_, i) => gl.COLOR_ATTACHMENT0 + i));
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  return { w, h, fbo, texs, t: texs.map((tex) => ({ isTex: true, tex })), get tx() { return this.t[0]; } };
+}
+function pair(w, h, n, f32) { const o = { a: target(w, h, n, f32), b: target(w, h, n, f32) }; o.swap = () => { const t = o.a; o.a = o.b; o.b = t; }; Object.defineProperty(o, 'r', { get: () => o.a }); Object.defineProperty(o, 'w', { get: () => o.b }); return o; }
+function free(t) { if (!t) return; if (t.a) { free(t.a); free(t.b); return; } gl.deleteFramebuffer(t.fbo); if (t.colFbo) gl.deleteFramebuffer(t.colFbo); t.texs.forEach((x) => gl.deleteTexture(x)); }
+function run(p, tgt, U = {}, blend = null) {
+  gl.useProgram(p); p.unit = 0;
+  gl.bindFramebuffer(gl.FRAMEBUFFER, tgt ? tgt.fbo : null);
+  const w = tgt ? tgt.w : canvas.width, h = tgt ? tgt.h : canvas.height;
+  gl.viewport(0, 0, w, h);
+  setU(p, 'uTexel', [1 / w, 1 / h]);
+  for (const k in U) setU(p, k, U[k]);
+  if (blend) { gl.enable(gl.BLEND); gl.blendFunc(blend[0], blend[1]); } else gl.disable(gl.BLEND);
+  gl.bindVertexArray(VAO); gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+
+/* ── the gradient texture: 256 × N, one palette per row ── */
+const gradTex = (() => {
+  const W = 256, N = GRADS.length, px = new Uint8Array(W * N * 4);
+  GRADS.forEach((g, r) => { for (let i = 0; i < W; i++) { const c = gradAt(g, i / (W - 1)); px.set([c[0], c[1], c[2], 255], (r * W + i) * 4); } });
+  const t = texture(W, N, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, W, N, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  return { isTex: true, tex: t };
+})();
+
+/* ── shaders ── */
+const CAM_GLSL = `
+uniform sampler2D uCam; uniform vec2 uCamScale;
+vec3 cam(vec2 uv){ vec2 c = (vec2(1.0 - uv.x, uv.y) - 0.5) * uCamScale + 0.5; return texture(uCam, c).rgb; }
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }`;
+// speed → gradient row, or Direction: hue from the angle, value from the speed
+const GRAD_GLSL = `
+uniform sampler2D uGrad; uniform float uGradRow, uVmax, uDir;
+vec3 hsv2rgb(vec3 c){ vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0); return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y); }
+vec3 grad(vec2 v){
+  float s = clamp(length(v) / uVmax, 0.0, 1.0);
+  if (uDir > 0.5) return hsv2rgb(vec3(atan(v.y, v.x) / 6.2831853 + 0.5, 0.85, s));
+  return texture(uGrad, vec2(s, uGradRow)).rgb;
+}`;
+// optical flow
+const S_LUM = prog(HEAD + CAM_GLSL + `
+out vec4 o;
+void main(){ vec2 d = uTexel * 0.5; float l = luma(cam(vUv + vec2(-d.x, -d.y))) + luma(cam(vUv + vec2(d.x, -d.y))) + luma(cam(vUv + vec2(-d.x, d.y))) + luma(cam(vUv + d)); o = vec4(l * 0.25, 0.0, 0.0, 1.0); }`);
+const S_DERIV = prog(HEAD + `
+uniform sampler2D uCur, uPrev;
+layout(location = 0) out vec4 o0; layout(location = 1) out vec4 o1;
+float I(vec2 uv){ return 0.5 * (texture(uCur, uv).r + texture(uPrev, uv).r); }
+void main(){
+  float ix = 0.5 * (I(vUv + vec2(uTexel.x, 0.0)) - I(vUv - vec2(uTexel.x, 0.0)));
+  float iy = 0.5 * (I(vUv + vec2(0.0, uTexel.y)) - I(vUv - vec2(0.0, uTexel.y)));
+  float it = texture(uCur, vUv).r - texture(uPrev, vUv).r;
+  o0 = vec4(ix * ix, ix * iy, iy * iy, ix * it); o1 = vec4(iy * it, 0.0, 0.0, 1.0);
+}`);
+const S_BLUR2 = prog(HEAD + `
+uniform sampler2D uA, uB; uniform vec2 uDir;
+layout(location = 0) out vec4 o0; layout(location = 1) out vec4 o1;
+void main(){
+  float w[5] = float[](0.2270, 0.1945, 0.1216, 0.0541, 0.0162);
+  vec4 a = texture(uA, vUv) * w[0], b = texture(uB, vUv) * w[0];
+  for (int i = 1; i < 5; i++) { vec2 o = uDir * uTexel * float(i) * 1.5; a += (texture(uA, vUv + o) + texture(uA, vUv - o)) * w[i]; b += (texture(uB, vUv + o) + texture(uB, vUv - o)) * w[i]; }
+  o0 = a; o1 = b;
+}`);
+const S_SOLVE = prog(HEAD + `
+uniform sampler2D uA, uB, uPrevFlow; uniform float uReg, uGate, uSmooth, uGain;
+out vec4 o;
+void main(){
+  vec4 t = texture(uA, vUv); float e = texture(uB, vUv).r;
+  float a = t.x + uReg, b = t.y, c = t.z + uReg, d = t.w, det = a * c - b * b;
+  vec2 f = det > 1e-12 ? -vec2(c * d - b * e, a * e - b * d) / det : vec2(0.0);
+  f *= uGain;
+  float m = length(f); f *= smoothstep(uGate, uGate * 2.5, m);
+  if (m > 6.0) f *= 6.0 / m;
+  o = vec4(mix(f, texture(uPrevFlow, vUv).xy, uSmooth), 0.0, 1.0);
+}`);
+// fluid grid (velocity in cells per second)
+const S_CURL = prog(HEAD + `
+uniform sampler2D uVel; out vec4 o;
+void main(){
+  float r = texture(uVel, vUv + vec2(uTexel.x, 0.0)).y, l = texture(uVel, vUv - vec2(uTexel.x, 0.0)).y;
+  float t = texture(uVel, vUv + vec2(0.0, uTexel.y)).x, b = texture(uVel, vUv - vec2(0.0, uTexel.y)).x;
+  o = vec4(0.5 * ((r - l) - (t - b)), 0.0, 0.0, 1.0);
+}`);
+// midpoint (RK2) semi-Lagrangian advection of any field by the velocity
+const S_ADVECT = prog(HEAD + `
+uniform sampler2D uVel, uSrc; uniform float uDt, uKeep;
+out vec4 o;
+void main(){
+  vec2 v0 = texture(uVel, vUv).xy, mid = vUv - 0.5 * uDt * v0 * uTexel;
+  vec2 v1 = texture(uVel, mid).xy;
+  o = texture(uSrc, vUv - uDt * v1 * uTexel) * uKeep;
+}`);
+// forcing: pull towards the flow where there is motion, vorticity confinement, damping
+const S_FORCE = prog(HEAD + `
+uniform sampler2D uVel, uFlow, uCurl; uniform float uDt, uPush, uSwirl, uDamp, uFlowScale;
+out vec4 o;
+void main(){
+  vec2 v = texture(uVel, vUv).xy;
+  vec2 fl = texture(uFlow, vUv).xy, f = fl * uFlowScale;
+  float m = length(fl);
+  v += (f - v) * clamp(uPush * m * uDt * 6.0, 0.0, 1.0);
+  float wL = texture(uCurl, vUv - vec2(uTexel.x, 0.0)).r, wR = texture(uCurl, vUv + vec2(uTexel.x, 0.0)).r;
+  float wB = texture(uCurl, vUv - vec2(0.0, uTexel.y)).r, wT = texture(uCurl, vUv + vec2(0.0, uTexel.y)).r, w = texture(uCurl, vUv).r;
+  vec2 g = 0.5 * vec2(abs(wR) - abs(wL), abs(wT) - abs(wB));
+  vec2 N = g / (length(g) + 1e-5);
+  v += uSwirl * vec2(N.y, -N.x) * w * uDt;
+  v *= exp(-uDamp * uDt);
+  o = vec4(v, 0.0, 1.0);
+}`);
+const S_DIV = prog(HEAD + `
+uniform sampler2D uVel; out vec4 o;
+vec2 V(vec2 uv){ vec2 v = texture(uVel, uv).xy;
+  if (uv.x < 0.0 || uv.x > 1.0) v.x = 0.0; if (uv.y < 0.0 || uv.y > 1.0) v.y = 0.0; return v; }
+void main(){
+  float d = 0.5 * (V(vUv + vec2(uTexel.x, 0.0)).x - V(vUv - vec2(uTexel.x, 0.0)).x + V(vUv + vec2(0.0, uTexel.y)).y - V(vUv - vec2(0.0, uTexel.y)).y);
+  o = vec4(d, 0.0, 0.0, 1.0);
+}`);
+const S_JACOBI = prog(HEAD + `
+uniform sampler2D uP, uDiv; out vec4 o;
+void main(){
+  float c = texture(uP, vUv).r;
+  vec2 dx = vec2(uTexel.x, 0.0), dy = vec2(0.0, uTexel.y);
+  // closed walls: Neumann (the pressure outside equals the inside)
+  float l = vUv.x - dx.x < 0.0 ? c : texture(uP, vUv - dx).r, r = vUv.x + dx.x > 1.0 ? c : texture(uP, vUv + dx).r;
+  float b = vUv.y - dy.y < 0.0 ? c : texture(uP, vUv - dy).r, t = vUv.y + dy.y > 1.0 ? c : texture(uP, vUv + dy).r;
+  o = vec4(0.25 * (l + r + b + t - texture(uDiv, vUv).r), 0.0, 0.0, 1.0);
+}`);
+const S_PROJECT = prog(HEAD + `
+uniform sampler2D uP, uVel; out vec4 o;
+void main(){
+  float c = texture(uP, vUv).r;
+  vec2 dx = vec2(uTexel.x, 0.0), dy = vec2(0.0, uTexel.y);
+  float l = vUv.x - dx.x < 0.0 ? c : texture(uP, vUv - dx).r, r = vUv.x + dx.x > 1.0 ? c : texture(uP, vUv + dx).r;
+  float b = vUv.y - dy.y < 0.0 ? c : texture(uP, vUv - dy).r, t = vUv.y + dy.y > 1.0 ? c : texture(uP, vUv + dy).r;
+  vec2 v = texture(uVel, vUv).xy - 0.5 * vec2(r - l, t - b);
+  if (vUv.x < uTexel.x || vUv.x > 1.0 - uTexel.x) v.x = 0.0;
+  if (vUv.y < uTexel.y || vUv.y > 1.0 - uTexel.y) v.y = 0.0;
+  o = vec4(v, 0.0, 1.0);
+}`);
+// gas dye: advected rgb paint + density; paint flows in from the camera where there is motion
+const S_DYE = prog(HEAD + CAM_GLSL + `
+uniform sampler2D uVel, uDye, uFlow; uniform float uDt, uInject, uFade, uAmbient, uGate; uniform vec2 uGT;
+out vec4 o;
+void main(){
+  // the dye is finer than the grid; velocity is in GRID cells per second
+  vec2 v0 = texture(uVel, vUv).xy, mid = vUv - 0.5 * uDt * v0 * uGT;
+  vec4 d = texture(uDye, vUv - uDt * texture(uVel, mid).xy * uGT);
+  vec3 c = cam(vUv);
+  float m = smoothstep(uGate, uGate * 4.0 + 0.2, length(texture(uFlow, vUv).xy));
+  float k = clamp(m * uInject * uDt, 0.0, 1.0);
+  d.rgb = mix(d.rgb, c, max(k, 1.0 - d.a > 0.99 ? 1.0 : 0.0));
+  d.a = min(1.5, d.a + k);
+  d.rgb = mix(d.rgb, c, clamp(uAmbient * uDt, 0.0, 1.0));
+  d.a = mix(d.a, 1.0, clamp(uAmbient * uDt, 0.0, 1.0));
+  d.a *= exp(-uFade * uDt);
+  o = d;
+}`);
+// FLIP
+const P2G_VS = `#version 300 es
+precision highp float; precision highp sampler2D;
+uniform sampler2D uPos, uVel; uniform int uT; uniform vec2 uSize;
+out vec3 vW;
+void main(){
+  int id = gl_VertexID >> 2, k = gl_VertexID & 3;
+  ivec2 c = ivec2(id % uT, id / uT);
+  vec2 p = texelFetch(uPos, c, 0).xy, v = texelFetch(uVel, c, 0).xy;
+  vec2 pc = p * uSize - 0.5, base = floor(pc), fr = pc - base, off = vec2(k & 1, k >> 1);
+  vec2 wv = mix(1.0 - fr, fr, off);
+  float w = wv.x * wv.y;
+  vec2 cell = base + off;
+  gl_Position = vec4((cell + 0.5) / uSize * 2.0 - 1.0, 0.0, 1.0); gl_PointSize = 1.0;
+  vW = vec3(v * w, w);
+}`;
+const S_P2G = prog(`#version 300 es
+precision highp float; in vec3 vW; out vec4 o; void main(){ o = vec4(vW, 1.0); }`, P2G_VS);
+const S_NORM = prog(HEAD + `
+uniform sampler2D uAcc; out vec4 o;
+void main(){ vec4 a = texture(uAcc, vUv); o = vec4(a.z > 1e-3 ? a.xy / a.z : vec2(0.0), a.z, 1.0); }`);
+const S_COPY = prog(HEAD + `uniform sampler2D uSrc; out vec4 o; void main(){ o = texture(uSrc, vUv); }`);
+const HASH = `
+float hash(vec2 p){ p = fract(p * vec2(443.897, 441.423)); p += dot(p, p.yx + 19.19); return fract((p.x + p.y) * p.x); }`;
+const S_G2P = prog(HEAD + CAM_GLSL + HASH + `
+uniform sampler2D uPos, uVel, uCol, uGrid, uGridOld; uniform vec2 uSize; uniform float uDt, uFlip, uRespawn, uLive, uTime;
+layout(location = 0) out vec4 oPos; layout(location = 1) out vec4 oVel; layout(location = 2) out vec4 oCol;
+void main(){
+  ivec2 ic = ivec2(gl_FragCoord.xy);
+  vec2 p = texelFetch(uPos, ic, 0).xy, vp = texelFetch(uVel, ic, 0).xy;
+  vec4 col = texelFetch(uCol, ic, 0);
+  vec2 vg = texture(uGrid, p).xy, vo = texture(uGridOld, p).xy;
+  vec2 v = mix(vg, vp + (vg - vo), uFlip);
+  vec2 mid = p + 0.5 * uDt * vg / uSize;
+  p += uDt * texture(uGrid, mid).xy / uSize;
+  vec2 h = 0.5 / uSize;
+  if (p.x < h.x) { p.x = h.x; v.x = abs(v.x) * 0.3; } if (p.x > 1.0 - h.x) { p.x = 1.0 - h.x; v.x = -abs(v.x) * 0.3; }
+  if (p.y < h.y) { p.y = h.y; v.y = abs(v.y) * 0.3; } if (p.y > 1.0 - h.y) { p.y = 1.0 - h.y; v.y = -abs(v.y) * 0.3; }
+  if (hash(vec2(ic) + fract(uTime * 0.6180339) * 1000.0) < uRespawn * uDt) {
+    p = vec2(hash(vec2(ic) * 1.37 + uTime), hash(vec2(ic) * 2.11 - uTime));
+    v = texture(uGrid, p).xy; col = vec4(cam(p), 1.0);
+  }
+  col.rgb = mix(col.rgb, cam(p), clamp(uLive * uDt, 0.0, 1.0));
+  oPos = vec4(p, 0.0, 1.0); oVel = vec4(v, 0.0, 1.0); oCol = col;
+}`);
+const S_PCOL = prog(HEAD + CAM_GLSL + `
+uniform sampler2D uPos; out vec4 o;
+void main(){ o = vec4(cam(texelFetch(uPos, ivec2(gl_FragCoord.xy), 0).xy), 1.0); }`);
+// display: the scene renders LINEAR into SCENE, the post pass grades it onto the screen
+const S_SHOW_GAS = prog(HEAD + CAM_GLSL + GRAD_GLSL + `
+uniform sampler2D uDye, uVel; uniform float uCamA, uGradMix, uField;
+out vec4 o;
+void main(){
+  vec4 d = texture(uDye, vUv);
+  float a = max(min(1.0, d.a), uField);
+  vec3 c = mix(d.rgb, grad(texture(uVel, vUv).xy), uGradMix) * a + cam(vUv) * uCamA;
+  o = vec4(c, 1.0);
+}`);
+const S_SHOW_CAM = prog(HEAD + CAM_GLSL + `
+uniform float uCamA; out vec4 o; void main(){ o = vec4(cam(vUv) * uCamA, 1.0); }`);
+const PT_VS = `#version 300 es
+precision highp float; precision highp sampler2D;
+uniform sampler2D uPos, uCol, uVel; uniform int uT; uniform float uPt, uGradMix;
+out vec3 vC;
+` + GRAD_GLSL + `
+void main(){
+  ivec2 c = ivec2(gl_VertexID % uT, gl_VertexID / uT);
+  vec2 p = texelFetch(uPos, c, 0).xy;
+  vC = mix(texelFetch(uCol, c, 0).rgb, grad(texelFetch(uVel, c, 0).xy), uGradMix);
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0); gl_PointSize = uPt;
+}`;
+const S_PTS = prog(`#version 300 es
+precision highp float; in vec3 vC; uniform float uA; out vec4 o;
+void main(){ vec2 q = gl_PointCoord * 2.0 - 1.0; float r = dot(q, q); if (r > 1.0) discard; o = vec4(vC, uA * (1.0 - r * 0.5)); }`, PT_VS);
+const S_POST = prog(HEAD + `
+uniform sampler2D uScene; uniform float uExp, uTemp, uSat, uHue, uTone, uCon, uGam;
+out vec4 o;
+vec3 aces(vec3 x){ return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+void main(){
+  vec3 c = texture(uScene, vUv).rgb * exp2(uExp);
+  c *= vec3(1.0 + 0.25 * uTemp, 1.0 + 0.03 * uTemp, 1.0 - 0.25 * uTemp);
+  float L = dot(c, vec3(0.2126, 0.7152, 0.0722));
+  c = max(vec3(0.0), L + (c - L) * uSat);
+  vec3 k = vec3(0.57735027); float ca = cos(uHue), sa = sin(uHue);   // hue: rotate about the grey axis
+  c = max(vec3(0.0), c * ca + cross(k, c) * sa + k * dot(k, c) * (1.0 - ca));
+  if (uTone > 1.5) c = aces(c); else if (uTone > 0.5) c = c / (1.0 + c);
+  c = clamp((clamp(c, 0.0, 1.0) - 0.5) * uCon + 0.5, 0.0, 1.0);
+  o = vec4(pow(c, vec3(1.0 / uGam)), 1.0);
+}`);
+const VEC_VS = `#version 300 es
+precision highp float; precision highp sampler2D;
+uniform sampler2D uFlow; uniform ivec2 uN; uniform float uLen; uniform vec2 uAsp;
+out float vA;
+void main(){
+  int id = gl_VertexID >> 1, end = gl_VertexID & 1;
+  vec2 uv = (vec2(id % uN.x, id / uN.x) + 0.5) / vec2(uN);
+  vec2 f = texture(uFlow, uv).xy;
+  float m = length(f);
+  vec2 p = uv + float(end) * f * uLen * uAsp;
+  vA = smoothstep(0.05, 0.6, m) * (end == 1 ? 1.0 : 0.35);
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+const S_VEC = prog(`#version 300 es
+precision highp float; in float vA; out vec4 o; void main(){ o = vec4(0.5, 0.88, 1.0, vA * 0.8); }`, VEC_VS);
+
+/* ── the simulation state ── */
+const G = { nx: 0, ny: 0, fx: 0, fy: 0, T: 0 };
+let VEL, VOLD, CURL, DIV, PRES, DYE, ACC, LUM, PROD, PRODB, FLOW, SCENE, PART;
+const camTex = { isTex: true, tex: texture(2, 2, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, gl.LINEAR) };
+function build() {
+  const asp = canvas.width / canvas.height;
+  G.ny = P.res; G.nx = Math.max(8, Math.round(P.res * asp));
+  G.fy = P.flowRes; G.fx = Math.max(8, Math.round(P.flowRes * asp));
+  [VEL, VOLD, CURL, DIV, PRES, DYE, ACC, LUM, PROD, PRODB, FLOW, SCENE].forEach(free);
+  VEL = pair(G.nx, G.ny); VOLD = target(G.nx, G.ny); CURL = target(G.nx, G.ny); DIV = target(G.nx, G.ny); PRES = pair(G.nx, G.ny);
+  const dk = P.dyeK || 1; DYE = pair(G.nx * dk, G.ny * dk); ACC = target(G.nx, G.ny);
+  LUM = pair(G.fx, G.fy); PROD = target(G.fx, G.fy, 2); PRODB = target(G.fx, G.fy, 2); FLOW = pair(G.fx, G.fy);
+  SCENE = target(canvas.width, canvas.height);
+  for (const t of [VEL.a, VEL.b, PRES.a, PRES.b, DYE.a, DYE.b, FLOW.a, FLOW.b]) { gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+}
+function buildParticles() {
+  free(PART);
+  const T = P.count; G.T = T;
+  PART = pair(T, T, 3, true);
+  const pos = new Float32Array(T * T * 4);
+  for (let i = 0; i < T * T; i++) { pos[i * 4] = Math.random(); pos[i * 4 + 1] = Math.random(); pos[i * 4 + 3] = 1; }
+  gl.bindTexture(gl.TEXTURE_2D, PART.a.texs[0]); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, T, T, gl.RGBA, gl.FLOAT, pos);
+  PART.needCol = true;
+}
+function resize() {
+  const k = Math.min(devicePixelRatio || 1, 2) * P.scale, w = Math.max(16, Math.round(innerWidth * k)), h = Math.max(16, Math.round(innerHeight * k));
+  if (canvas.width === w && canvas.height === h && VEL) return;
+  canvas.width = w; canvas.height = h; build();
+}
+const rebuild = () => { canvas.width = 0; resize(); };   // forces build() at the new sizes
+
+/* ── camera ── */
+const video = $('cam');
+let camW = 16, camH = 9, camLastT = -1, camDt = 1 / 30, camPrevStamp = 0;
+async function startCam() {
+  const st = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }, audio: false });
+  video.srcObject = st; await video.play();
+  camW = video.videoWidth; camH = video.videoHeight;
+}
+function camScale() { const sa = canvas.width / canvas.height, ca = camW / camH; return sa > ca ? [1, ca / sa] : [sa / ca, 1]; }
+function uploadCam() {
+  if (video.readyState < 2 || video.currentTime === camLastT) return false;
+  camLastT = video.currentTime;
+  const now = performance.now(); if (camPrevStamp) camDt = Math.min(0.2, Math.max(1 / 120, 0.7 * camDt + 0.3 * (now - camPrevStamp) / 1000)); camPrevStamp = now;
+  gl.bindTexture(gl.TEXTURE_2D, camTex.tex); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, video);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  camW = video.videoWidth || camW; camH = video.videoHeight || camH;
+  return true;
+}
+function flowStep() {
+  const cs = camScale();
+  run(S_LUM, LUM.w, { uCam: camTex, uCamScale: cs }); LUM.swap();
+  run(S_DERIV, PROD, { uCur: LUM.r.tx, uPrev: LUM.w.tx });
+  run(S_BLUR2, PRODB, { uA: PROD.t[0], uB: PROD.t[1], uDir: [1, 0] });
+  run(S_BLUR2, PROD, { uA: PRODB.t[0], uB: PRODB.t[1], uDir: [0, 1] });
+  run(S_SOLVE, FLOW.w, { uA: PROD.t[0], uB: PROD.t[1], uPrevFlow: FLOW.r.tx, uReg: 2e-4, uGate: P.gate, uSmooth: P.flowSmooth, uGain: P.flowGain }); FLOW.swap();
+}
+
+/* ── one step ── */
+function pressure() {
+  run(S_DIV, DIV, { uVel: VEL.r.tx });
+  for (let i = 0; i < P.iters; i++) { run(S_JACOBI, PRES.w, { uP: PRES.r.tx, uDiv: DIV.tx }); PRES.swap(); }   // warm start: PRES keeps the last solution
+  run(S_PROJECT, VEL.w, { uP: PRES.r.tx, uVel: VEL.r.tx }); VEL.swap();
+}
+function force(dt) {
+  run(S_CURL, CURL, { uVel: VEL.r.tx });
+  run(S_FORCE, VEL.w, { uVel: VEL.r.tx, uFlow: FLOW.r.tx, uCurl: CURL.tx, uDt: dt, uPush: P.push, uSwirl: P.swirl, uDamp: P.damp, uFlowScale: P.strength * (G.ny / G.fy) / camDt }); VEL.swap();
+}
+let simT = 0;
+function stepGas(dt) {
+  run(S_ADVECT, VEL.w, { uVel: VEL.r.tx, uSrc: VEL.r.tx, uDt: dt, uKeep: 1 }); VEL.swap();
+  force(dt);
+  pressure();
+  run(S_DYE, DYE.w, { uVel: VEL.r.tx, uDye: DYE.r.tx, uFlow: FLOW.r.tx, uCam: camTex, uCamScale: camScale(), uGT: [1 / G.nx, 1 / G.ny], uDt: dt, uInject: P.inject, uFade: P.fade, uAmbient: P.ambient, uGate: P.gate }); DYE.swap();
+}
+function stepFlip(dt) {
+  const T = G.T, cs = camScale();
+  if (PART.needCol) { run(S_PCOL, { w: T, h: T, fbo: colOnly(PART.a) }, { uPos: PART.a.t[0], uCam: camTex, uCamScale: cs }); PART.needCol = false; }
+  // P2G: bilinear splats, additive
+  gl.bindFramebuffer(gl.FRAMEBUFFER, ACC.fbo); gl.viewport(0, 0, G.nx, G.ny); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(S_P2G); S_P2G.unit = 0;
+  setU(S_P2G, 'uPos', PART.r.t[0]); setU(S_P2G, 'uVel', PART.r.t[1]); setU(S_P2G, 'uT', { int: T }); setU(S_P2G, 'uSize', [G.nx, G.ny]);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.bindVertexArray(VAO); gl.drawArrays(gl.POINTS, 0, T * T * 4); gl.disable(gl.BLEND);
+  run(S_NORM, VEL.w, { uAcc: ACC.tx }); VEL.swap();
+  force(dt);
+  run(S_COPY, VOLD, { uSrc: VEL.r.tx });
+  pressure();
+  run(S_G2P, PART.w, { uPos: PART.r.t[0], uVel: PART.r.t[1], uCol: PART.r.t[2], uGrid: VEL.r.tx, uGridOld: VOLD.tx, uSize: [G.nx, G.ny], uDt: dt, uFlip: P.flip, uRespawn: P.respawn, uLive: P.live, uTime: simT % 1000, uCam: camTex, uCamScale: cs });
+  PART.swap();
+}
+// an FBO that writes only the colour attachment of a particle target (for the first colouring)
+function colOnly(t) {
+  if (t.colFbo) return t.colFbo;
+  const f = gl.createFramebuffer(); gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t.texs[2], 0); gl.drawBuffers([gl.COLOR_ATTACHMENT0]);
+  return (t.colFbo = f);
+}
+
+/* ── draw ── */
+function gradU() { return { uGrad: gradTex, uGradRow: (Math.min(P.grad, DIR) + 0.5) / GRADS.length, uVmax: P.vmax, uDir: P.grad === DIR ? 1 : 0, uGradMix: P.gradMix }; }
+function draw() {
+  const cs = camScale(), gu = gradU();
+  if (ST.mode === 'gas') run(S_SHOW_GAS, SCENE, { uDye: DYE.r.tx, uVel: VEL.r.tx, uCam: camTex, uCamScale: cs, uCamA: P.camA, uField: P.field, ...gu });
+  else {
+    run(S_SHOW_CAM, SCENE, { uCam: camTex, uCamScale: cs, uCamA: P.camA });
+    gl.useProgram(S_PTS); S_PTS.unit = 0;
+    setU(S_PTS, 'uPos', PART.r.t[0]); setU(S_PTS, 'uCol', PART.r.t[2]); setU(S_PTS, 'uVel', PART.r.t[1]); setU(S_PTS, 'uT', { int: G.T });
+    setU(S_PTS, 'uPt', P.pt * Math.min(devicePixelRatio || 1, 2) * P.scale); setU(S_PTS, 'uA', P.palpha);
+    for (const k in gu) setU(S_PTS, k, gu[k]);
+    gl.enable(gl.BLEND); if (P.add) gl.blendFunc(gl.SRC_ALPHA, gl.ONE); else gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.drawArrays(gl.POINTS, 0, G.T * G.T); gl.disable(gl.BLEND);
+  }
+  run(S_POST, null, { uScene: SCENE.tx, uExp: P.exposure, uTemp: P.temp, uSat: P.saturation, uHue: P.hue * Math.PI / 180, uTone: P.tone, uCon: P.contrast, uGam: P.gamma });
+  if (P.vectors) {
+    const nx = Math.round(G.fx / 3), ny = Math.round(G.fy / 3);
+    gl.useProgram(S_VEC); S_VEC.unit = 0;
+    setU(S_VEC, 'uFlow', FLOW.r.tx); gl.uniform2i(gl.getUniformLocation(S_VEC, 'uN'), nx, ny);
+    setU(S_VEC, 'uLen', 3.0); setU(S_VEC, 'uAsp', [1 / G.fx, 1 / G.fy]);
+    gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.drawArrays(gl.LINES, 0, nx * ny * 2); gl.disable(gl.BLEND);
+  }
+}
+
+/* ── loop ── */
+let last = performance.now(), paused = false, fps = 0, fpsN = 0, fpsT = last, running = false;
+function frame() {
+  requestAnimationFrame(frame);
+  if (!running) return;
+  resize();
+  const now = performance.now(), dt = Math.min(1 / 30, (now - last) / 1000); last = now;
+  if (uploadCam()) flowStep();
+  if (!paused) { simT += dt; if (ST.mode === 'gas') stepGas(dt); else stepFlip(dt); }
+  draw();
+  fpsN++; if (now - fpsT > 500) { fps = fpsN * 1000 / (now - fpsT); fpsN = 0; fpsT = now; stats(); }
+}
+function stats() {
+  const pr = presetName();
+  $('stats').innerHTML = `${ST.mode === 'gas' ? 'gas · midpoint advection' : 'flip · p2g / g2p'}${pr ? ` · preset <b>${pr}</b>` : ''}<br>grid <b>${G.nx}×${G.ny}</b> · flow <b>${G.fx}×${G.fy}</b>${ST.mode === 'flip' ? ` · particles <b>${fmtCount(G.T)}</b>` : ''}<br>`
+    + `render <b>${fps.toFixed(0)}</b> fps · camera <b>${(1 / camDt).toFixed(0)}</b> fps${paused ? ' · <b>paused</b>' : ''}`;
+}
+const fmtCount = (T) => { const n = T * T; return n >= 1e6 ? (n / 1e6).toFixed(1) + 'M' : (n / 1000).toFixed(0) + 'k'; };
+
+/* ── UI ── */
+function setMode(m) {
+  ST.mode = m; P = ST[m]; save();
+  document.querySelectorAll('#mode button').forEach((b) => b.classList.toggle('on', b.dataset.m === m));
+  rebuild();
+  if (m === 'flip' && (!PART || G.T !== P.count)) buildParticles();
+  buildPanel(); stats();
+}
+document.querySelectorAll('#mode button').forEach((b) => (b.onclick = () => setMode(b.dataset.m)));
+function applyPreset(k) {
+  const vals = k === 'default' ? Object.fromEntries(Object.keys(PRESETS[ST.mode].low).map((key) => [key, DEF[ST.mode][key]])) : PRESETS[ST.mode][k];
+  Object.assign(P, vals); save(); rebuild();
+  if (ST.mode === 'flip' && G.T !== P.count) buildParticles();
+  buildPanel(); stats();
+}
+function loadUser(name) {
+  const u = UP[ST.mode][name]; if (!u) return;
+  const oldCount = P.count;
+  Object.assign(P, DEF[ST.mode], u); save(); rebuild();
+  if (ST.mode === 'flip' && (G.T !== P.count || oldCount !== P.count)) buildParticles();
+  userSel = name; buildPanel(); stats();
+}
+function exportUser() {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(UP, null, 2)], { type: 'application/json' }));
+  a.download = 'camfluid-presets.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function importUser(file) {
+  file.text().then((t) => {
+    const u = JSON.parse(t); let n = 0;
+    for (const m of ['gas', 'flip']) if (u[m] && typeof u[m] === 'object') for (const [k, v] of Object.entries(u[m])) if (v && typeof v === 'object') { UP[m][k] = v; n++; }
+    saveUP(); buildPanel(); flash(`imported ${n} preset${n === 1 ? '' : 's'}`);
+  }).catch((e) => flash('import failed: ' + e.message));
+}
+let flashMsg = '', flashT = 0;
+function flash(m) { flashMsg = m; flashT = performance.now(); const el = $('upmsg'); if (el) el.textContent = m; }
+function buildPanel() {
+  const L = $('panel'); L.innerHTML = '';
+  const D = DEF[ST.mode];
+  const grp = (t, note) => L.insertAdjacentHTML('beforeend', `<div class="grp">${t}${note ? ` <i>· ${note}</i>` : ''}</div>`);
+  const sl = (label, key, min, max, step, fmt, cb) => {
+    const r = document.createElement('div'); r.className = 'row';
+    r.innerHTML = `<span>${label}</span><input type="range" min="${min}" max="${max}" step="${step}" value="${P[key]}"><span class="v"></span>`;
+    const i = r.children[1], v = r.children[2], show = () => (v.textContent = fmt ? fmt(P[key]) : P[key]); show();
+    i.oninput = () => { P[key] = +i.value; show(); save(); if (cb) cb(); };
+    i.ondblclick = () => { P[key] = D[key]; i.value = P[key]; show(); save(); if (cb) cb(); };
+    L.appendChild(r);
+  };
+  const sel = (label, key, opts, cb) => {
+    const r = document.createElement('div'); r.className = 'row';
+    r.innerHTML = `<span>${label}</span><select>${opts.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select><span></span>`;
+    r.children[1].value = String(P[key]); r.children[1].onchange = (e) => { P[key] = +e.target.value; save(); if (cb) cb(); stats(); }; L.appendChild(r);
+  };
+  const ck = (label, key, cb) => { const r = document.createElement('label'); r.className = 'chk'; r.innerHTML = `<input type="checkbox" ${P[key] ? 'checked' : ''}><span>${label}</span>`; r.firstChild.onchange = (e) => { P[key] = e.target.checked; save(); if (cb) cb(); }; L.appendChild(r); };
+  const f2 = (v) => v.toFixed(2), px = (v) => v + ' px', perf = () => { stats(); markPreset(); };
+  // presets
+  grp(ST.mode === 'gas' ? 'gas settings' : 'flip settings', 'gpu preset');
+  const pre = document.createElement('div'); pre.className = 'switch';
+  pre.innerHTML = '<button data-p="low">Low GPU</button><button data-p="default">Default</button><button data-p="high">High GPU</button>';
+  pre.querySelectorAll('button').forEach((b) => (b.onclick = () => applyPreset(b.dataset.p)));
+  L.appendChild(pre);
+  const markPreset = () => { const n = presetName(); pre.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.p === n)); };
+  markPreset();
+  // user presets
+  grp('my presets', ST.mode === 'gas' ? 'gas' : 'flip');
+  const names = Object.keys(UP[ST.mode]).sort((a, b) => a.localeCompare(b));
+  if (!names.includes(userSel)) userSel = names[0] || '';
+  const ur = document.createElement('div'); ur.className = 'row';
+  ur.innerHTML = `<span>preset</span><select>${names.length ? names.map((n) => `<option>${n.replace(/</g, '&lt;')}</option>`).join('') : '<option value="">— none —</option>'}</select><span></span>`;
+  const us = ur.children[1]; us.value = userSel; us.onchange = () => { userSel = us.value; };
+  L.appendChild(ur);
+  const ub = document.createElement('div'); ub.className = 'switch';
+  ub.innerHTML = '<button data-a="load">Load</button><button data-a="save">Save</button><button data-a="del">Delete</button>';
+  L.appendChild(ub);
+  const ub2 = document.createElement('div'); ub2.className = 'switch';
+  ub2.innerHTML = '<button data-a="export">Export</button><button data-a="import">Import</button>';
+  L.appendChild(ub2);
+  const fin = document.createElement('input'); fin.type = 'file'; fin.accept = '.json,application/json'; fin.style.display = 'none';
+  fin.onchange = () => { if (fin.files[0]) importUser(fin.files[0]); fin.value = ''; };
+  L.appendChild(fin);
+  L.insertAdjacentHTML('beforeend', `<div id="upmsg" style="min-height:12px;color:var(--ink)">${performance.now() - flashT < 4000 ? flashMsg : ''}</div>`);
+  const act = {
+    load: () => { if (us.value) loadUser(us.value); },
+    save: () => {
+      const n = (prompt('Preset name', us.value || 'my preset') || '').trim(); if (!n) return;
+      if (UP[ST.mode][n] && n !== us.value && !confirm(`Overwrite "${n}"?`)) return;
+      UP[ST.mode][n] = { ...P }; saveUP(); userSel = n; buildPanel(); flash(`saved "${n}"`);
+    },
+    del: () => { const n = us.value; if (!n || !confirm(`Delete "${n}"?`)) return; delete UP[ST.mode][n]; saveUP(); userSel = ''; buildPanel(); flash(`deleted "${n}"`); },
+    export: exportUser,
+    import: () => fin.click(),
+  };
+  [ub, ub2].forEach((b) => b.querySelectorAll('button').forEach((x) => (x.onclick = act[x.dataset.a])));
+  if (ST.mode === 'flip') {
+    grp('amount');
+    sel('particles', 'count', [[128, '16k'], [256, '65k'], [362, '131k'], [512, '262k'], [724, '524k'], [1024, '1.0M'], [1448, '2.1M']], () => { buildParticles(); perf(); });
+  }
+  grp('resolution');
+  sl('fluid grid', 'res', 48, 512, 16, px, () => { rebuild(); perf(); });
+  if (ST.mode === 'gas') sel('dye detail', 'dyeK', [[1, '1×'], [2, '2×'], [3, '3×'], [4, '4×']], () => { rebuild(); perf(); });
+  sl('vector grid', 'flowRes', 48, 240, 8, px, () => { rebuild(); perf(); });
+  sl('render scale', 'scale', 0.25, 1, 0.05, f2, () => { rebuild(); perf(); });
+  sl('pressure iter', 'iters', 4, 120, 1, null, perf);
+  grp('forces');
+  sl('strength', 'strength', 0, 6, 0.05, f2); sl('push', 'push', 0, 6, 0.05, f2); sl('swirl', 'swirl', 0, 80, 0.5); sl('damping', 'damp', 0, 3, 0.01, f2);
+  grp('motion');
+  sl('flow gain', 'flowGain', 0.2, 4, 0.05, f2); sl('noise gate', 'gate', 0, 1.5, 0.01, f2); sl('flow smooth', 'flowSmooth', 0, 0.95, 0.01, f2);
+  if (ST.mode === 'gas') { grp('gas'); sl('inject', 'inject', 0, 10, 0.1, f2); sl('fade', 'fade', 0, 3, 0.01, f2); sl('camera paint', 'ambient', 0, 3, 0.01, f2); }
+  else {
+    grp('flip');
+    sl('flip / pic', 'flip', 0, 1, 0.01, f2); sl('respawn /s', 'respawn', 0, 2, 0.01, f2); sl('live colour', 'live', 0, 10, 0.05, f2);
+    sl('point size', 'pt', 0.5, 6, 0.1, f2, perf); sl('opacity', 'palpha', 0.05, 1, 0.01, f2); ck('additive', 'add');
+  }
+  grp('velocity gradient');
+  sel('gradient', 'grad', GRADS.map((g, i) => [i, g[0]]), () => { drawStrip(); });
+  const strip = document.createElement('canvas'); strip.className = 'strip'; strip.width = 256; strip.height = 1; L.appendChild(strip);
+  const drawStrip = () => { const c = strip.getContext('2d'), im = c.createImageData(256, 1); for (let i = 0; i < 256; i++) { const v = gradAt(GRADS[P.grad] || GRADS[0], i / 255); im.data.set([v[0], v[1], v[2], 255], i * 4); } c.putImageData(im, 0, 0); };
+  drawStrip();
+  sl('gradient mix', 'gradMix', 0, 1, 0.01, f2); sl('speed range', 'vmax', 5, 400, 1, (v) => v + ' c/s');
+  if (ST.mode === 'gas') sl('field', 'field', 0, 1, 0.01, f2);
+  grp('colour');
+  sl('exposure', 'exposure', -4, 4, 0.05, (v) => (v > 0 ? '+' : '') + v.toFixed(2) + ' EV');
+  sl('temperature', 'temp', -1, 1, 0.01, f2); sl('saturation', 'saturation', 0, 3, 0.01, f2); sl('hue shift', 'hue', -180, 180, 1, (v) => v + '°');
+  sel('tone map', 'tone', [[0, 'clamp'], [1, 'Reinhard'], [2, 'ACES']]);
+  sl('contrast', 'contrast', 0.3, 2.5, 0.01, f2); sl('gamma', 'gamma', 0.4, 2.5, 0.01, f2);
+  grp('view');
+  sl('camera', 'camA', 0, 1, 0.01, f2); ck('motion vectors', 'vectors');
+}
+function togglePanel() { const on = $('panel').classList.toggle('on'); $('setbtn').classList.toggle('on', on); }
+$('setbtn').onclick = togglePanel; $('setbtn').classList.add('on');
+addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  const k = e.key.toLowerCase();
+  if (k === 'h') togglePanel();
+  else if (k === 'v') { P.vectors = !P.vectors; save(); buildPanel(); }
+  else if (k === 'c') { P.camA = P.camA > 0 ? 0 : 0.35; save(); buildPanel(); }
+  else if (k === 'r') { rebuild(); if (ST.mode === 'flip') buildParticles(); }
+  else if (e.code === 'Space') { e.preventDefault(); paused = !paused; stats(); }
+  else if (k === 'g') setMode('gas'); else if (k === 'f') setMode('flip');
+});
+$('go').onclick = async () => {
+  try { await startCam(); } catch (e) { $('go').textContent = '[ camera unavailable ]'; $('start').querySelector('p').textContent = e.message + ' · open over https or http://localhost'; return; }
+  $('start').style.display = 'none';
+  rebuild(); if (ST.mode === 'flip') buildParticles();
+  running = true; last = performance.now();
+};
+setMode(ST.mode);
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

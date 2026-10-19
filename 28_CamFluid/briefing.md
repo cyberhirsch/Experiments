@@ -57,3 +57,92 @@ Neon, Toxic, Sunset, Ocean, Copper, Mono) in one 256 × N texture, plus Directio
 flow angle, value from the speed). The speed |v| / speed range (cells per second) picks the colour;
 Gradient mix blends it with the camera colour. Gas samples the grid velocity per pixel and Field
 shows the gradient outside the dye too; FLIP colours each particle by its own velocity.
+
+## v004 — your own presets
+
+`CamFluid_v004.html`. Under the GPU presets, *My presets* (per solver): Save stores the solver's
+whole current set under a name (asks before overwriting another name), Load restores it on top of
+the defaults (so presets from older versions with fewer keys still load), Delete removes it. Export
+writes every preset of both solvers to `camfluid-presets.json`; Import merges a file in by name. Kept
+in localStorage under `camfluid.presets`, independent of the version key.
+
+## v005 — HEIC snapshots, soft dissolve
+
+`CamFluid_v005.html` + `coi-sw.js`.
+
+**S saves a HEIC** of the clean frame: read back right after the colour grade, before the motion
+vectors (the HTML overlay is never in the canvas), at canvas resolution (render scale matters).
+Browsers cannot encode HEIC themselves (`toBlob` does PNG / JPEG / WebP), so the encoder is
+[icodec](https://github.com/Kaciras/icodec) 0.6.0 (MIT; libheif + x265, GPL) from jsDelivr, in a
+module worker: quality 82, x265 preset fast, 4:2:0, sharp YUV. x265 runs threads on shared memory,
+which needs a cross-origin-isolated page; `coi-sw.js` is a service worker that adds COOP same-origin
+and COEP credentialless to every response (the page reloads once after it registers). Works over
+http(s): GitHub Pages or localhost. On `file://`, or when anything fails, S saves a PNG and says why.
+The encoder's pthread workers load the encoder script itself, so the script is fetched and run from
+a blob with its self-URL patched to that blob.
+
+**Dissolve (opacity gradients).** v003 showed hard-edged grey blobs: empty dye cells snapped to the
+camera colour, and the display used max(density, field), a hard step. Now:
+- Gas dye is premultiplied (rgb · density); injection adds camera colour × amount. *Softness*
+  diffuses the dye a little each step; *Breakup* (with *scale*) varies the fade rate with drifting
+  value noise, so it dissolves in wisps. Display: opacity = (density / *edge*)^*curve*, the dye
+  composited over the field layer.
+- FLIP particles have a lifetime (age in pos.z, life factor 0.5–1.5 in pos.w, life = factor /
+  respawn): *fade in*, *fade out* and *curve* shape the opacity over the life, *soft points* adds
+  a radial falloff. Respawn 0 = immortal particles at full opacity.
+
+## v006 — open borders
+
+`CamFluid_v006.html`. *Borders* (per solver): a checkbox per screen edge; checked = open. An open
+edge is an outflow boundary: pressure 0 outside (Dirichlet) instead of the mirrored wall (Neumann),
+the normal velocity is not zeroed, dye traced back from beyond it comes in empty, and FLIP particles
+that leave through it respawn inside. All closed = the v005 box.
+
+## v007 — fill container, emit from motion (FLIP)
+
+`CamFluid_v007.html`. Particles can be dead (colour alpha 0: no P2G weight, not drawn). They die at
+the end of their life (respawn) or through an open edge. *Fill container* rebirths them anywhere
+(box stays full; off = starts empty). *Emit from motion* lets each dead particle try 4 random spots
+per step, accepted with probability *emit rate* · motion · dt (motion = the gated flow magnitude);
+it starts with the grid velocity and camera colour there. Both on: motion first, random fill as the
+fallback. Neither: dead stays dead (R restarts). Toggling either restarts the particles.
+Particle menu extends to 4.2M / 8.4M / 16.8M (2048², 2896², 4096²; 96 bytes per particle for the ping-pong state, 1.6 GB at 16.8M).
+
+## v008 — open borders stop reflecting particles
+
+`CamFluid_v008.html`. v006 kept the FLIP wall bounce (clamp to half a cell, reverse the normal
+velocity × 0.3) on all four edges, open or not, so particles in the last half cell before an open
+edge were thrown back with their velocity reversed. The bounce now runs only on closed edges; at an
+open edge a particle keeps its velocity, crosses and dies. The grid side (Dirichlet pressure, no
+normal-velocity zeroing, empty inflow) was already open.
+
+## v009 — FLIP defaults
+
+`CamFluid_v009.html`. FLIP starts with the camera underlay on (0.35) and all four borders open; Gas keeps
+the closed box without underlay. New storage key, so the new defaults apply.
+
+## v010 — Gas defaults
+
+`CamFluid_v010.html`. Gas starts with the camera underlay on (0.35) and the High GPU set (3090): grid 288,
+dye 3x, vector grid 160, render scale 1, 60 iterations. Default and High GPU coincide for Gas.
+
+## v011 — four GPU tiers, vectors off
+
+`CamFluid_v011.html`. The panel heading is gone; the tier buttons sit on top: Default (RTX 3090
+class, also the start values), High, Medium, Low. Cost keys only.
+
+| Gas | grid | dye | vectors | render | iter |
+|---|---|---|---|---|---|
+| Default | 288 | 3× | 160 | 1 | 60 |
+| High | 224 | 2× | 128 | 1 | 45 |
+| Medium | 160 | 2× | 96 | 0.75 | 30 |
+| Low | 96 | 1× | 64 | 0.5 | 16 |
+
+| FLIP | grid | vectors | render | iter | particles | point |
+|---|---|---|---|---|---|---|
+| Default | 256 | 160 | 1 | 50 | 4.2M | 1.0 |
+| High | 192 | 128 | 1 | 40 | 1.0M | 1.2 |
+| Medium | 128 | 96 | 0.75 | 30 | 262k | 1.6 |
+| Low | 96 | 64 | 0.5 | 16 | 65k | 2.0 |
+
+Motion vectors start off (V shows them).
